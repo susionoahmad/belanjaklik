@@ -46,25 +46,52 @@ Return ONLY the JSON object, no markdown, no explanation.`;
 
         const mimeType = cropImageUrl.startsWith('data:image/jpeg') ? 'image/jpeg' : 'image/png';
 
-        const response = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contents: [{
-                parts: [
-                  { text: GeminiVisionAdapter.GEMINI_PROMPT },
-                  { inlineData: { mimeType: mimeType, data: base64Data } }
-                ]
-              }],
-              generationConfig: {
-                temperature: 0.1,
-                maxOutputTokens: 1024
+        // Try models in order: 2.5-flash → 2.0-flash (fallback)
+        const MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash'];
+        let response: Response | null = null;
+        let lastError = '';
+
+        for (const model of MODELS) {
+          try {
+            response = await fetch(
+              `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+              {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  contents: [{
+                    parts: [
+                      { text: GeminiVisionAdapter.GEMINI_PROMPT },
+                      { inlineData: { mimeType: mimeType, data: base64Data } }
+                    ]
+                  }],
+                  generationConfig: {
+                    temperature: 0.1,
+                    maxOutputTokens: 1024
+                  },
+                  // Disable thinking for speed (2.5-flash supports this)
+                  ...(model.includes('2.5') ? { thinkingConfig: { thinkingBudget: 0 } } : {})
+                })
               }
-            })
+            );
+            if (response.ok) {
+              console.log(`[GeminiVision] Using model: ${model}`);
+              break;
+            }
+            const errText = await response.text();
+            lastError = `${model} → ${response.status}`;
+            console.warn(`[GeminiVision] ${model} failed (${response.status}):`, errText);
+            response = null; // reset for next iteration
+          } catch (fetchErr) {
+            lastError = `${model} → network error`;
+            console.warn(`[GeminiVision] ${model} fetch error:`, fetchErr);
           }
-        );
+        }
+
+        // All models failed
+        if (!response) {
+          return this._errorFallback(`Semua model gagal: ${lastError}`);
+        }
 
         if (!response.ok) {
           const errBody = await response.text();
