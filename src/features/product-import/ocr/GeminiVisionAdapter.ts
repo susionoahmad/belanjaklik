@@ -4,11 +4,13 @@ import type { RawOCRResult } from '../types';
 export class GeminiVisionAdapter extends OCRAdapter {
   name = 'Gemini Vision OCR Adapter';
 
-  // Short, focused prompt for faster/more reliable response
+  // Prompt: explicit about price extraction
   private static readonly GEMINI_PROMPT =
-    `Extract product info from this grocery store product card image. Return ONLY a JSON object:\n` +
-    `{"product_name":"full name with brand and size","brand":"brand only","size":"package size","current_price":0,"original_price":null,"has_strikethrough":false,"discount_percent":null,"promo_badge":null}\n` +
-    `Rules: prices as integers without dots or Rp. Return ONLY the JSON, no markdown.`;
+    `You are an OCR tool for Indonesian grocery product cards. Analyze the image and extract ALL visible text.\n` +
+    `IMPORTANT: You MUST find the price. Look for numbers like 2900, 14200, 44000, or text like "Rp 2.900" or "44.000".\n` +
+    `Return ONLY this JSON (no markdown, no explanation):\n` +
+    `{"product_name":"exact product name with brand and size","brand":"brand name","size":"package size e.g. 85g 1L 2L","current_price":14200,"original_price":null,"discount_percent":null,"promo_badge":null}\n` +
+    `current_price: selling price as plain integer (e.g. 14200 not 14.200). original_price: strikethrough/harga coret price or null.`;
 
   // ─── Compress image to JPEG <512KB to avoid Gemini 400 ─────────────────────
   private async _compressImage(dataUrl: string): Promise<{ data: string; mimeType: string }> {
@@ -45,8 +47,8 @@ export class GeminiVisionAdapter extends OCRAdapter {
     });
   }
 
-  // ─── Call Gemini API ────────────────────────────────────────────────────────
-  private async _callGemini(model: string, apiKey: string, base64: string, mimeType: string): Promise<{ ok: boolean; text?: string; error?: string }> {
+  // ─── Call Gemini API with 429 retry ────────────────────────────────────────
+  private async _callGemini(model: string, apiKey: string, base64: string, mimeType: string): Promise<{ ok: boolean; text?: string; error?: string; isRateLimit?: boolean }> {
     const body: Record<string, unknown> = {
       contents: [{
         parts: [
@@ -56,8 +58,7 @@ export class GeminiVisionAdapter extends OCRAdapter {
       }],
       generationConfig: {
         temperature: 0.1,
-        maxOutputTokens: 512,
-        responseMimeType: 'application/json'
+        maxOutputTokens: 512
       }
     };
 
@@ -66,35 +67,48 @@ export class GeminiVisionAdapter extends OCRAdapter {
       (body.generationConfig as Record<string, unknown>).thinkingConfig = { thinkingBudget: 0 };
     }
 
-    try {
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body)
+    const attempt = async (): Promise<{ ok: boolean; text?: string; error?: string; isRateLimit?: boolean }> => {
+      try {
+        const res = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+          }
+        );
+
+        const rawText = await res.text();
+
+        if (res.status === 429) {
+          console.warn(`[GeminiVision] ${model} rate limited (429), will retry after delay`);
+          return { ok: false, isRateLimit: true, error: `${model}: Quota terlampaui` };
         }
-      );
 
-      const rawText = await res.text();
+        if (!res.ok) {
+          let msg = `HTTP ${res.status}`;
+          try { msg = JSON.parse(rawText)?.error?.message || msg; } catch { /* ignore */ }
+          console.error(`[GeminiVision] ${model} → ${res.status}:`, rawText.slice(0, 300));
+          return { ok: false, error: `${model}: ${msg}` };
+        }
 
-      if (!res.ok) {
-        let msg = `HTTP ${res.status}`;
-        try {
-          msg = JSON.parse(rawText)?.error?.message || msg;
-        } catch { /* ignore */ }
-        console.error(`[GeminiVision] ${model} → ${res.status}:`, rawText);
-        return { ok: false, error: `${model}: ${msg}` };
+        const data = JSON.parse(rawText);
+        const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+        console.log(`[GeminiVision] ${model} OK →`, text.slice(0, 150));
+        return { ok: true, text };
+      } catch (err) {
+        console.error(`[GeminiVision] ${model} fetch error:`, err);
+        return { ok: false, error: `${model}: network error` };
       }
+    };
 
-      const data = JSON.parse(rawText);
-      const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
-      console.log(`[GeminiVision] ${model} OK. Response:`, text.slice(0, 200));
-      return { ok: true, text };
-    } catch (err) {
-      console.error(`[GeminiVision] ${model} fetch error:`, err);
-      return { ok: false, error: `${model}: network error` };
+    // Try once, if rate limited wait 3s and retry once more
+    const result = await attempt();
+    if (result.isRateLimit) {
+      await new Promise(r => setTimeout(r, 3000));
+      return await attempt();
     }
+    return result;
   }
 
   // ─── Main entry point ───────────────────────────────────────────────────────

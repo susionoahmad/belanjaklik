@@ -76,7 +76,8 @@ export class CardCroppingStage implements PipelineStage {
 
       if (baseImageSrc) {
         try {
-          const cropArea = cardSubBounds[i]?.imageArea || card.boundingBox;
+          // Use full cardBox (includes price, name, badges) not just imageArea
+          const cropArea = cardSubBounds[i]?.cardBox || card.boundingBox;
           cropUrl = await CropEngine.cropRegion(baseImageSrc, cropArea);
         } catch (e) {}
       }
@@ -97,9 +98,24 @@ export class VisionOCRStage implements PipelineStage {
   name = 'Vision OCR Stage';
   enabled = true;
 
+  // Sequential delay to avoid Gemini API rate limits (15 RPM free tier)
+  private static async _delay(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
   async execute(context: PipelineContext): Promise<PipelineContext> {
-    context.logs.push('Executing Vision OCR: Extracting raw text from cropped card images.');
-    for (const card of context.detectedCards) {
+    const cardCount = context.detectedCards.length;
+    context.logs.push(`Executing Vision OCR: Processing ${cardCount} cards sequentially to respect API rate limits.`);
+
+    for (let i = 0; i < cardCount; i++) {
+      const card = context.detectedCards[i];
+      context.logs.push(`OCR card ${i + 1}/${cardCount}...`);
+
+      // Add delay between API calls (1.5s) to avoid Gemini 429 rate limit
+      if (i > 0) {
+        await VisionOCRStage._delay(1500);
+      }
+
       const imgKey = `${card.cropImageUrl}#idx_${card.cardIndex}`;
       const ocrResult = await ocrAdapter.processImage(imgKey);
       card.rawOcrText = ocrResult.text;
