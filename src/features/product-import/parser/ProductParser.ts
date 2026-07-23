@@ -2,9 +2,27 @@ import type { ParsedProductData, RawOCRResult } from '../types';
 
 export class ProductParser {
   private static knownBrands = [
-    'Fortune', 'Indomie', 'Bimoli', 'Sania', 'Gulaku', 'Kapal Api',
-    'Aqua', 'Chitato', 'Ultra Milk', 'Rinso', 'Lifebuoy', 'Vaseline',
-    'Sunlight', 'Sunsilk', 'Pond\'s', 'Bango', 'Royco', 'Blue Band'
+    // Minyak & Sembako
+    'Fortune', 'Bimoli', 'Sania', 'FILMA', 'Filma', 'Vipco', 'Tropical', 'Hemart',
+    'Gulaku', 'Minyakita', 'Beras Sania',
+    // Minuman & Kopi
+    'Kapal Api', 'Torabika', 'Luwak White Koffie', 'Nescafe', 'Good Day',
+    'Aqua', 'Le Minerale', 'Club', 'Vit', 'Sosro', 'Teh Botol', 'Sariwangi',
+    // Susu
+    'Ultra Milk', 'Dancow', 'Frisian Flag', 'Indomilk', 'Milo', 'Ovomaltine', 'Bear Brand',
+    // Mie & Makanan Instan
+    'Indomie', 'Sedaap', 'Supermi', 'Sarimi', 'Pop Mie', 'ABC',
+    // Snack & Biskuit
+    'Chitato', 'Taro', 'Pilus', 'Chitos', 'Oreo', 'Roma', 'Khong Guan',
+    // Perawatan Diri
+    'Rinso', 'Attack', 'Surf', 'Soklin', 'Sunlight',
+    'Lifebuoy', 'Dettol', 'Biore', 'Sabun Cair',
+    'Vaseline', 'Citra', 'Marina', 'Nivea',
+    'Sunsilk', 'Clear', 'Pantene', 'Rejoice',
+    "Pond's", 'Garnier', 'Olay',
+    'Pepsodent', 'Sensodyne', 'Ciptadent',
+    // Bumbu & Dapur
+    'Bango', 'Royco', 'Masako', 'Indofood', 'Blue Band', 'Sania', 'Kunci Mas'
   ];
 
   static parse(ocrResult: RawOCRResult): ParsedProductData {
