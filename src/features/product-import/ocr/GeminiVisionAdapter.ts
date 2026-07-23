@@ -154,10 +154,28 @@ export class GeminiVisionAdapter extends OCRAdapter {
 
   private _buildLines(p: Record<string, unknown>): string[] {
     const lines: string[] = [];
+
+    // Helper: parse price safely (handles integer, float, OR Indonesian string "2.900")
+    const parsePrice = (val: unknown): number => {
+      if (typeof val === 'number' && val > 0) return Math.round(val);
+      if (typeof val === 'string' && val.trim()) {
+        // Strip all non-digit chars → "Rp 2.900" → "2900" → 2900
+        const digits = val.replace(/[^0-9]/g, '');
+        return parseInt(digits, 10) || 0;
+      }
+      return 0;
+    };
+
+    const currentPrice = parsePrice(p.current_price);
+    const originalPrice = parsePrice(p.original_price);
+    const discount = p.discount_percent ? parseInt(String(p.discount_percent), 10) : 0;
+
     if (p.product_name) lines.push(String(p.product_name));
-    if (p.current_price) lines.push(`Rp ${Number(p.current_price).toLocaleString('id-ID')}`);
-    if (p.original_price) lines.push(`Rp ${Number(p.original_price).toLocaleString('id-ID')} (Harga Coret)`);
-    if (p.discount_percent) lines.push(`Diskon ${p.discount_percent}%`);
+    // Output plain integers without dots — ProductParser regex handles \d{4,7}
+    if (currentPrice > 0) lines.push(`Rp ${currentPrice}`);
+    if (originalPrice > 0 && originalPrice !== currentPrice) lines.push(`Rp ${originalPrice} (Harga Coret)`);
+    if (discount > 0) lines.push(`Diskon ${discount}%`);
+
     if (p.promo_badge) lines.push(String(p.promo_badge));
     return lines.filter(l => l.trim());
   }
