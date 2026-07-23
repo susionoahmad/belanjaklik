@@ -52,7 +52,7 @@ export class MatchingEngine {
 
     // 3. Priority 3: Brand + Name Text Matcher
     const textResult = TextMatcher.match(data, catalog);
-    if (textResult.candidate && textResult.score >= 0.75) {
+    if (textResult.candidate && textResult.score >= 0.50) {
       const confidence = Math.round(textResult.score * 100);
       notes.push(`Matched by Brand & Name similarity (${confidence}%)`);
 
@@ -64,7 +64,7 @@ export class MatchingEngine {
           matched_by_barcode: false,
           matched_by_external_code: false,
           matched_by_brand_name: true,
-          matched_by_image: confidence > 90,
+          matched_by_image: confidence > 85,
           matched_by_embedding: false,
           matched_by_category: true,
           notes
@@ -74,7 +74,7 @@ export class MatchingEngine {
 
     // 4. Priority 4: Image Similarity Matcher (With Sanity Category Check)
     const imageResult = ImageMatcher.match(cropImageUrl, data, catalog);
-    if (imageResult.candidate && imageResult.score >= 0.92) {
+    if (imageResult.candidate && imageResult.score >= 0.90) {
       const confidence = Math.round(imageResult.score * 90);
       notes.push(`Matched by Visual Feature Embedding (${confidence}%)`);
 
@@ -95,10 +95,10 @@ export class MatchingEngine {
     }
 
     // 5. UNMATCHED (UNMATCHED_REQUIRES_CATALOG_PRODUCT) -> Recommend CREATE_NEW!
-    notes.push('UNMATCHED_REQUIRES_CATALOG_PRODUCT: Produk belum ada di katalog, disarankan Tambah Produk Baru');
+    notes.push('UNMATCHED: Produk belum ada di katalog, disarankan Tambah Produk Baru');
     return {
       candidateProduct: undefined,
-      confidence: 100,
+      confidence: 0,
       recommendedAction: 'CREATE_NEW',
       matchReason: {
         matched_by_barcode: false,

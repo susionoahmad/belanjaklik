@@ -168,7 +168,7 @@ export class MatchingStage implements PipelineStage {
     for (const card of context.detectedCards) {
       if (card.normalizedData) {
         card.matchResult = await MatchingEngine.match(card.normalizedData, card.cropImageUrl, catalog);
-        if (card.matchResult.confidence > 0) {
+        if (card.matchResult.candidateProduct) {
           card.confidence = card.matchResult.confidence;
         }
       }

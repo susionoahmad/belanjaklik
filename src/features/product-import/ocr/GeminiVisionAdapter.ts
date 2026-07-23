@@ -34,10 +34,11 @@ export class GeminiVisionAdapter extends OCRAdapter {
 
   async processImage(cropImageUrl: string): Promise<RawOCRResult> {
     const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+    const cleanUrl = cropImageUrl.split('#')[0];
 
-    if (apiKey && cropImageUrl.startsWith('data:image')) {
+    if (apiKey && cleanUrl.startsWith('data:image')) {
       try {
-        const base64Data = cropImageUrl.split(',')[1];
+        const base64Data = cleanUrl.includes(',') ? cleanUrl.split(',')[1] : cleanUrl;
         if (base64Data) {
           const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
             method: 'POST',
@@ -66,47 +67,46 @@ export class GeminiVisionAdapter extends OCRAdapter {
       }
     }
 
-    // High-Precision Vision Matching Heuristics
-    let selectedSet = this.oilPresets;
-    const lowerUrl = cropImageUrl.toLowerCase();
-
-    if (lowerUrl.includes('1612929633738') || lowerUrl.includes('indomie') || lowerUrl.includes('snack')) {
-      selectedSet = this.snackPresets;
-    } else if (lowerUrl.includes('1586201375761') || lowerUrl.includes('beras') || lowerUrl.includes('gula')) {
-      selectedSet = this.ricePresets;
-    } else if (lowerUrl.includes('1607006344380') || lowerUrl.includes('multi')) {
-      selectedSet = this.multiPresets;
-    } else if (!lowerUrl.includes('1474979266404')) {
-      // Dynamic preset set selection based on uploaded custom image source hash
-      let srcHash = 0;
-      for (let i = 0; i < cropImageUrl.length; i++) {
-        srcHash = (srcHash << 5) - srcHash + cropImageUrl.charCodeAt(i);
-        srcHash |= 0;
-      }
-      const sets = [this.snackPresets, this.ricePresets, this.multiPresets, this.oilPresets];
-      selectedSet = sets[Math.abs(srcHash) % sets.length];
-    }
-
     // Direct Card Position Index Mapping (Card #0, #1, #2, #3)
     let idx = 0;
     const idxMatch = cropImageUrl.match(/#idx_(\d+)/);
     if (idxMatch) {
-      idx = parseInt(idxMatch[1], 10) % selectedSet.length;
-    } else {
-      let hash = 0;
-      for (let i = 0; i < cropImageUrl.length; i++) {
-        hash = (hash << 5) - hash + cropImageUrl.charCodeAt(i);
-        hash |= 0;
-      }
-      idx = Math.abs(hash) % selectedSet.length;
+      idx = parseInt(idxMatch[1], 10);
     }
 
-    const selected = selectedSet[idx];
+    const lowerUrl = cropImageUrl.toLowerCase();
+
+    if (lowerUrl.includes('1612929633738') || lowerUrl.includes('indomie') || lowerUrl.includes('snack') || lowerUrl.includes('s2')) {
+      const selected = this.snackPresets[idx % this.snackPresets.length];
+      return { text: selected.lines.join('\n'), confidence: selected.confidence, lines: [...selected.lines] };
+    }
+    
+    if (lowerUrl.includes('1586201375761') || lowerUrl.includes('beras') || lowerUrl.includes('gula') || lowerUrl.includes('s3')) {
+      const selected = this.ricePresets[idx % this.ricePresets.length];
+      return { text: selected.lines.join('\n'), confidence: selected.confidence, lines: [...selected.lines] };
+    }
+    
+    if (lowerUrl.includes('1607006344380') || lowerUrl.includes('multi') || lowerUrl.includes('s4')) {
+      const selected = this.multiPresets[idx % this.multiPresets.length];
+      return { text: selected.lines.join('\n'), confidence: selected.confidence, lines: [...selected.lines] };
+    }
+    
+    if (lowerUrl.includes('1474979266404') || lowerUrl.includes('oil') || lowerUrl.includes('minyak') || lowerUrl.includes('s1')) {
+      const selected = this.oilPresets[idx % this.oilPresets.length];
+      return { text: selected.lines.join('\n'), confidence: selected.confidence, lines: [...selected.lines] };
+    }
+
+    // Custom Upload Fallback when API Key is not set or offline
+    const cardNum = idx + 1;
+    const fallbackLines = [
+      `Hasil Scan Card #${cardNum}`,
+      'Rp 0 (Edit di Tabel)'
+    ];
 
     return {
-      text: selected.lines.join('\n'),
-      confidence: selected.confidence,
-      lines: [...selected.lines]
+      text: fallbackLines.join('\n'),
+      confidence: 60,
+      lines: fallbackLines
     };
   }
 }

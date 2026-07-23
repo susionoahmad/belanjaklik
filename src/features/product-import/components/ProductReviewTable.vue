@@ -97,7 +97,7 @@
                   v-if="item.card.matchResult?.candidateProduct"
                   class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800"
                 >
-                  {{ item.card.confidence }}% Confidence Matched
+                  {{ item.card.matchResult?.confidence || 0 }}% Match Katalog
                 </span>
                 <span 
                   v-else
