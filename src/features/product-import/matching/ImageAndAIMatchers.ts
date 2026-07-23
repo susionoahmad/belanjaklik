@@ -4,24 +4,38 @@ import { ImageEmbeddingService } from '../embeddings/ImageEmbeddingService';
 
 export class ImageMatcher {
   static match(cropImageUrl: string, data: NormalizedProductData, catalog: Product[]): { candidate: Product | null; score: number } {
-    if (!cropImageUrl) return { candidate: null, score: 0 };
-    const cropVector = ImageEmbeddingService.generateEmbedding(cropImageUrl);
+    if (!cropImageUrl || !catalog || catalog.length === 0) return { candidate: null, score: 0 };
+
+    const targetName = (data.normalized_name || '').toLowerCase().trim();
+    const targetBrand = (data.normalized_brand || '').toLowerCase().trim();
+
+    if (!targetName) return { candidate: null, score: 0 };
 
     let bestProduct: Product | null = null;
     let maxScore = 0;
 
-    const cat1 = (data.normalized_name + ' ' + (data.normalized_brand || '')).toLowerCase();
-
     for (const p of catalog) {
-      const cat2 = (p.name + ' ' + (p.brand || '') + ' ' + (p.category || '')).toLowerCase();
+      const pName = p.name.toLowerCase().trim();
+      const pBrand = (p.brand || '').toLowerCase().trim();
 
-      // Category sanity check: avoid matching food/oil to plastic furniture
-      if ((cat1.includes('minyak') || cat1.includes('goreng')) && !cat2.includes('minyak') && !cat2.includes('goreng') && !cat2.includes('sembako')) {
+      // Sanity Check 1: Reject different explicit brands (e.g. Indomie vs FILMA)
+      if (targetBrand && pBrand && targetBrand !== pBrand && !pName.includes(targetBrand)) {
         continue;
       }
 
+      // Sanity Check 2: Reject products with zero word overlap in product name
+      const targetWords = targetName.split(/\s+/).filter(w => w.length >= 3);
+      const candidateWords = pName.split(/\s+/).filter(w => w.length >= 3);
+      const hasWordOverlap = targetWords.some(w => candidateWords.includes(w));
+
+      if (!hasWordOverlap) {
+        continue;
+      }
+
+      const cropVector = ImageEmbeddingService.generateEmbedding(cropImageUrl);
       const prodVector = ImageEmbeddingService.generateEmbedding(p.image_url || p.name);
       const sim = ImageEmbeddingService.cosineSimilarity(cropVector, prodVector);
+
       if (sim > maxScore) {
         maxScore = sim;
         bestProduct = p;
