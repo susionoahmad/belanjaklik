@@ -4,186 +4,165 @@ import type { RawOCRResult } from '../types';
 export class GeminiVisionAdapter extends OCRAdapter {
   name = 'Gemini Vision OCR Adapter';
 
-  private static readonly GEMINI_PROMPT = `You are an expert OCR engine for Indonesian grocery/retail store screenshots.
+  // Short, focused prompt for faster/more reliable response
+  private static readonly GEMINI_PROMPT =
+    `Extract product info from this grocery store product card image. Return ONLY a JSON object:\n` +
+    `{"product_name":"full name with brand and size","brand":"brand only","size":"package size","current_price":0,"original_price":null,"has_strikethrough":false,"discount_percent":null,"promo_badge":null}\n` +
+    `Rules: prices as integers without dots or Rp. Return ONLY the JSON, no markdown.`;
 
-Analyze this product card image carefully and extract ALL visible text.
+  // ─── Compress image to JPEG <512KB to avoid Gemini 400 ─────────────────────
+  private async _compressImage(dataUrl: string): Promise<{ data: string; mimeType: string }> {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        // Scale down if too large (max 800px wide)
+        const MAX = 800;
+        let { width, height } = img;
+        if (width > MAX) {
+          height = Math.round((height * MAX) / width);
+          width = MAX;
+        }
 
-Return a JSON object with this exact structure:
-{
-  "product_name": "Full product name including brand, variant, size (e.g. Indomie Goreng Spesial 85g)",
-  "brand": "Brand name only (e.g. Indomie, Kapal Api, Ultra Milk)",
-  "variant": "Variant/flavor if any (e.g. Goreng Spesial, Sapi Panggang, Full Cream)",
-  "size": "Package size (e.g. 85g, 1L, 165g, 68g)",
-  "current_price": 2900,
-  "original_price": null,
-  "has_strikethrough": false,
-  "discount_percent": null,
-  "promo_badge": null,
-  "all_text_lines": ["line1", "line2", "line3"]
-}
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d')!;
+        ctx.drawImage(img, 0, 0, width, height);
 
-Rules:
-- current_price: the promotional/selling price as an integer (without Rp or dots)
-- original_price: the crossed-out / strikethrough price as integer, or null if none
-- has_strikethrough: true if there is a price with strikethrough/harga coret
-- discount_percent: integer like 12 for 12%, or null
-- promo_badge: promo label text or null
-- all_text_lines: every line of text visible in the image
-- Use Indonesian product names exactly as shown
-- If a field cannot be determined, use null
+        // Encode as JPEG 0.85 quality
+        const compressed = canvas.toDataURL('image/jpeg', 0.85);
+        const base64 = compressed.split(',')[1];
+        console.log(`[GeminiVision] Image compressed: ${Math.round(base64.length / 1024)}KB`);
+        resolve({ data: base64, mimeType: 'image/jpeg' });
+      };
+      img.onerror = () => {
+        // Fallback: use original as-is
+        const mimeType = dataUrl.startsWith('data:image/jpeg') ? 'image/jpeg' : 'image/png';
+        const base64 = dataUrl.includes(',') ? dataUrl.split(',')[1] : dataUrl;
+        resolve({ data: base64, mimeType });
+      };
+      img.src = dataUrl;
+    });
+  }
 
-Return ONLY the JSON object, no markdown, no explanation.`;
+  // ─── Call Gemini API ────────────────────────────────────────────────────────
+  private async _callGemini(model: string, apiKey: string, base64: string, mimeType: string): Promise<{ ok: boolean; text?: string; error?: string }> {
+    const body: Record<string, unknown> = {
+      contents: [{
+        parts: [
+          { text: GeminiVisionAdapter.GEMINI_PROMPT },
+          { inlineData: { mimeType, data: base64 } }
+        ]
+      }],
+      generationConfig: {
+        temperature: 0.1,
+        maxOutputTokens: 512,
+        responseMimeType: 'application/json'
+      }
+    };
 
+    // thinkingConfig only for 2.5+ models (inside generationConfig)
+    if (model.includes('2.5')) {
+      (body.generationConfig as Record<string, unknown>).thinkingConfig = { thinkingBudget: 0 };
+    }
+
+    try {
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        }
+      );
+
+      const rawText = await res.text();
+
+      if (!res.ok) {
+        let msg = `HTTP ${res.status}`;
+        try {
+          msg = JSON.parse(rawText)?.error?.message || msg;
+        } catch { /* ignore */ }
+        console.error(`[GeminiVision] ${model} → ${res.status}:`, rawText);
+        return { ok: false, error: `${model}: ${msg}` };
+      }
+
+      const data = JSON.parse(rawText);
+      const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+      console.log(`[GeminiVision] ${model} OK. Response:`, text.slice(0, 200));
+      return { ok: true, text };
+    } catch (err) {
+      console.error(`[GeminiVision] ${model} fetch error:`, err);
+      return { ok: false, error: `${model}: network error` };
+    }
+  }
+
+  // ─── Main entry point ───────────────────────────────────────────────────────
   async processImage(cropImageUrl: string): Promise<RawOCRResult> {
     const apiKey = import.meta.env.VITE_GEMINI_API_KEY?.trim();
 
-    // Only try Gemini API if key is present AND we have real image data
-    if (apiKey && apiKey.length > 20 && cropImageUrl.startsWith('data:image')) {
-      try {
-        const base64Data = cropImageUrl.includes(',')
-          ? cropImageUrl.split(',')[1]
-          : cropImageUrl;
-
-        const mimeType = cropImageUrl.startsWith('data:image/jpeg') ? 'image/jpeg' : 'image/png';
-
-        // Try models in order: 2.5-flash → 2.0-flash (fallback)
-        const MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash'];
-        let response: Response | null = null;
-        let lastError = '';
-
-        for (const model of MODELS) {
-          try {
-            response = await fetch(
-              `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-              {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  contents: [{
-                    parts: [
-                      { text: GeminiVisionAdapter.GEMINI_PROMPT },
-                      { inlineData: { mimeType: mimeType, data: base64Data } }
-                    ]
-                  }],
-                  generationConfig: {
-                    temperature: 0.1,
-                    maxOutputTokens: 1024
-                  },
-                  // Disable thinking for speed (2.5-flash supports this)
-                  ...(model.includes('2.5') ? { thinkingConfig: { thinkingBudget: 0 } } : {})
-                })
-              }
-            );
-            if (response.ok) {
-              console.log(`[GeminiVision] Using model: ${model}`);
-              break;
-            }
-            const errText = await response.text();
-            lastError = `${model} → ${response.status}`;
-            console.warn(`[GeminiVision] ${model} failed (${response.status}):`, errText);
-            response = null; // reset for next iteration
-          } catch (fetchErr) {
-            lastError = `${model} → network error`;
-            console.warn(`[GeminiVision] ${model} fetch error:`, fetchErr);
-          }
-        }
-
-        // All models failed
-        if (!response) {
-          return this._errorFallback(`Semua model gagal: ${lastError}`);
-        }
-
-        if (!response.ok) {
-          const errBody = await response.text();
-          let errMsg = `API Error ${response.status}`;
-          try {
-            const errJson = JSON.parse(errBody);
-            errMsg = errJson?.error?.message || errMsg;
-          } catch { /* ignore */ }
-          console.error('[GeminiVision] API error', response.status, errBody);
-          return this._errorFallback(errMsg);
-        }
-
-        const data = await response.json();
-        const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
-
-        // Parse structured JSON response
-        const parsed = this._parseGeminiJSON(rawText);
-        if (parsed) {
-          const lines = this._buildLines(parsed);
-          return {
-            text: lines.join('\n'),
-            confidence: 97,
-            lines
-          };
-        }
-
-        // JSON parse failed, still use raw text
-        console.warn('[GeminiVision] JSON parse failed, using raw text:', rawText);
-        const lines = rawText.split('\n').filter((l: string) => l.trim().length > 0);
-        return { text: rawText, confidence: 85, lines };
-
-      } catch (err) {
-        console.error('[GeminiVision] Network/fetch error:', err);
-        return this._errorFallback('Network Error');
-      }
-    }
-
-    // No API key or not a real image → show clear message
     if (!apiKey || apiKey.length <= 20) {
-      console.warn('[GeminiVision] API key not configured. Set VITE_GEMINI_API_KEY in .env');
+      console.warn('[GeminiVision] API key missing or invalid');
       return this._noKeyFallback();
     }
 
-    // URL-based image (demo sample) → use preset
-    return this._sampleFallback(cropImageUrl);
+    if (!cropImageUrl.startsWith('data:image')) {
+      // Demo sample URL — use preset
+      return this._sampleFallback(cropImageUrl);
+    }
+
+    // Compress image before sending
+    const { data: base64, mimeType } = await this._compressImage(cropImageUrl);
+
+    // Try models in order
+    const MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+    const errors: string[] = [];
+
+    for (const model of MODELS) {
+      const result = await this._callGemini(model, apiKey, base64, mimeType);
+      if (result.ok && result.text) {
+        const parsed = this._parseJSON(result.text);
+        if (parsed) {
+          const lines = this._buildLines(parsed);
+          return { text: lines.join('\n'), confidence: 97, lines };
+        }
+        // Raw text fallback
+        const lines = result.text.split('\n').filter(l => l.trim());
+        return { text: result.text, confidence: 82, lines };
+      }
+      errors.push(result.error ?? model);
+    }
+
+    // All failed
+    const errSummary = errors.join(' | ');
+    console.error('[GeminiVision] All models failed:', errSummary);
+    return this._errorFallback(errSummary);
   }
 
-  // ─── JSON Parser ───────────────────────────────────────────────────────────
-
-  private _parseGeminiJSON(raw: string): Record<string, unknown> | null {
+  // ─── JSON Parser ─────────────────────────────────────────────────────────
+  private _parseJSON(raw: string): Record<string, unknown> | null {
     try {
-      // Strip any markdown code fences
-      const cleaned = raw
-        .replace(/```json\s*/gi, '')
-        .replace(/```\s*/g, '')
-        .trim();
-
-      // Find first { to last }
+      const cleaned = raw.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
       const start = cleaned.indexOf('{');
       const end = cleaned.lastIndexOf('}');
       if (start === -1 || end === -1) return null;
-
       return JSON.parse(cleaned.slice(start, end + 1));
     } catch {
       return null;
     }
   }
 
-  private _buildLines(parsed: Record<string, unknown>): string[] {
+  private _buildLines(p: Record<string, unknown>): string[] {
     const lines: string[] = [];
-
-    if (parsed.product_name) lines.push(String(parsed.product_name));
-    if (parsed.current_price) lines.push(`Rp ${Number(parsed.current_price).toLocaleString('id-ID')}`);
-    if (parsed.original_price) lines.push(`Rp ${Number(parsed.original_price).toLocaleString('id-ID')} (Harga Coret)`);
-    if (parsed.discount_percent) lines.push(`Diskon ${parsed.discount_percent}%`);
-    if (parsed.promo_badge) lines.push(String(parsed.promo_badge));
-
-    // Add all_text_lines that aren't already included
-    if (Array.isArray(parsed.all_text_lines)) {
-      const existing = new Set(lines.map(l => l.toLowerCase()));
-      for (const tl of parsed.all_text_lines as string[]) {
-        if (tl && !existing.has(tl.toLowerCase())) {
-          lines.push(tl);
-        }
-      }
-    }
-
-    return lines.filter(l => l.trim().length > 0);
+    if (p.product_name) lines.push(String(p.product_name));
+    if (p.current_price) lines.push(`Rp ${Number(p.current_price).toLocaleString('id-ID')}`);
+    if (p.original_price) lines.push(`Rp ${Number(p.original_price).toLocaleString('id-ID')} (Harga Coret)`);
+    if (p.discount_percent) lines.push(`Diskon ${p.discount_percent}%`);
+    if (p.promo_badge) lines.push(String(p.promo_badge));
+    return lines.filter(l => l.trim());
   }
 
-  // ─── Fallbacks ─────────────────────────────────────────────────────────────
-
+  // ─── Fallbacks ────────────────────────────────────────────────────────────
   private _errorFallback(reason: string): RawOCRResult {
     const lines = [`[OCR Gagal: ${reason}]`, 'Isi manual di kolom tabel'];
     return { text: lines.join('\n'), confidence: 0, lines };
@@ -192,13 +171,12 @@ Return ONLY the JSON object, no markdown, no explanation.`;
   private _noKeyFallback(): RawOCRResult {
     const lines = [
       '[GEMINI API KEY belum diisi]',
-      'Isi VITE_GEMINI_API_KEY di file .env',
+      'Set VITE_GEMINI_API_KEY di .env (format: AIzaSy...)',
       'Dapatkan gratis: aistudio.google.com/apikey'
     ];
     return { text: lines.join('\n'), confidence: 0, lines };
   }
 
-  // Sample preset images (for demo buttons only)
   private _sampleFallback(url: string): RawOCRResult {
     const idx = parseInt(url.match(/#idx_(\d+)/)?.[1] ?? '0', 10);
     const lower = url.toLowerCase();
@@ -206,18 +184,18 @@ Return ONLY the JSON object, no markdown, no explanation.`;
     const presets: Record<string, string[][]> = {
       snack: [
         ['Indomie Goreng Spesial 85g', 'Rp 2.900', 'BEST SELLER'],
-        ['Chitato Sapi Panggang 68g', 'Rp 9.900', 'Rp 11.200 (Harga Coret)', 'Diskon 12%', 'PROMO HARGA CORET'],
+        ['Chitato Sapi Panggang 68g', 'Rp 9.900', 'Rp 11.200 (Harga Coret)', 'Diskon 12%', 'PROMO'],
         ['Kapal Api Kopi Bubuk 165g', 'Rp 14.200'],
         ['Ultra Milk Full Cream 1L', 'Rp 18.900']
       ],
       oil: [
-        ['Fortune Minyak Goreng Pouch 2L', 'Rp 42.500', 'Rp 42.600 (Harga Coret)', 'Diskon 1%', 'PROMO HARGA CORET'],
+        ['Fortune Minyak Goreng Pouch 2L', 'Rp 42.500', 'Rp 42.600 (Harga Coret)', 'Diskon 1%'],
         ['FILMA Minyak Goreng Pouch 2L', 'Rp 44.000'],
         ['Bimoli Minyak Goreng Pouch 2L', 'Rp 42.800'],
         ['Vipco Minyak Goreng Pouch 2L', 'Rp 42.400']
       ],
       sembako: [
-        ['Beras Sania Premium 5kg', 'Rp 69.900', 'Rp 74.000 (Harga Coret)', 'Diskon 5%', 'PROMO SEMBAKO'],
+        ['Beras Sania Premium 5kg', 'Rp 69.900', 'Rp 74.000 (Harga Coret)', 'Diskon 5%'],
         ['Gulaku Gula Pasir Hijau 1kg', 'Rp 16.800'],
         ['Aqua Air Mineral 600ml', 'Rp 3.000'],
         ['Rinso Anti Noda Deterjen 770g', 'Rp 21.900']
@@ -230,9 +208,8 @@ Return ONLY the JSON object, no markdown, no explanation.`;
       ]
     };
 
-    let group: string[][] = presets.snack;
+    let group = presets.snack;
     if (lower.includes('oil') || lower.includes('minyak') || lower.includes('s1') || lower.includes('1474')) group = presets.oil;
-    else if (lower.includes('snack') || lower.includes('s2') || lower.includes('1612')) group = presets.snack;
     else if (lower.includes('beras') || lower.includes('s3') || lower.includes('1586')) group = presets.sembako;
     else if (lower.includes('multi') || lower.includes('s4') || lower.includes('1607')) group = presets.multi;
 
