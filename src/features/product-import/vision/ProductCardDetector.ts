@@ -35,12 +35,13 @@ export class ProductCardDetector {
           : Math.floor(contentRegion.height * 0.37); // 518px
 
         const cardBox: BoundingBox = { x, y, width: cardWidth, height: cardHeight };
-        // Product photo area: centered within cardBox, 50% height
+        // Product photo area: shifted down past headers/buttons to cleanly frame product image
+        const imageOffsetY = r === 0 ? 58 : 80;
         const imageArea: BoundingBox = { 
-          x: x + 10, 
-          y: y + 10, 
-          width: cardWidth - 20, 
-          height: Math.floor(cardHeight * 0.50) 
+          x: x + 12, 
+          y: y + imageOffsetY, 
+          width: cardWidth - 24, 
+          height: Math.floor(cardHeight * 0.42) 
         };
         const titleArea: BoundingBox = { x: x + 6, y: y + Math.floor(cardHeight * 0.52), width: cardWidth - 12, height: Math.floor(cardHeight * 0.20) };
         const priceArea: BoundingBox = { x: x + 6, y: y + Math.floor(cardHeight * 0.72), width: cardWidth - 12, height: Math.floor(cardHeight * 0.26) };
