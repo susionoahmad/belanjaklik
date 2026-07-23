@@ -62,15 +62,30 @@ const props = defineProps<{
 }>();
 
 const getCardStyle = (idx: number) => {
+  const card = props.cards[idx];
+  if (card?.boundingBox) {
+    // Reference resolution 800 x 1400
+    const left = (card.boundingBox.x / 800) * 100;
+    const top = (card.boundingBox.y / 1400) * 100;
+    const width = (card.boundingBox.width / 800) * 100;
+    const height = (card.boundingBox.height / 1400) * 100;
+    return {
+      top: `${top}%`,
+      left: `${left}%`,
+      width: `${width}%`,
+      height: `${height}%`
+    };
+  }
+
   const row = Math.floor(idx / 2);
   const col = idx % 2;
-  const top = row === 0 ? 15.5 : 62.5;
-  const left = 4 + col * 48;
+  const top = row === 0 ? 16.7 : 50.5;
+  const left = 2 + col * 48;
   return {
     top: `${top}%`,
     left: `${left}%`,
-    width: '44%',
-    height: '25%'
+    width: '46%',
+    height: '32%'
   };
 };
 </script>

@@ -48,17 +48,24 @@ export class GeminiVisionAdapter extends OCRAdapter {
   }
 
   // ─── Call Gemini API with 429 retry ────────────────────────────────────────
-  private async _callGemini(model: string, apiKey: string, base64: string, mimeType: string): Promise<{ ok: boolean; text?: string; error?: string; isRateLimit?: boolean }> {
+  private async _callGemini(
+    model: string,
+    apiKey: string,
+    base64: string,
+    mimeType: string,
+    prompt?: string,
+    maxTokens = 512
+  ): Promise<{ ok: boolean; text?: string; error?: string; isRateLimit?: boolean }> {
     const body: Record<string, unknown> = {
       contents: [{
         parts: [
-          { text: GeminiVisionAdapter.GEMINI_PROMPT },
+          { text: prompt ?? GeminiVisionAdapter.GEMINI_PROMPT },
           { inlineData: { mimeType, data: base64 } }
         ]
       }],
       generationConfig: {
         temperature: 0.1,
-        maxOutputTokens: 512
+        maxOutputTokens: maxTokens
       }
     };
 
@@ -109,6 +116,56 @@ export class GeminiVisionAdapter extends OCRAdapter {
       return await attempt();
     }
     return result;
+  }
+
+  // ─── Full-screenshot batch OCR (1 call → all products) ───────────────────
+  async processFullScreenshot(fullImageDataUrl: string, expectedCount: number): Promise<RawOCRResult[]> {
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY?.trim();
+    if (!apiKey || apiKey.length <= 20) return [];
+
+    const BATCH_PROMPT =
+      `This is a screenshot of an Indonesian grocery app (Alfamind) showing a product grid.\n` +
+      `Find ALL product cards visible in the image. For each product card, extract:\n` +
+      `- product_name: full name with brand and size/weight\n` +
+      `- brand: brand name only\n` +
+      `- size: package size (e.g. 2L, 85g, 1kg)\n` +
+      `- current_price: the SELLING price as a plain integer (e.g. 42500 for "Rp 42.500")\n` +
+      `- original_price: strikethrough/crossed-out price as integer, or null\n` +
+      `- discount_percent: discount percentage as integer, or null\n` +
+      `- promo_badge: promotional label text or null\n\n` +
+      `CRITICAL: You MUST extract the price shown on each card. Prices are typically in thousands (e.g. 2.900, 14.200, 42.500, 44.000).\n` +
+      `Return ONLY a JSON array of ${expectedCount} objects. No markdown, no explanation:\n` +
+      `[{"product_name":"...","brand":"...","size":"...","current_price":42500,"original_price":null,"discount_percent":null,"promo_badge":null},...]`;
+
+    const { data: base64, mimeType } = await this._compressImage(fullImageDataUrl);
+    const result = await this._callGemini('gemini-2.5-flash', apiKey, base64, mimeType, BATCH_PROMPT, 2048);
+
+    if (!result.ok || !result.text) {
+      // Try fallback model
+      const r2 = await this._callGemini('gemini-2.0-flash', apiKey, base64, mimeType, BATCH_PROMPT, 2048);
+      if (!r2.ok || !r2.text) return [];
+      return this._parseBatchResponse(r2.text);
+    }
+
+    return this._parseBatchResponse(result.text);
+  }
+
+  private _parseBatchResponse(raw: string): RawOCRResult[] {
+    try {
+      const cleaned = raw.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+      const start = cleaned.indexOf('[');
+      const end = cleaned.lastIndexOf(']');
+      if (start === -1 || end === -1) return [];
+
+      const arr = JSON.parse(cleaned.slice(start, end + 1)) as Record<string, unknown>[];
+      return arr.map(p => {
+        const lines = this._buildLines(p);
+        return { text: lines.join('\n'), confidence: 96, lines };
+      });
+    } catch (err) {
+      console.error('[GeminiVision] Batch JSON parse failed:', err);
+      return [];
+    }
   }
 
   // ─── Main entry point ───────────────────────────────────────────────────────

@@ -45,7 +45,6 @@ export class ProductParser {
     }
 
     // Detect prices & explicit strikethrough indicators
-    const priceRegex = /(?:Rp\.?\s*)?(\d{1,3}(?:\.\d{3})+|\d{4,7})/gi;
     const priceMatches: number[] = [];
     let hasStrikethroughPrice = false;
     let strikethroughExplicitPrice: number | undefined = undefined;
@@ -54,20 +53,24 @@ export class ProductParser {
       // Check explicit strikethrough price indicators in line text
       if (/coret|harga coret|normal|asli|sebelumnya|<s>|<del>|~/i.test(line)) {
         hasStrikethroughPrice = true;
-        const match = line.match(/(?:Rp\.?\s*)?(\d{1,3}(?:\.\d{3})+|\d{4,7})/i);
+        const match = line.match(/(?:Rp\.?\s*)?(\d{1,3}(?:[\.,]\d{3})+|\d{3,7})/i);
         if (match) {
-          const num = parseInt(match[1].replace(/\./g, ''), 10);
+          const num = parseInt(match[1].replace(/[\.,]/g, ''), 10);
           if (!isNaN(num) && num > 100) {
             strikethroughExplicitPrice = num;
           }
         }
       }
 
-      let match;
-      while ((match = priceRegex.exec(line)) !== null) {
-        const numeric = parseInt(match[1].replace(/\./g, ''), 10);
-        if (!isNaN(numeric) && numeric > 100) {
-          priceMatches.push(numeric);
+      // Robust per-line price matching using matchAll (avoids stateful regex lastIndex bug)
+      const matches = line.matchAll(/(?:Rp\.?\s*)?(\d{1,3}(?:[\.,]\d{3})+|\d{3,7})(?:\s*,-)?/gi);
+      for (const match of matches) {
+        if (match[1]) {
+          const numeric = parseInt(match[1].replace(/[\.,]/g, ''), 10);
+          // Filter out package weight/sizes (e.g. 85g, 68g, 2L, 5kg)
+          if (!isNaN(numeric) && numeric >= 100 && numeric <= 10000000) {
+            priceMatches.push(numeric);
+          }
         }
       }
 

@@ -14,6 +14,7 @@ import { auditTrailService } from '../audit/AuditTrailService';
 
 const ocrAdapter = new GeminiVisionAdapter();
 
+
 export class LayoutDetectionStage implements PipelineStage {
   name = 'Layout Detection Stage';
   enabled = true;
@@ -98,24 +99,46 @@ export class VisionOCRStage implements PipelineStage {
   name = 'Vision OCR Stage';
   enabled = true;
 
-  // Sequential delay to avoid Gemini API rate limits (15 RPM free tier)
-  private static async _delay(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
-  }
-
   async execute(context: PipelineContext): Promise<PipelineContext> {
     const cardCount = context.detectedCards.length;
-    context.logs.push(`Executing Vision OCR: Processing ${cardCount} cards sequentially to respect API rate limits.`);
+    context.logs.push(`Executing Vision OCR: Sending full screenshot to Gemini for ${cardCount}-product batch extraction.`);
 
+    // Get full screenshot data URL
+    let fullImageUrl = '';
+    if (context.input.files && context.input.files.length > 0) {
+      fullImageUrl = await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve(e.target?.result as string || '');
+        reader.onerror = () => resolve('');
+        reader.readAsDataURL(context.input.files![0]);
+      });
+    } else if (context.input.fileUrls && context.input.fileUrls.length > 0) {
+      fullImageUrl = context.input.fileUrls[0];
+    }
+
+    // If we have real image + API key: use full-screenshot Gemini OCR (single request)
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY?.trim();
+    if (apiKey && apiKey.length > 20 && fullImageUrl.startsWith('data:image')) {
+      context.logs.push('Using Gemini full-screenshot batch OCR (1 API call for all cards)...');
+      const batchResults = await ocrAdapter.processFullScreenshot(fullImageUrl, cardCount);
+
+      if (batchResults && batchResults.length > 0) {
+        for (let i = 0; i < context.detectedCards.length; i++) {
+          const card = context.detectedCards[i];
+          const result = batchResults[i] || batchResults[batchResults.length - 1];
+          card.rawOcrText = result.text;
+          card.confidence = result.confidence;
+        }
+        context.logs.push(`Batch OCR complete: ${batchResults.length} products extracted.`);
+        return context;
+      }
+    }
+
+    // Fallback: per-card sequential OCR (for demo sample images)
+    context.logs.push('Fallback: per-card OCR mode.');
     for (let i = 0; i < cardCount; i++) {
       const card = context.detectedCards[i];
-      context.logs.push(`OCR card ${i + 1}/${cardCount}...`);
-
-      // Add delay between API calls (1.5s) to avoid Gemini 429 rate limit
-      if (i > 0) {
-        await VisionOCRStage._delay(1500);
-      }
-
+      if (i > 0) await new Promise(r => setTimeout(r, 1200));
       const imgKey = `${card.cropImageUrl}#idx_${card.cardIndex}`;
       const ocrResult = await ocrAdapter.processImage(imgKey);
       card.rawOcrText = ocrResult.text;
