@@ -19,14 +19,20 @@ export class ProductCardDetector {
     const paddingX = 16;
     const gapX = 12;
     const cardWidth = Math.floor((contentRegion.width - (paddingX * 2) - gapX) / columns);
-    const cardHeight = Math.floor(contentRegion.height * 0.44); // Full card height including price section
 
     for (let r = 0; r < numRows; r++) {
       for (let c = 0; c < columns; c++) {
         const x = contentRegion.x + paddingX + c * (cardWidth + gapX);
+        
+        // Row 0 (baris 1): naik ke y=203px (top ~14.5%)
+        // Row 1 (baris 2): turun ke y=749px (top ~53.5%), height=518px (ends at ~90.5%)
         const y = r === 0 
-          ? contentRegion.y + 10 
-          : contentRegion.y + Math.floor(contentRegion.height * 0.48);
+          ? contentRegion.y - 21 
+          : contentRegion.y + Math.floor(contentRegion.height * 0.52);
+
+        const cardHeight = r === 0
+          ? Math.floor(contentRegion.height * 0.36) // 504px
+          : Math.floor(contentRegion.height * 0.37); // 518px
 
         const cardBox: BoundingBox = { x, y, width: cardWidth, height: cardHeight };
         const imageArea: BoundingBox = { x: x + 8, y: y + 8, width: cardWidth - 16, height: Math.floor(cardHeight * 0.52) };

@@ -79,13 +79,13 @@ const getCardStyle = (idx: number) => {
 
   const row = Math.floor(idx / 2);
   const col = idx % 2;
-  const top = row === 0 ? 16.7 : 50.5;
+  const top = row === 0 ? 14.5 : 53.5;
   const left = 2 + col * 48;
   return {
     top: `${top}%`,
     left: `${left}%`,
     width: '46%',
-    height: '32%'
+    height: row === 0 ? '36%' : '37%'
   };
 };
 </script>
