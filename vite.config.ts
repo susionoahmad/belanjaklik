@@ -8,33 +8,41 @@ export default defineConfig({
     vue(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg', 'robots.txt', 'apple-touch-icon.png', 'icons/*.png'],
+      includeAssets: ['favicon.svg', 'robots.txt', 'apple-touch-icon.png', 'icon-192.png', 'icon-512.png', 'maskable-icon-512.png'],
       manifest: {
-        name: 'Personal Shopping Assistant',
-        short_name: 'ShoppingAssistant',
-        description: 'Universal Personal Shopping Assistant & Grocery Order Platform',
-        theme_color: '#E11B22',
-        background_color: '#F9FAFB',
+        name: 'Personal Shopping Assistant - BelanjaKlik',
+        short_name: 'BelanjaKlik',
+        description: 'Asisten Belanja Pribadi Serba Ada - Alfamind Store',
+        theme_color: '#e11d48',
+        background_color: '#ffffff',
         display: 'standalone',
         orientation: 'portrait',
         scope: '/',
         start_url: '/',
+        categories: ['shopping', 'lifestyle', 'business'],
         icons: [
           {
             src: '/icon-192.png',
             sizes: '192x192',
-            type: 'image/png'
-          },
-          {
-            src: '/icon-512.png',
-            sizes: '512x512',
-            type: 'image/png'
+            type: 'image/png',
+            purpose: 'any'
           },
           {
             src: '/icon-512.png',
             sizes: '512x512',
             type: 'image/png',
-            purpose: 'any maskable'
+            purpose: 'any'
+          },
+          {
+            src: '/maskable-icon-512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'maskable'
+          },
+          {
+            src: '/apple-touch-icon.png',
+            sizes: '180x180',
+            type: 'image/png'
           }
         ]
       },
