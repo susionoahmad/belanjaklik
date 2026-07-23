@@ -77,8 +77,8 @@ export class CardCroppingStage implements PipelineStage {
 
       if (baseImageSrc) {
         try {
-          // Use full cardBox (includes price, name, badges) not just imageArea
-          const cropArea = cardSubBounds[i]?.cardBox || card.boundingBox;
+          // Use imageArea for clean product image thumbnail display in review table
+          const cropArea = cardSubBounds[i]?.imageArea || card.boundingBox;
           cropUrl = await CropEngine.cropRegion(baseImageSrc, cropArea);
         } catch (e) {}
       }

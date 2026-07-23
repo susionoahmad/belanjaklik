@@ -98,6 +98,19 @@ export class ProductParser {
       hasStrikethroughPrice = false;
     }
 
+    // Robust Fallback: If currentPrice is 0, search entire OCR text for any number between 500 and 5,000,000
+    if (currentPrice === 0) {
+      const fullText = ocrResult.text || lines.join(' ');
+      const matches = fullText.match(/(?:Rp\.?\s*)?(\d{1,3}(?:[\.,]\d{3})+|\d{3,7})/gi) || [];
+      for (const m of matches) {
+        const val = parseInt(m.replace(/[^0-9]/g, ''), 10);
+        if (!isNaN(val) && val >= 500 && val <= 5000000) {
+          currentPrice = val;
+          break;
+        }
+      }
+    }
+
     const isPromo = hasStrikethroughPrice && (!!originalPrice && originalPrice > currentPrice);
     let discountPercentage: number | undefined = undefined;
 

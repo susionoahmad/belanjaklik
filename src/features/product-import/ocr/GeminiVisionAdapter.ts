@@ -237,17 +237,46 @@ export class GeminiVisionAdapter extends OCRAdapter {
       return 0;
     };
 
-    const currentPrice = parsePrice(p.current_price);
-    const originalPrice = parsePrice(p.original_price);
+    let currentPrice = parsePrice(p.current_price);
+    let originalPrice = parsePrice(p.original_price);
     const discount = p.discount_percent ? parseInt(String(p.discount_percent), 10) : 0;
 
+    // Collect all raw lines provided by AI
+    const rawLines: string[] = Array.isArray(p.all_lines)
+      ? (p.all_lines as string[]).filter(l => Boolean(l && String(l).trim()))
+      : [];
+
+    // Fallback: if currentPrice is 0, extract price from rawLines
+    if (currentPrice === 0 && rawLines.length > 0) {
+      for (const line of rawLines) {
+        const matches = line.match(/(?:Rp\.?\s*)?(\d{1,3}(?:[\.,]\d{3})+|\d{3,7})/gi);
+        if (matches) {
+          for (const m of matches) {
+            const num = parseInt(m.replace(/[^0-9]/g, ''), 10);
+            if (!isNaN(num) && num >= 500 && num <= 5000000) {
+              currentPrice = num;
+              break;
+            }
+          }
+        }
+        if (currentPrice > 0) break;
+      }
+    }
+
     if (p.product_name) lines.push(String(p.product_name));
-    // Output plain integers without dots — ProductParser regex handles \d{4,7}
+
+    // Include raw lines for ProductParser context
+    for (const rl of rawLines) {
+      if (rl && !lines.includes(rl)) {
+        lines.push(rl);
+      }
+    }
+
     if (currentPrice > 0) lines.push(`Rp ${currentPrice}`);
     if (originalPrice > 0 && originalPrice !== currentPrice) lines.push(`Rp ${originalPrice} (Harga Coret)`);
     if (discount > 0) lines.push(`Diskon ${discount}%`);
-
     if (p.promo_badge) lines.push(String(p.promo_badge));
+
     return lines.filter(l => l.trim());
   }
 

@@ -35,9 +35,15 @@ export class ProductCardDetector {
           : Math.floor(contentRegion.height * 0.37); // 518px
 
         const cardBox: BoundingBox = { x, y, width: cardWidth, height: cardHeight };
-        const imageArea: BoundingBox = { x: x + 8, y: y + 8, width: cardWidth - 16, height: Math.floor(cardHeight * 0.52) };
-        const titleArea: BoundingBox = { x: x + 6, y: y + Math.floor(cardHeight * 0.54), width: cardWidth - 12, height: Math.floor(cardHeight * 0.20) };
-        const priceArea: BoundingBox = { x: x + 6, y: y + Math.floor(cardHeight * 0.74), width: cardWidth - 12, height: Math.floor(cardHeight * 0.24) };
+        // Product photo area: centered within cardBox, 50% height
+        const imageArea: BoundingBox = { 
+          x: x + 10, 
+          y: y + 10, 
+          width: cardWidth - 20, 
+          height: Math.floor(cardHeight * 0.50) 
+        };
+        const titleArea: BoundingBox = { x: x + 6, y: y + Math.floor(cardHeight * 0.52), width: cardWidth - 12, height: Math.floor(cardHeight * 0.20) };
+        const priceArea: BoundingBox = { x: x + 6, y: y + Math.floor(cardHeight * 0.72), width: cardWidth - 12, height: Math.floor(cardHeight * 0.26) };
         const promoBadgeArea: BoundingBox = { x: x + 6, y: y + 6, width: 55, height: 20 };
         const discountBadgeArea: BoundingBox = { x: x + cardWidth - 45, y: y + 6, width: 40, height: 20 };
 
