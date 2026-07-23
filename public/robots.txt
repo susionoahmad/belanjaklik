@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://shopping-assistant.local/sitemap.xml
