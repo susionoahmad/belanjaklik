@@ -47,7 +47,7 @@ Return ONLY the JSON object, no markdown, no explanation.`;
         const mimeType = cropImageUrl.startsWith('data:image/jpeg') ? 'image/jpeg' : 'image/png';
 
         const response = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -55,7 +55,7 @@ Return ONLY the JSON object, no markdown, no explanation.`;
               contents: [{
                 parts: [
                   { text: GeminiVisionAdapter.GEMINI_PROMPT },
-                  { inline_data: { mime_type: mimeType, data: base64Data } }
+                  { inlineData: { mimeType: mimeType, data: base64Data } }
                 ]
               }],
               generationConfig: {
@@ -68,8 +68,13 @@ Return ONLY the JSON object, no markdown, no explanation.`;
 
         if (!response.ok) {
           const errBody = await response.text();
+          let errMsg = `API Error ${response.status}`;
+          try {
+            const errJson = JSON.parse(errBody);
+            errMsg = errJson?.error?.message || errMsg;
+          } catch { /* ignore */ }
           console.error('[GeminiVision] API error', response.status, errBody);
-          return this._errorFallback(`API Error ${response.status}`);
+          return this._errorFallback(errMsg);
         }
 
         const data = await response.json();
