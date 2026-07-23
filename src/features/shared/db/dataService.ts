@@ -1033,15 +1033,35 @@ export const dataService = {
       baseList = (await offlineDb.getProducts()) || [];
     }
 
-    // Always merge default products so new promo items exist in local catalog
+    // Filter out user-deleted product IDs, slugs, or names
+    const getDeletedIds = (): string[] => {
+      try {
+        const raw = localStorage.getItem('psa_deleted_product_ids');
+        return raw ? JSON.parse(raw) : [];
+      } catch (e) { return []; }
+    };
+    const deletedIds = getDeletedIds();
+
+    // Always merge default products unless user explicitly deleted them
     const mergedList = [...baseList];
     DEFAULT_PRODUCTS.forEach(def => {
-      if (!mergedList.some(p => p.id === def.id || p.name.toLowerCase() === def.name.toLowerCase())) {
+      if (
+        !deletedIds.includes(def.id) &&
+        !deletedIds.includes(def.slug) &&
+        !deletedIds.includes(def.name.toLowerCase()) &&
+        !mergedList.some(p => p.id === def.id || p.name.toLowerCase() === def.name.toLowerCase())
+      ) {
         mergedList.push(def);
       }
     });
 
-    const sanitized = sanitizeImageUrls(mergedList);
+    const finalFiltered = mergedList.filter(p => 
+      !deletedIds.includes(p.id) && 
+      (!p.slug || !deletedIds.includes(p.slug)) && 
+      !deletedIds.includes(p.name.toLowerCase())
+    );
+
+    const sanitized = sanitizeImageUrls(finalFiltered);
     await offlineDb.setProducts(sanitized);
     return sanitized;
   },
@@ -1192,6 +1212,24 @@ export const dataService = {
   },
 
   async deleteProduct(id: string): Promise<void> {
+    // Register deleted ID/Name/Slug in localStorage so DEFAULT_PRODUCTS won't re-merge it
+    const getDeletedIds = (): string[] => {
+      try {
+        const raw = localStorage.getItem('psa_deleted_product_ids');
+        return raw ? JSON.parse(raw) : [];
+      } catch (e) { return []; }
+    };
+
+    const currentProds = (await offlineDb.getProducts()) || [];
+    const targetProd = currentProds.find(p => p.id === id || p.slug === id || p.name.toLowerCase() === id.toLowerCase());
+
+    const deletedIds = getDeletedIds();
+    if (!deletedIds.includes(id)) deletedIds.push(id);
+    if (targetProd?.id && !deletedIds.includes(targetProd.id)) deletedIds.push(targetProd.id);
+    if (targetProd?.slug && !deletedIds.includes(targetProd.slug)) deletedIds.push(targetProd.slug);
+    if (targetProd?.name && !deletedIds.includes(targetProd.name.toLowerCase())) deletedIds.push(targetProd.name.toLowerCase());
+    localStorage.setItem('psa_deleted_product_ids', JSON.stringify(deletedIds));
+
     if (isSupabaseConfigured) {
       try {
         const { error } = await supabase.from('products').delete().eq('id', id);
@@ -1202,8 +1240,7 @@ export const dataService = {
         console.warn('Supabase deleteProduct error', err);
       }
     }
-    const products = (await this.fetchProducts()) || [];
-    const filtered = products.filter(p => p.id !== id);
+    const filtered = currentProds.filter(p => p.id !== id && p.slug !== id && p.name.toLowerCase() !== id.toLowerCase());
     await offlineDb.setProducts(filtered);
   },
 
