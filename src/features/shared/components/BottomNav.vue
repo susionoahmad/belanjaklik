@@ -38,6 +38,6 @@ const navItems = computed(() => [
   { path: '/packages', label: 'Paket', icon: Package },
   { path: '/promos', label: 'Promo', icon: Tag },
   { path: '/orders', label: 'Pesanan', icon: Clock, badge: cartStore.totalItemCount > 0 ? `${cartStore.totalItemCount}` : null },
-  { path: '/admin', label: 'Admin', icon: Settings }
+  { path: '/admin', label: 'Pengelola', icon: Settings }
 ]);
 </script>

@@ -1,10 +1,10 @@
 <template>
   <div class="space-y-6 pb-20">
-    <!-- Admin Header -->
+    <!-- Panel Header -->
     <div class="flex items-center justify-between">
       <div>
-        <h1 class="font-extrabold text-xl sm:text-2xl text-gray-900 dark:text-white">Admin CMS Panel</h1>
-        <p class="text-xs text-gray-500">Kelola produk, toko, channel pemenuhan & impor data via Supabase Auth RLS</p>
+        <h1 class="font-extrabold text-xl sm:text-2xl text-gray-900 dark:text-white">Panel Pengelola Toko</h1>
+        <p class="text-xs text-gray-500">Kelola produk, toko, channel pemenuhan, dan kampanye promosi</p>
       </div>
 
       <div v-if="adminStore.isAuthenticated" class="flex items-center gap-3">
@@ -16,19 +16,19 @@
           class="text-xs font-bold text-red-500 hover:underline flex items-center gap-1 bg-red-50 dark:bg-red-950/40 px-3 py-1.5 rounded-xl border border-red-100 dark:border-red-900"
         >
           <LogOut class="w-4 h-4" />
-          <span>Keluar Admin</span>
+          <span>Keluar Sesi</span>
         </button>
       </div>
     </div>
 
-    <!-- Mode Admin Login View (Supabase Auth) -->
+    <!-- Login View (Umum & Praktis) -->
     <div v-if="!adminStore.isAuthenticated" class="max-w-md mx-auto bg-white dark:bg-gray-800 rounded-3xl p-6 border border-gray-100 dark:border-gray-700 shadow-xl space-y-4">
       <div class="w-12 h-12 rounded-2xl bg-brand-red/10 text-brand-red flex items-center justify-center mx-auto mb-2">
         <Lock class="w-6 h-6" />
       </div>
       <div class="text-center">
-        <h3 class="font-extrabold text-base text-gray-900 dark:text-white">Login Mode Admin (Supabase Auth)</h3>
-        <p class="text-xs text-gray-500 mt-1">Masukkan Email & Password Admin yang terdaftar di Supabase</p>
+        <h3 class="font-extrabold text-base text-gray-900 dark:text-white">Masuk Pengelola Toko</h3>
+        <p class="text-xs text-gray-500 mt-1">Masukkan Email dan Kata Sandi untuk mengakses panel pengelolaan toko</p>
       </div>
 
       <!-- Error Alert -->
@@ -38,22 +38,22 @@
 
       <form @submit.prevent="handleLogin" class="space-y-3">
         <div>
-          <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Email Admin Supabase</label>
+          <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Email / Username</label>
           <input 
             v-model="adminStore.email" 
             type="email" 
-            placeholder="admin@tokoberkah.com" 
+            placeholder="pengelola@tokoberkah.com" 
             required 
             class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700 text-sm focus:ring-2 focus:ring-brand-red outline-none"
           />
         </div>
 
         <div>
-          <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Password</label>
+          <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Kata Sandi</label>
           <input 
             v-model="adminStore.password" 
             type="password" 
-            placeholder="Password Supabase Admin" 
+            placeholder="Masukkan Kata Sandi" 
             required 
             class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700 text-sm focus:ring-2 focus:ring-brand-red outline-none"
           />
@@ -65,7 +65,7 @@
           class="w-full bg-brand-red hover:bg-brand-red-dark text-white font-extrabold py-3 rounded-2xl shadow-md text-sm transition-all flex items-center justify-center gap-2"
         >
           <span v-if="adminStore.isLoading" class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-          <span>{{ adminStore.isLoading ? 'Verifikasi Sesi...' : 'Masuk CMS Admin' }}</span>
+          <span>{{ adminStore.isLoading ? 'Memproses...' : 'Masuk ke Dashboard' }}</span>
         </button>
       </form>
     </div>
