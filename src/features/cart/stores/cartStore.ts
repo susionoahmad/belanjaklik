@@ -136,7 +136,12 @@ export const useCartStore = defineStore('cart', () => {
 
     // Open WhatsApp
     window.open(link, '_blank');
+
+    // Automatically clear cart items & close drawer after submission to WhatsApp!
+    clearCart();
+    isDrawerOpen.value = false;
   };
+
 
   return {
     items,
