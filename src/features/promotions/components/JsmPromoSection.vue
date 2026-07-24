@@ -170,24 +170,32 @@ const jsmProducts = computed(() => {
   return catalogStore.products.filter(p => {
     if (!p.is_promo && !p.promo_price) return false;
 
+    // Exclude explicit FLASHSALE products
+    if (p.promo_type === 'FLASHSALE' || p.promo_badge?.toUpperCase().includes('FLASH')) return false;
+
     // 1. Explicit JSM promo_type or promo_badge
     if (p.promo_type === 'JSM' || p.promo_badge?.toUpperCase().includes('JSM')) return true;
 
-    // 2. Promo title contains JSM or PROMO SPECIAL or Promo Merchant category
+    // 2. Promo title or category contains JSM / PROMO SPECIAL / PROMO
     const title = String(p.promo_title || '').toUpperCase();
     const cat = String(p.category || '').toUpperCase();
     if (title.includes('JSM') || title.includes('PROMO SPECIAL') || cat.includes('PROMO')) return true;
 
-    // 3. Known JSM flyer brands that have a promo price
+    // 3. Known JSM & flyer brands (Wardah, Kahf, Shinzui, Hers Protex, Alfamart Tissue, Lifebuoy, etc.)
     const name = String(p.name || '').toLowerCase();
     const brand = String(p.brand || '').toLowerCase();
     const jsmBrands = [
       'fres & natural', 'fres&nat', 'fres', 'lifebuoy', 'pepsodent', 'systema', 'emeron', 'close up', 'closeup',
-      'so good', 'benfarm', 'kraft', 'braskita'
+      'so good', 'benfarm', 'kraft', 'braskita', 'wardah', 'kahf', 'shinzui', 'hers', 'protex', 'alfamart',
+      'slavina', 'pixy', 'hanasui', 'labore', 'skintific', 'timephoria', 'glad2glow', 'g2g'
     ];
-    return jsmBrands.some(b => name.includes(b) || brand.includes(b));
+    if (jsmBrands.some(b => name.includes(b) || brand.includes(b))) return true;
+
+    // Fallback: Default general promo items go to JSM flyer
+    return true;
   });
 });
+
 
 
 

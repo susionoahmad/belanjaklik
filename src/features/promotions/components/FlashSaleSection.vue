@@ -90,8 +90,9 @@ const flashSaleProducts = computed(() => {
   const explicitFlash = catalogStore.products.filter(p => p.promo_type === 'FLASHSALE' || p.promo_badge?.toUpperCase().includes('FLASH'));
   if (explicitFlash.length > 0) return explicitFlash;
   
-  return catalogStore.promoProducts;
+  return catalogStore.products.filter(p => p.is_promo && p.promo_type === 'FLASHSALE');
 });
+
 
 import { Zap, Clock, ChevronLeft, ChevronRight, Plus, ExternalLink, ShoppingBag, MessageSquare, CheckCircle2, HelpCircle } from 'lucide-vue-next';
 import { formatRupiah } from '../../shared/utils/formatters';
