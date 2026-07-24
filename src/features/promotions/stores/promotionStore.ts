@@ -28,14 +28,25 @@ export const usePromotionStore = defineStore('promotions', () => {
     {
       id: 'pf1',
       title: 'Katalog Brosur Promo Mingguan Juli 2026.pdf',
-      file_url: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+      file_url: '/katalog-brosur-promo-juli-2026.pdf',
       file_type: 'pdf',
       start_date: '2026-07-20',
       end_date: '2026-07-27',
       status: 'active',
       ocr_status: 'completed'
+    },
+    {
+      id: 'pf2',
+      title: 'Brosur Special Diskon Sembako Alfamart.pdf',
+      file_url: '/brosur-promo-sembako-alfamart.pdf',
+      file_type: 'pdf',
+      start_date: '2026-07-16',
+      end_date: '2026-07-31',
+      status: 'active',
+      ocr_status: 'completed'
     }
   ]);
+
 
   const loadCampaignBanners = async () => {
     // Sync active campaign lifecycles
