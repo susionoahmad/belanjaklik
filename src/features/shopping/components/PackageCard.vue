@@ -56,14 +56,21 @@ import { Sparkles, Plus } from 'lucide-vue-next';
 import type { ShoppingTemplate } from '../../shared/types';
 import { formatRupiah } from '../../shared/utils/formatters';
 import { useShoppingStore } from '../stores/shoppingStore';
+import { useCatalogStore } from '../../catalog/stores/catalogStore';
 
 const props = defineProps<{
   template: ShoppingTemplate;
 }>();
 
 const shoppingStore = useShoppingStore();
+const catalogStore = useCatalogStore();
 
 const estimatedTotal = computed(() => {
-  return props.template.items.reduce((acc, item) => acc + (item.default_price * item.quantity), 0);
+  return props.template.items.reduce((acc, item) => {
+    const matched = catalogStore.products.find(p => p.name.toLowerCase().includes(item.product_name.toLowerCase()) || item.product_name.toLowerCase().includes(p.name.toLowerCase()));
+    const unitPrice = matched ? (matched.promo_price || matched.price) : item.default_price;
+    return acc + (unitPrice * item.quantity);
+  }, 0);
 });
 </script>
+

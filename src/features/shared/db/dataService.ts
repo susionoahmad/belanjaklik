@@ -96,7 +96,9 @@ const DEFAULT_TEMPLATES: ShoppingTemplate[] = [
     is_active: true,
     items: [
       { product_name: 'Indomie Goreng Spesial 85g', quantity: 10, default_price: 2900, unit: 'bungkus' },
-      { product_name: 'Kapal Api Kopi Bubuk Special 165g', quantity: 1, default_price: 14200, unit: 'pack' }
+      { product_name: 'Sedaap Mi Instan Cup Ayam Jerit 75 g', quantity: 4, default_price: 5500, unit: 'cup' },
+      { product_name: 'Kapal Api Kopi Bubuk Spesial 165g', quantity: 1, default_price: 14200, unit: 'bungkus' },
+      { product_name: 'Aqua Air Mineral 600ml Botol', quantity: 6, default_price: 3000, unit: 'botol' }
     ]
   },
   {
@@ -108,26 +110,45 @@ const DEFAULT_TEMPLATES: ShoppingTemplate[] = [
     icon: 'shopping-bag',
     is_active: true,
     items: [
-      { product_name: 'Fortune Minyak Goreng Pouch 2L', quantity: 1, default_price: 34500, unit: 'pouch' },
+      { product_name: 'Fortune Minyak Goreng Pouch 2 L', quantity: 1, default_price: 42500, unit: 'pouch' },
       { product_name: 'Blue Band Serbaguna Sac 200g', quantity: 2, default_price: 8900, unit: 'sachet' },
       { product_name: 'Prochiz Gold Slice 12x13g', quantity: 1, default_price: 10700, unit: 'pack' },
-      { product_name: 'Delmonte Ketchup Botol 270ml', quantity: 1, default_price: 10900, unit: 'botol' }
+      { product_name: 'Delmonte Ketchup Botol 270ml', quantity: 1, default_price: 10900, unit: 'botol' },
+      { product_name: 'Sedaap Mi Instan Goreng Ayam Krispi 88 g', quantity: 5, default_price: 3100, unit: 'bungkus' }
     ]
   },
   {
     id: 'd3333333-3333-3333-3333-333333333333',
-    name: 'Paket Kebersihan Rumah Tangga',
+    name: 'Paket Kebersihan & Perawatan Rumah',
     slug: 'paket-kebersihan-rumah',
     description: 'Perlengkapan cuci baju & kebersihan mandi bersih higienis',
     category: 'Rumah',
     icon: 'package',
     is_active: true,
     items: [
-      { product_name: 'Rinso Anti Noda Deterjen 770g', quantity: 1, default_price: 21900, unit: 'pack' },
-      { product_name: 'Lifebuoy Sabun Mandi Bar 110g', quantity: 3, default_price: 7500, unit: 'pcs' }
+      { product_name: 'Lifebuoy Body Wash All Variant 400 ml', quantity: 2, default_price: 16900, unit: 'pouch' },
+      { product_name: 'Fres & Natural Body Wash All Variant 400 ml', quantity: 2, default_price: 15900, unit: 'pouch' },
+      { product_name: 'Pepsodent Pasta Gigi Economy 150 g', quantity: 2, default_price: 10500, unit: 'pcs' },
+      { product_name: 'Systema Sikat Gigi Active Clean 2s', quantity: 1, default_price: 15900, unit: 'pack' }
+    ]
+  },
+  {
+    id: 'd4444444-4444-4444-4444-444444444444',
+    name: 'Paket Cantik & Skincare Harian',
+    slug: 'paket-cantik-skincare',
+    description: 'Perawatan wajah & kecantikan harian terfavorit',
+    category: 'Kecantikan',
+    icon: 'heart',
+    is_active: true,
+    items: [
+      { product_name: 'Wardah Moisture Gel Symradiance 399 5% Niacinamide 30 g', quantity: 1, default_price: 38900, unit: 'pcs' },
+      { product_name: 'Kahf Face Wash Bright / Acne Gel 100 ml', quantity: 1, default_price: 39900, unit: 'pcs' },
+      { product_name: 'Shinzu\'i Body Scrub Sakura / Kirei / Matsu 200 g', quantity: 1, default_price: 15900, unit: 'pcs' },
+      { product_name: 'Alfamart Facial Tissue Soft & Smooth 700 g / 700 sheets', quantity: 1, default_price: 25900, unit: 'pack' }
     ]
   }
 ];
+
 
 export const dataService = {
   // CATEGORIES
@@ -427,21 +448,31 @@ export const dataService = {
 
 
     let baseList: Product[] = [];
-    if (isSupabaseConfigured) {
+    
+    // Smart Egress Cache: check if we fetched from Supabase recently (e.g., within 5 minutes)
+    const CACHE_TTL_MS = 5 * 60 * 1000;
+    const lastFetch = Number(sessionStorage.getItem('psa_last_supabase_fetch') || 0);
+    const now = Date.now();
+    const isCacheValid = now - lastFetch < CACHE_TTL_MS;
+
+    if (isSupabaseConfigured && !isCacheValid) {
       try {
         const { data, error } = await supabase
           .from('products')
-          .select('*')
+          .select('id, category_id, name, slug, brand, barcode, unit, price, promo_price, is_promo, is_featured, is_popular, is_available, stock_status, thumbnail_url, image_url, weight, notes, promo_title, promo_start_date, promo_end_date, promo_badge, promo_type, purchase_method, external_product_code')
           .is('deleted_at', null)
           .order('created_at', { ascending: false })
-          .limit(2000);
+          .limit(1000);
+
         if (!error && data && data.length > 0) {
-          baseList = data;
+          baseList = data as Product[];
+          sessionStorage.setItem('psa_last_supabase_fetch', String(now));
         }
       } catch (err) {
-        console.warn('Supabase fetchProducts failed', err);
+        console.warn('Supabase fetchProducts failed or quota restricted, falling back to local offline DB', err);
       }
     }
+
 
 
     // Merge offlineDb products — hanya tambahkan produk lokal yang BELUM ADA di Supabase
@@ -652,9 +683,11 @@ export const dataService = {
           }
         }
 
+        sessionStorage.removeItem('psa_last_supabase_fetch');
         if (resultData) {
           return { ...resultData, ...payload };
         }
+
       } catch (err) {
         console.warn('Supabase saveProduct exception:', err);
       }
