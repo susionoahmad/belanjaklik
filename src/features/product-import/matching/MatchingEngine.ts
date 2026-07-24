@@ -50,21 +50,21 @@ export class MatchingEngine {
       }
     }
 
-    // 3. Priority 3: Brand + Name Text Matcher
+    // 3. Priority 3: Exact 100% Product Name Matcher
     const textResult = TextMatcher.match(data, catalog);
-    if (textResult.candidate && textResult.score >= 0.85 && !textResult.hasConflict) {
-      const confidence = Math.round(textResult.score * 100);
-      notes.push(`Matched by Brand & Name similarity (${confidence}%)`);
+    if (textResult.candidate && textResult.score >= 0.98 && !textResult.hasConflict) {
+      const confidence = 100;
+      notes.push('Exact 100% Product Name Match');
 
       return {
         candidateProduct: textResult.candidate,
-        confidence,
+        confidence: 100,
         recommendedAction: 'UPDATE_EXISTING',
         matchReason: {
           matched_by_barcode: false,
           matched_by_external_code: false,
           matched_by_brand_name: true,
-          matched_by_image: confidence > 85,
+          matched_by_image: true,
           matched_by_embedding: false,
           matched_by_category: true,
           notes
@@ -72,31 +72,8 @@ export class MatchingEngine {
       };
     }
 
-
-    // 4. Priority 4: Image Similarity Matcher (With Sanity Category Check)
-    const imageResult = ImageMatcher.match(cropImageUrl, data, catalog);
-    if (imageResult.candidate && imageResult.score >= 0.90) {
-      const confidence = Math.round(imageResult.score * 90);
-      notes.push(`Matched by Visual Feature Embedding (${confidence}%)`);
-
-      return {
-        candidateProduct: imageResult.candidate,
-        confidence,
-        recommendedAction: 'UPDATE_EXISTING',
-        matchReason: {
-          matched_by_barcode: false,
-          matched_by_external_code: false,
-          matched_by_brand_name: false,
-          matched_by_image: true,
-          matched_by_embedding: true,
-          matched_by_category: true,
-          notes
-        }
-      };
-    }
-
-    // 5. UNMATCHED (UNMATCHED_REQUIRES_CATALOG_PRODUCT) -> Recommend CREATE_NEW!
-    notes.push('UNMATCHED: Produk belum ada di katalog, disarankan Tambah Produk Baru');
+    // 4. UNMATCHED -> Recommend CREATE_NEW (Produk Baru)
+    notes.push('UNMATCHED: Produk/varian baru (tidak 100% sama dengan produk eksisting)');
     return {
       candidateProduct: undefined,
       confidence: 0,
@@ -111,5 +88,6 @@ export class MatchingEngine {
         notes
       }
     };
+
   }
 }

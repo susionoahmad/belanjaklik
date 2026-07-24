@@ -2,6 +2,14 @@ import type { Product } from '../../shared/types';
 import type { NormalizedProductData } from '../types';
 
 export class TextMatcher {
+  static normalizeString(str: string): string {
+    return (str || '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
   static extractSize(name: string): string | null {
     const norm = name.toLowerCase();
     const match = norm.match(/(\d+(?:\.\d+)?\s*(?:kg|g|gr|l|litur|ltr|ml|pack|pcs))/i);
@@ -36,7 +44,7 @@ export class TextMatcher {
     if (v1.size > 0 && v2.size > 0) {
       const common = [...v1].filter(x => v2.has(x));
       if (common.length === 0) {
-        return true; // Distinct variant conflict (e.g. cabe ijo vs tori miso)
+        return true; // Distinct variant conflict (e.g. cabe ijo vs rendang)
       }
     }
 
@@ -44,14 +52,18 @@ export class TextMatcher {
   }
 
   static calculateStringSimilarity(str1: string, str2: string): number {
-    const s1 = str1.toLowerCase().trim();
-    const s2 = str2.toLowerCase().trim();
+    const s1 = this.normalizeString(str1);
+    const s2 = this.normalizeString(str2);
     if (s1 === s2) return 1.0;
 
-    const words1 = new Set(s1.split(/\s+/).filter(w => w.length > 1));
-    const words2 = new Set(s2.split(/\s+/).filter(w => w.length > 1));
-    const intersection = new Set([...words1].filter(x => words2.has(x)));
-    const union = new Set([...words1, ...words2]);
+    const words1 = s1.split(' ').filter(w => w.length > 0);
+    const words2 = s2.split(' ').filter(w => w.length > 0);
+    if (words1.join(' ') === words2.join(' ')) return 1.0;
+
+    const set1 = new Set(words1);
+    const set2 = new Set(words2);
+    const intersection = new Set([...set1].filter(x => set2.has(x)));
+    const union = new Set([...set1, ...set2]);
 
     if (union.size === 0) return 0;
     return intersection.size / union.size;
