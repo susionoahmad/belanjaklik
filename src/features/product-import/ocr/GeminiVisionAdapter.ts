@@ -6,11 +6,18 @@ export class GeminiVisionAdapter extends OCRAdapter {
 
   // Prompt: explicit about price extraction
   private static readonly GEMINI_PROMPT =
-    `You are an OCR tool for Indonesian grocery product cards. Analyze the image and extract ALL visible text.\n` +
-    `IMPORTANT: You MUST find the price. Look for numbers like 2900, 14200, 44000, or text like "Rp 2.900" or "44.000".\n` +
-    `Return ONLY this JSON (no markdown, no explanation):\n` +
-    `{"product_name":"exact product name with brand and size","brand":"brand name","size":"package size e.g. 85g 1L 2L","current_price":14200,"original_price":null,"discount_percent":null,"promo_badge":null}\n` +
-    `current_price: selling price as plain integer (e.g. 14200 not 14.200). original_price: strikethrough/harga coret price or null.`;
+    `You are an OCR and product detail extractor for Indonesian grocery items. Analyze the image and extract product information.\n` +
+    `Fields to extract:\n` +
+    `- product_name: full product name with brand and size\n` +
+    `- brand: brand name or null\n` +
+    `- size: package size (e.g. 85g, 1L, 2L) or null\n` +
+    `- current_price: selling price as plain integer (e.g. 14200), or 0 if price is not visible\n` +
+    `- original_price: strikethrough price integer or null\n` +
+    `- discount_percent: discount percentage integer or null\n` +
+    `- promo_badge: promo label or null\n\n` +
+    `Rules: If any field or price is missing, set it to null or 0. Do NOT refuse or output conversational text.\n` +
+    `Return ONLY a valid JSON object matching this schema:\n` +
+    `{"product_name":"...","brand":"...","size":"...","current_price":0,"original_price":null,"discount_percent":null,"promo_badge":null}`;
 
   // ─── Compress image to JPEG <512KB to avoid Gemini 400 ─────────────────────
   private async _compressImage(dataUrl: string): Promise<{ data: string; mimeType: string }> {
@@ -120,17 +127,17 @@ export class GeminiVisionAdapter extends OCRAdapter {
     if (!apiKey || apiKey.length <= 20) return { results: [], error: 'Gemini API Key belum diatur.' };
 
     const BATCH_PROMPT =
-      `This is a screenshot of an Indonesian grocery app (Alfamind) showing a product grid.\n` +
-      `Find ALL product cards visible in the image. For each product card, extract:\n` +
-      `- product_name: full name with brand and size/weight\n` +
-      `- brand: brand name only\n` +
-      `- size: package size (e.g. 2L, 85g, 1kg)\n` +
-      `- current_price: the SELLING price as a plain integer (e.g. 42500 for "Rp 42.500")\n` +
-      `- original_price: strikethrough/crossed-out price as integer, or null\n` +
-      `- discount_percent: discount percentage as integer, or null\n` +
-      `- promo_badge: promotional label text or null\n\n` +
-      `CRITICAL: You MUST extract the price shown on each card. Prices are typically in thousands (e.g. 2.900, 14.200, 42.500, 44.000).\n` +
-      `Return ONLY a JSON array of ${expectedCount} objects. No markdown, no explanation:\n` +
+      `You are an OCR tool for an Indonesian grocery app (Alfamind) product grid screenshot.\n` +
+      `Extract details for ALL visible product cards in the image:\n` +
+      `- product_name: full name with brand and size\n` +
+      `- brand: brand name or null\n` +
+      `- size: package size (e.g. 2L, 85g) or null\n` +
+      `- current_price: selling price as plain integer (e.g. 42500), or 0 if not visible\n` +
+      `- original_price: strikethrough price integer or null\n` +
+      `- discount_percent: discount percentage integer or null\n` +
+      `- promo_badge: promotional text or null\n\n` +
+      `Rules: If a price or field is missing on a card, set it to 0 or null. Do NOT refuse or add explanation text.\n` +
+      `Return ONLY a JSON array of ${expectedCount} objects:\n` +
       `[{"product_name":"...","brand":"...","size":"...","current_price":42500,"original_price":null,"discount_percent":null,"promo_badge":null},...]`;
 
     const { data: base64, mimeType } = await this._compressImage(fullImageDataUrl);
@@ -203,6 +210,10 @@ export class GeminiVisionAdapter extends OCRAdapter {
     for (const model of MODELS) {
       const result = await this._callGemini(model, apiKey, base64, mimeType);
       if (result.ok && result.text) {
+        if (/sorry|cannot perform|does not contain|no price/i.test(result.text)) {
+          console.warn('[GeminiVision] Refusal response ignored:', result.text);
+          continue;
+        }
         const parsed = this._parseJSON(result.text);
         if (parsed) {
           const lines = this._buildLines(parsed);
