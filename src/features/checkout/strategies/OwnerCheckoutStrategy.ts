@@ -12,11 +12,12 @@ export class OwnerCheckoutStrategy implements PurchaseStrategy {
 
   getButtonConfig(_product: Product, _channel?: FulfillmentChannel): ButtonConfig {
     return {
-      label: '+ Beli',
+      label: 'Beli',
       iconName: 'Plus',
       buttonClass: 'bg-brand-red hover:bg-brand-red-dark text-white font-extrabold shadow-sm'
     };
   }
+
 
   getBadgeConfig(_product: Product, _channel?: FulfillmentChannel): BadgeConfig {
     return {
