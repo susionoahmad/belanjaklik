@@ -95,8 +95,9 @@ export const useCartStore = defineStore('cart', () => {
     items.value = items.value.filter(i => i.product.id !== productId);
   };
 
-  const clearCart = () => {
+  const clearCart = async () => {
     items.value = [];
+    await offlineDb.setCart([]);
   };
 
   const setFulfillmentChannel = (channel: FulfillmentChannel) => {
@@ -134,12 +135,12 @@ export const useCartStore = defineStore('cart', () => {
 
     const { link } = buildWhatsAppMessage(items.value, customer.value, selectedChannel.value || undefined, targetPhone);
 
+    // Automatically clear cart items & close drawer BEFORE opening WhatsApp so persistence is guaranteed
+    await clearCart();
+    isDrawerOpen.value = false;
+
     // Open WhatsApp
     window.open(link, '_blank');
-
-    // Automatically clear cart items & close drawer after submission to WhatsApp!
-    clearCart();
-    isDrawerOpen.value = false;
   };
 
 
