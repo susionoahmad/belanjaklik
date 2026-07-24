@@ -75,13 +75,18 @@ export interface ParsedProductData {
   strikethrough_price?: number;
   discount_percentage?: number;
   is_promo?: boolean;
+  promo_title?: string;
+  promo_start_date?: string;
+  promo_end_date?: string;
   promo_badge?: string;
+  promo_type?: 'JSM' | 'FLASHSALE' | 'MEMBER' | 'SUPER_SAVER' | 'REGULAR';
   discount_badge?: string;
   barcode?: string;
   external_product_code?: string;
   stock_status?: 'in_stock' | 'low_stock' | 'out_of_stock';
   is_available?: boolean;
 }
+
 
 export interface NormalizedProductData extends ParsedProductData {
   normalized_name: string;

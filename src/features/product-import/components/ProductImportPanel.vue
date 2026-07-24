@@ -161,7 +161,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
+
 import { Cpu, Sliders, Terminal, Send } from 'lucide-vue-next';
 import ScreenshotUploader from './ScreenshotUploader.vue';
 import ExcelUploader from './ExcelUploader.vue';
@@ -231,6 +232,9 @@ const handleExcelPresetSelected = async (url: string) => {
 
 const executeImportSession = async (input: any) => {
   isProcessing.value = true;
+  // Clear previous session items immediately on new import run
+  reviewItems.value = [];
+  detectedCards.value = [];
   logs.value = [`Initializing Pipeline Engine execution for ${selectedSourceType.value}...`];
 
   try {
@@ -246,20 +250,35 @@ const executeImportSession = async (input: any) => {
   }
 };
 
+watch(selectedSourceType, () => {
+  // Clear state when switching import drivers
+  reviewItems.value = [];
+  detectedCards.value = [];
+  logs.value = [];
+});
+
 const handleConfirmPublish = async () => {
   isPublishing.value = true;
+  console.log('[ProductImportPanel] handleConfirmPublish started with reviewItems count:', reviewItems.value.length, reviewItems.value);
   try {
     const res = await productImportEngine.publishApprovedReviews(reviewItems.value);
+    console.log('[ProductImportPanel] publishApprovedReviews result:', res);
+    // Clear review queue after publishing successfully
+    reviewItems.value = [];
+    detectedCards.value = [];
     await catalogStore.fetchCatalogData();
+    console.log('[ProductImportPanel] Refreshed catalogStore products count:', catalogStore.products.length, catalogStore.products);
     await refreshMetrics();
     isPublishDialogOpen.value = false;
     alert(`Berhasil mempublikasikan ${res.createdCount} produk baru & memperbarui ${res.updatedCount} produk di katalog resmi!`);
   } catch (err: any) {
+    console.error('[ProductImportPanel] Failed to publish:', err);
     alert(`Gagal mempublikasikan: ${err.message}`);
   } finally {
     isPublishing.value = false;
   }
 };
+
 
 const handleCatalogRolledBack = async () => {
   await catalogStore.fetchCatalogData();
@@ -270,4 +289,5 @@ onMounted(async () => {
   await refreshMetrics();
 });
 </script>
+
 

@@ -355,6 +355,50 @@ export const dataService = {
 
   // PRODUCTS
   async fetchProducts(): Promise<Product[]> {
+    const inferCategoryIdByName = (name: string, categoryStr?: string): { id: string; name: string } => {
+      const n = (name + ' ' + (categoryStr || '')).toLowerCase();
+
+      // 1. Tas & Dompet
+      const bagKws = ['tas', 'bag', 'backpack', 'martin versa', 'dompet', 'tote', 'pouch', 'clutch', 'ransel', 'selempang'];
+      if (bagKws.some(kw => n.includes(kw))) {
+        return { id: 'ca161616-1616-1616-1616-161616161616', name: 'Tas & Dompet' };
+      }
+
+      // 2. Health & Beauty (Parfum, Lotion, Skincare, Cushion, Blush, Lip, Foundation, Sabun, Shampoo, Cosmetic, etc.)
+      const beautyKws = [
+        'slavina', 'pixy', 'hanasui', 'labore', 'skintific', 'timephoria', 'glad2glow', 'g2g', 'somethinc',
+        'make over', 'wardah', 'emina', 'kahf', 'cushion', 'blush', 'cheek', 'cream', 'sunscreen', 'serum',
+        'toner', 'cleanser', 'facewash', 'mascara', 'eyeliner', 'moisturizer', 'barrier', 'revive', 'matte',
+        'velvet', 'glow', 'parfum', 'perfume', 'eau de', 'lotion', 'body wash', 'body mist', 'lip', 'vinyl',
+        'powder', 'foundation', 'shampoo', 'sampo', 'sikat gigi', 'pasta gigi', 'sabun', 'hair', 'beauty',
+        'cosmetic', 'skincare', 'emeron', 'lifebuoy', 'fres', 'pepsodent', 'systema', 'close up'
+      ];
+      if (beautyKws.some(kw => n.includes(kw))) {
+        return { id: 'c6666666-6666-6666-6666-666666666666', name: 'Health & Beauty' };
+      }
+
+      // 3. Peralatan Makan & Minum / Peralatan Masak
+      const kitchenKws = ['teko', 'kettle', 'panci', 'wajan', 'ecentio', 'asta', 'cup', 'tumbler', 'botol', 'thermos', 'termos', 'pisau', 'spatula', 'peralatan'];
+      if (kitchenKws.some(kw => n.includes(kw))) {
+        return { id: 'ca131313-1313-1313-1313-131313131313', name: 'Peralatan Makan & Minum' };
+      }
+
+      // 4. Makanan & Minuman
+      const foodKws = ['kopi', 'mie', 'indomie', 'sedaap', 'sarimi', 'teh', 'susu', 'snack', 'biskuit', 'minuman', 'roti', 'keju', 'sirup'];
+      if (foodKws.some(kw => n.includes(kw))) {
+        return { id: 'c3333333-3333-3333-3333-333333333333', name: 'Makanan & Minuman' };
+      }
+
+      // 5. Ibu dan Anak
+      const babyKws = ['popok', 'pampers', 'bayi', 'baby', 'anak', 'diaper', 'mamy', 'sweety'];
+      if (babyKws.some(kw => n.includes(kw))) {
+        return { id: 'ca111111-1111-1111-1111-111111111111', name: 'Ibu dan Anak' };
+      }
+
+      // 6. Sembako
+      return { id: 'c1111111-1111-1111-1111-111111111111', name: 'Alfamart (Sembako)' };
+    };
+
     const sanitizeImageUrls = (prods: Product[]): Product[] => {
       return prods.map(p => {
         let updated = { ...p };
@@ -364,7 +408,13 @@ export const dataService = {
             updated.image_url = realImg;
           }
         }
-        if (p.category_id) {
+
+        // ONLY infer category if category_id is missing or empty string. NEVER overwrite explicit category_id set by user!
+        if (!p.category_id || p.category_id.trim() === '') {
+          const inferred = inferCategoryIdByName(p.name, p.category);
+          updated.category_id = inferred.id;
+          updated.category = inferred.name;
+        } else {
           const matchedCat = DEFAULT_CATEGORIES.find(c => c.id === p.category_id);
           if (matchedCat) {
             updated.category = matchedCat.name;
@@ -373,6 +423,8 @@ export const dataService = {
         return updated;
       });
     };
+
+
 
     let baseList: Product[] = [];
     if (isSupabaseConfigured) {
@@ -385,8 +437,21 @@ export const dataService = {
         console.warn('Supabase fetchProducts failed', err);
       }
     }
-    if (baseList.length === 0) {
-      baseList = (await offlineDb.getProducts()) || [];
+
+    // Merge offlineDb products (e.g., local newly created/imported products)
+    const offlineList = (await offlineDb.getProducts()) || [];
+    const mergedList = [...baseList];
+    offlineList.forEach(offProd => {
+      const idx = mergedList.findIndex(p => p.id === offProd.id || (offProd.external_product_code && p.external_product_code === offProd.external_product_code));
+      if (idx >= 0) {
+        mergedList[idx] = { ...mergedList[idx], ...offProd };
+      } else {
+        mergedList.unshift(offProd);
+      }
+    });
+
+    if (mergedList.length === 0) {
+      baseList = offlineList;
     }
 
     // Filter out user-deleted product IDs, slugs, or names
@@ -399,19 +464,19 @@ export const dataService = {
     const deletedIds = getDeletedIds();
 
     // Always merge default products unless user explicitly deleted them
-    const mergedList = [...baseList];
+    const finalMerged = [...mergedList];
     DEFAULT_PRODUCTS.forEach(def => {
       if (
         !deletedIds.includes(def.id) &&
         !deletedIds.includes(def.slug) &&
         !deletedIds.includes(def.name.toLowerCase()) &&
-        !mergedList.some(p => p.id === def.id || p.name.toLowerCase() === def.name.toLowerCase())
+        !finalMerged.some(p => p.id === def.id || p.name.toLowerCase() === def.name.toLowerCase())
       ) {
-        mergedList.push(def);
+        finalMerged.push(def);
       }
     });
 
-    const finalFiltered = mergedList.filter(p => 
+    const finalFiltered = finalMerged.filter(p => 
       !deletedIds.includes(p.id) && 
       (!p.slug || !deletedIds.includes(p.slug)) && 
       !deletedIds.includes(p.name.toLowerCase())
@@ -443,9 +508,9 @@ export const dataService = {
 
   async saveTemplate(template: Partial<ShoppingTemplate>): Promise<ShoppingTemplate> {
     const payload: ShoppingTemplate = {
-      id: template.id || `tpl_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-      name: template.name || 'Paket Belanja Hemat Baru',
-      slug: template.slug || (template.name ? template.name.toLowerCase().replace(/\s+/g, '-') : `paket-${Date.now()}`),
+      id: template.id || `t_${Date.now()}`,
+      name: template.name || 'Paket Belanja',
+      slug: template.slug || `paket-${Date.now()}`,
       description: template.description || '',
       category: template.category || 'Hemat',
       icon: template.icon || 'package',
@@ -532,26 +597,52 @@ export const dataService = {
         delete dbPayload.category;
         delete dbPayload.channel;
 
+        let resultData: any = null;
+
         if (isValidUuid) {
           const { data, error } = await supabase.from('products').upsert([dbPayload], { onConflict: 'id' }).select().single();
           if (!error && data) {
-            await this.fetchProducts();
-            return { ...data, category: payload.category };
+            resultData = data;
+          } else if (error && error.code === 'PGRST204') {
+            // Fallback for legacy DB schema before SQL migration script is executed
+            delete dbPayload.promo_title;
+            delete dbPayload.promo_start_date;
+            delete dbPayload.promo_end_date;
+            delete dbPayload.promo_badge;
+            delete dbPayload.promo_type;
+            const { data: fbData, error: fbErr } = await supabase.from('products').upsert([dbPayload], { onConflict: 'id' }).select().single();
+            if (!fbErr && fbData) resultData = fbData;
+            else if (fbErr) console.error('Supabase saveProduct upsert fallback error:', fbErr);
+          } else if (error) {
+            console.error('Supabase saveProduct upsert error:', error);
           }
-          if (error) console.error('Supabase saveProduct upsert error:', error);
+        } else {
+          const { id, ...newProduct } = dbPayload;
+          const { data, error } = await supabase.from('products').insert([newProduct]).select().single();
+          if (!error && data) {
+            resultData = data;
+          } else if (error && error.code === 'PGRST204') {
+            delete newProduct.promo_title;
+            delete newProduct.promo_start_date;
+            delete newProduct.promo_end_date;
+            delete newProduct.promo_badge;
+            delete newProduct.promo_type;
+            const { data: fbData, error: fbErr } = await supabase.from('products').insert([newProduct]).select().single();
+            if (!fbErr && fbData) resultData = fbData;
+            else if (fbErr) console.error('Supabase saveProduct insert fallback error:', fbErr);
+          } else if (error) {
+            console.error('Supabase saveProduct insert error:', error);
+          }
         }
-        
-        const { id, ...newProduct } = dbPayload;
-        const { data, error } = await supabase.from('products').insert([newProduct]).select().single();
-        if (!error && data) {
-          await this.fetchProducts();
-          return { ...data, category: payload.category };
+
+        if (resultData) {
+          return { ...resultData, ...payload };
         }
-        if (error) console.error('Supabase saveProduct insert error:', error);
       } catch (err) {
         console.warn('Supabase saveProduct exception:', err);
       }
     }
+
     const products = (await this.fetchProducts()) || [];
     let updated: Product;
     const prodId = product.id || `f_${Date.now()}`;
@@ -559,12 +650,16 @@ export const dataService = {
     if (idx !== -1) {
       products[idx] = { ...products[idx], ...product, id: products[idx].id } as Product;
       updated = products[idx];
+      console.log(`[dataService.saveProduct] Updated product in local DB: ${updated.name} (id: ${updated.id})`);
     } else {
       updated = { ...product, id: prodId } as Product;
       products.unshift(updated);
+      console.log(`[dataService.saveProduct] Added new product to local DB: ${updated.name} (id: ${updated.id})`);
     }
     await offlineDb.setProducts(products);
+    console.log(`[dataService.saveProduct] Total products count in offlineDb: ${products.length}`);
     return updated;
+
   },
 
   async deleteProduct(id: string): Promise<void> {

@@ -1,5 +1,7 @@
 import * as XLSX from 'xlsx';
 import type { DetectedCard, DriverInput, DriverResult, ImportDriver, ParsedProductData, SourceType } from '../types';
+import { ProductImageResolver } from '../services/ProductImageResolver';
+
 
 export interface ExcelRowProduct {
   image?: string;
@@ -93,15 +95,22 @@ export class ExcelDriver implements ImportDriver {
       return [];
     }
 
-    // Find header row dynamically (must have at least 2 non-empty cells to avoid matching single title descriptions)
+    // Find header row dynamically (must have at least 2 distinct non-empty cells with column name match)
     let headerRowIdx = -1;
-    for (let i = 0; i < Math.min(rawRows.length, 10); i++) {
+    for (let i = 0; i < Math.min(rawRows.length, 15); i++) {
       const row = rawRows[i];
-      if (Array.isArray(row) && row.filter(cell => cell != null && String(cell).trim() !== '').length >= 2) {
-        const rowStr = row.map(cell => String(cell || '').toLowerCase()).join(' ');
-        if (rowStr.includes('product_name') || rowStr.includes('nama produk') || rowStr.includes('nama') || rowStr.includes('price') || rowStr.includes('harga')) {
-          headerRowIdx = i;
-          break;
+      if (Array.isArray(row)) {
+        const nonNullCells = row.filter(cell => cell != null && String(cell).trim() !== '');
+        if (nonNullCells.length >= 2) {
+          const cellsLower = row.map(cell => String(cell || '').trim().toLowerCase());
+          const hasExactHeader = cellsLower.some(c => 
+            c === 'product_name' || c === 'nama produk' || c === 'nama' || 
+            c === 'price' || c === 'harga' || c === 'brand' || c === 'merek' || c === 'merk'
+          );
+          if (hasExactHeader) {
+            headerRowIdx = i;
+            break;
+          }
         }
       }
     }
@@ -109,6 +118,7 @@ export class ExcelDriver implements ImportDriver {
     if (headerRowIdx === -1) {
       headerRowIdx = 0; // Default to first row if no header detected
     }
+
 
     const headers = (rawRows[headerRowIdx] as any[]).map(h => String(h || '').trim().toLowerCase());
     const dataRows = rawRows.slice(headerRowIdx + 1);
@@ -129,13 +139,22 @@ export class ExcelDriver implements ImportDriver {
         }
       });
 
-      const extractedImg = embeddedImagesMap[actualRowIndex] || obj.image || obj.gambar || obj.foto || obj.image_url || obj.thumbnail;
+      const rawImg = embeddedImagesMap[actualRowIndex] || 
+                     embeddedImagesMap[actualRowIndex - 1] || 
+                     embeddedImagesMap[actualRowIndex + 1] || 
+                     embeddedImagesMap[dataIdx] || 
+                     embeddedImagesMap[dataIdx + 1] || 
+                     obj.image || obj.gambar || obj.foto || obj.image_url || obj.thumbnail;
+
+      const productName = String(obj.product_name || obj.nama_produk || obj.nama || obj.name || '').trim();
+      const brand = obj.brand || obj.merek || obj.merk ? String(obj.brand || obj.merek || obj.merk).trim() : undefined;
+      const extractedImg = ProductImageResolver.resolveImage(productName, brand, rawImg);
 
       // Standardize key names
       const standardized: ExcelRowProduct = {
         image: extractedImg,
-        product_name: String(obj.product_name || obj.nama_produk || obj.nama || obj.name || '').trim(),
-        brand: obj.brand || obj.merek || obj.merk ? String(obj.brand || obj.merek || obj.merk).trim() : undefined,
+        product_name: productName,
+        brand,
         variant: obj.variant || obj.varian || obj.rasa ? String(obj.variant || obj.varian || obj.rasa).trim() : undefined,
         package_size: obj.package_size || obj.ukuran || obj.berat || obj.satuan ? String(obj.package_size || obj.ukuran || obj.berat || obj.satuan).trim() : undefined,
         price: this.parseNumericPrice(obj.price || obj.harga || obj.harga_jual),
@@ -149,6 +168,7 @@ export class ExcelDriver implements ImportDriver {
         result.push(standardized);
       }
     });
+
 
     return result;
   }
@@ -230,23 +250,43 @@ export class ExcelDriver implements ImportDriver {
     return isNaN(num) ? 0 : num;
   }
 
-  private parseDiscountPercentage(val: any): number | undefined {
+  private parseDiscountPercentage(val: any, originalPrice?: number, currentPrice?: number): number | undefined {
+    if (originalPrice && currentPrice && originalPrice > currentPrice && currentPrice > 0) {
+      return Math.round(((originalPrice - currentPrice) / originalPrice) * 100);
+    }
     if (val == null) return undefined;
-    if (typeof val === 'number') return val;
-    const str = String(val).replace(/[^0-9]/g, '');
-    const num = parseInt(str, 10);
-    return isNaN(num) ? undefined : num;
+    if (typeof val === 'number') {
+      let num = Math.abs(val);
+      if (num > 0 && num < 1) num = num * 100;
+      num = Math.round(num);
+      return (num > 0 && num <= 99) ? num : undefined;
+    }
+    const str = String(val).replace(',', '.');
+    const match = str.match(/[-+]?\d*\.?\d+/);
+    if (match) {
+      let num = Math.abs(parseFloat(match[0]));
+      if (num > 0 && num < 1) num = num * 100;
+      num = Math.round(num);
+      return (num > 0 && num <= 99) ? num : undefined;
+    }
+    return undefined;
   }
 
   private rowToParsedData(row: ExcelRowProduct): ParsedProductData {
     const currentPrice = this.parseNumericPrice(row.price);
     const originalPrice = this.parseNumericPrice(row.original_price);
     const hasStrikethrough = originalPrice > currentPrice && currentPrice > 0;
-    const discountPct = row.discount_percentage ? this.parseDiscountPercentage(row.discount_percentage) : (hasStrikethrough ? Math.round(((originalPrice - currentPrice) / originalPrice) * 100) : undefined);
+    const discountPct = this.parseDiscountPercentage(row.discount_percentage, originalPrice, currentPrice);
 
     const isKosong = String(row.stock_status || '').toLowerCase().includes('kosong') || String(row.stock_status || '').toLowerCase().includes('out');
     const stockStatus: 'in_stock' | 'out_of_stock' = isKosong ? 'out_of_stock' : 'in_stock';
     const isAvailable = !isKosong;
+
+    const promoTitle = row.promo_title || row.campaign_title || (row.promo_type ? `Promo ${row.promo_type}` : undefined);
+    const promoStartDate = row.promo_start_date || row.start_date;
+    const promoEndDate = row.promo_end_date || row.end_date;
+    const promoBadge = row.promo_badge || (row.promo_type === 'JSM' || String(row.category || '').toUpperCase().includes('JSM') ? 'PROMO JSM (HANYA 3 HARI)' : (hasStrikethrough ? 'PROMO SPECIAL' : undefined));
+    const promoType = row.promo_type || (String(row.category || '').toUpperCase().includes('JSM') ? 'JSM' : undefined);
 
     return {
       extracted_brand: row.brand,
@@ -258,13 +298,19 @@ export class ExcelDriver implements ImportDriver {
       has_strikethrough_price: hasStrikethrough,
       strikethrough_price: originalPrice > 0 ? originalPrice : undefined,
       discount_percentage: discountPct,
-      is_promo: hasStrikethrough,
-      promo_badge: hasStrikethrough ? 'PROMO EXCEL' : undefined,
+      is_promo: hasStrikethrough || !!promoEndDate,
+      promo_title: promoTitle,
+      promo_start_date: promoStartDate,
+      promo_end_date: promoEndDate,
+      promo_badge: promoBadge,
+      promo_type: promoType,
       discount_badge: discountPct ? `Diskon ${discountPct}%` : undefined,
       stock_status: stockStatus,
       is_available: isAvailable
     };
   }
+
+
 
   private convertToDetectedCard(row: ExcelRowProduct, idx: number): DetectedCard {
     const parsedData = this.rowToParsedData(row);

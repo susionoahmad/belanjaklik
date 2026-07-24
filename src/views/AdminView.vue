@@ -666,14 +666,21 @@ const confirmDeleteProduct = (p: Product) => {
 
 const executeDeleteProduct = async () => {
   if (productToDelete.value) {
-    const name = productToDelete.value.name;
-    await dataService.deleteProduct(productToDelete.value.id);
-    await catalogStore.fetchCatalogData();
-    showToast(`Produk "${name}" telah dihapus!`);
+    const itemToDelete = productToDelete.value;
+    // Close modal & reset item immediately on 1st click
     isConfirmDeleteOpen.value = false;
     productToDelete.value = null;
+
+    try {
+      await dataService.deleteProduct(itemToDelete.id);
+      await catalogStore.fetchCatalogData();
+      showToast(`Produk "${itemToDelete.name}" telah dihapus!`);
+    } catch (err: any) {
+      showToast(`Gagal menghapus produk: ${err?.message || 'Error server'}`);
+    }
   }
 };
+
 
 const openPreviewProduct = (p: Product) => {
   productToPreview.value = p;

@@ -39,30 +39,48 @@
       </div>
     </div>
 
-    <!-- Quick Sample Preset Button -->
-    <div class="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/50 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-      <div class="flex items-center gap-3">
-        <FileCheck class="w-5 h-5 text-emerald-600 shrink-0" />
-        <div>
-          <div class="text-xs font-extrabold text-emerald-900 dark:text-emerald-300">File Contoh Tersedia: data_produk_ekstraksi.xlsx</div>
-          <div class="text-[10px] text-emerald-700 dark:text-emerald-400">Terdiri dari 4 produk sembako hasil ekstraksi gambar Gemini (Sedaap, Sarimi, Indomie)</div>
+    <!-- Quick Sample Preset Buttons -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+      <div class="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/50 rounded-2xl p-3.5 flex flex-col justify-between gap-2.5">
+        <div class="flex items-center gap-2.5">
+          <FileCheck class="w-5 h-5 text-emerald-600 shrink-0" />
+          <div>
+            <div class="text-xs font-extrabold text-emerald-900 dark:text-emerald-300">data_produk_ekstraksi.xlsx</div>
+            <div class="text-[10px] text-emerald-700 dark:text-emerald-400">4 produk sembako (Sedaap, Sarimi, Indomie)</div>
+          </div>
         </div>
+        <button 
+          @click.stop="handleLoadPreset('/data_produk_ekstraksi.xlsx')"
+          class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs py-2 rounded-xl transition-all shadow-xs flex items-center justify-center gap-1.5"
+        >
+          <Sparkles class="w-3.5 h-3.5" />
+          <span>Muat Excel Ekstraksi Standard</span>
+        </button>
       </div>
 
-      <button 
-        @click.stop="handleLoadPreset"
-        class="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs px-4 py-2 rounded-xl transition-all shadow-md shrink-0 flex items-center gap-1.5"
-      >
-        <Sparkles class="w-3.5 h-3.5" />
-        <span>Muat File Contoh data_produk_ekstraksi.xlsx</span>
-      </button>
+      <div class="bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800/50 rounded-2xl p-3.5 flex flex-col justify-between gap-2.5">
+        <div class="flex items-center gap-2.5">
+          <Flame class="w-5 h-5 text-brand-red shrink-0" />
+          <div>
+            <div class="text-xs font-extrabold text-red-900 dark:text-red-300">promo_jsm_juli_2026.xlsx</div>
+            <div class="text-[10px] text-red-700 dark:text-red-400">15 produk Promo JSM (Fres&Nat, Lifebuoy, Pepsodent, Emeron, Systema)</div>
+          </div>
+        </div>
+        <button 
+          @click.stop="handleLoadPreset('/promo_jsm_juli_2026.xlsx')"
+          class="w-full bg-brand-red hover:bg-brand-red-dark text-white font-extrabold text-xs py-2 rounded-xl transition-all shadow-xs flex items-center justify-center gap-1.5"
+        >
+          <Sparkles class="w-3.5 h-3.5" />
+          <span>Muat Excel Promo JSM (24-26 Juli)</span>
+        </button>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref } from 'vue';
-import { FileSpreadsheet, UploadCloud, FileCheck, Sparkles } from 'lucide-vue-next';
+import { FileSpreadsheet, UploadCloud, FileCheck, Sparkles, Flame } from 'lucide-vue-next';
 
 const emit = defineEmits<{
   (e: 'filesSelected', files: File[]): void;
@@ -79,18 +97,23 @@ const triggerFileInput = () => {
 const handleFileChange = (e: Event) => {
   const target = e.target as HTMLInputElement;
   if (target.files && target.files.length > 0) {
-    emit('filesSelected', Array.from(target.files));
+    const files = Array.from(target.files);
+    target.value = ''; // Reset input value so re-uploading or changing files triggers @change smoothly
+    emit('filesSelected', files);
   }
 };
 
 const handleDrop = (e: DragEvent) => {
   isDragging.value = false;
   if (e.dataTransfer?.files && e.dataTransfer.files.length > 0) {
-    emit('filesSelected', Array.from(e.dataTransfer.files));
+    const files = Array.from(e.dataTransfer.files);
+    if (fileInput.value) fileInput.value.value = '';
+    emit('filesSelected', files);
   }
 };
 
-const handleLoadPreset = () => {
-  emit('presetSelected', '/data_produk_ekstraksi.xlsx');
+const handleLoadPreset = (url: string = '/data_produk_ekstraksi.xlsx') => {
+  emit('presetSelected', url);
 };
 </script>
+

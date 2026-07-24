@@ -11,9 +11,16 @@
         <span>Stok Kosong</span>
       </span>
 
+      <span v-else-if="isJsmPromo" class="bg-gradient-to-r from-yellow-400 via-amber-500 to-red-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow-sm uppercase tracking-wider flex items-center gap-1 border border-amber-300">
+        <Flame class="w-3 h-3 text-yellow-100 fill-yellow-200 animate-pulse" />
+        <span>{{ product.promo_badge || 'PROMO JSM (3 HARI)' }}</span>
+      </span>
+
       <span v-else-if="product.is_promo && product.promo_price" class="bg-gradient-to-r from-red-600 to-rose-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow-sm uppercase tracking-wider">
         PROMO
       </span>
+
+
 
       <!-- Purchase Method Badge derived via PurchaseService -->
       <span 
@@ -118,7 +125,8 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import { ShoppingBag, Plus, ExternalLink, MessageSquare, Clock, CheckCircle2, HelpCircle, XCircle } from 'lucide-vue-next';
+import { ShoppingBag, Plus, ExternalLink, MessageSquare, Clock, CheckCircle2, HelpCircle, XCircle, Flame } from 'lucide-vue-next';
+
 import type { Product, FulfillmentChannel } from '../../shared/types';
 import { formatRupiah } from '../../shared/utils/formatters';
 import { useCartStore } from '../../cart/stores/cartStore';
@@ -138,6 +146,15 @@ const catalogStore = useCatalogStore();
 const isOutOfStock = computed(() => {
   return props.product.is_available === false || props.product.stock_status === 'out_of_stock';
 });
+
+const isJsmPromo = computed(() => {
+  if (props.product.promo_type === 'JSM' || props.product.promo_badge?.includes('JSM')) return true;
+  const name = String(props.product.name || '').toLowerCase();
+  const brand = String(props.product.brand || '').toLowerCase();
+  const jsmKeywords = ['fres & natural', 'fres&nat', 'lifebuoy', 'pepsodent', 'systema', 'emeron', 'close up', 'closeup'];
+  return (props.product.is_promo || !!props.product.promo_price) && jsmKeywords.some(kw => name.includes(kw) || brand.includes(kw));
+});
+
 
 const displayImageUrl = computed(() => proxyImageUrl(props.product.image_url || 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=400'));
 

@@ -49,14 +49,27 @@ CREATE TABLE IF NOT EXISTS products (
   weight VARCHAR(50),
   notes TEXT,
   sort_order INT DEFAULT 0,
+  promo_title VARCHAR(255),
+  promo_start_date VARCHAR(50),
+  promo_end_date VARCHAR(50),
+  promo_badge VARCHAR(255),
+  promo_type VARCHAR(50),
   price_updated_at TIMESTAMPTZ DEFAULT NOW(),
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   deleted_at TIMESTAMPTZ
 );
 
+-- Migration for existing database instances
+ALTER TABLE products ADD COLUMN IF NOT EXISTS promo_title VARCHAR(255);
+ALTER TABLE products ADD COLUMN IF NOT EXISTS promo_start_date VARCHAR(50);
+ALTER TABLE products ADD COLUMN IF NOT EXISTS promo_end_date VARCHAR(50);
+ALTER TABLE products ADD COLUMN IF NOT EXISTS promo_badge VARCHAR(255);
+ALTER TABLE products ADD COLUMN IF NOT EXISTS promo_type VARCHAR(50);
+
 -- Indexes for products
 CREATE INDEX IF NOT EXISTS idx_products_category ON products(category_id);
+
 CREATE INDEX IF NOT EXISTS idx_products_brand ON products(brand);
 CREATE INDEX IF NOT EXISTS idx_products_barcode ON products(barcode);
 CREATE INDEX IF NOT EXISTS idx_products_price ON products(price);

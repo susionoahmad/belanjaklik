@@ -91,8 +91,9 @@
                   Rp {{ item.card.normalizedData.original_price.toLocaleString('id-ID') }}
                 </span>
                 <span v-if="item.card.normalizedData?.discount_percentage" class="text-[9px] font-extrabold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-1 rounded">
-                  -{{ item.card.normalizedData.discount_percentage }}%
+                  -{{ Math.abs(Math.round(item.card.normalizedData.discount_percentage)) }}%
                 </span>
+
               </div>
             </td>
 
@@ -135,7 +136,18 @@
               <div class="text-[10px] text-gray-400 font-mono">
                 Shelf: {{ item.card.aiCategoryRecommendation?.shelf_group }}
               </div>
+
+              <!-- JSM Promo Badge Tag -->
+              <div v-if="item.card.normalizedData?.promo_badge" class="mt-1">
+                <span class="px-2 py-0.5 rounded-md text-[9px] font-black bg-gradient-to-r from-amber-500 to-red-600 text-white flex items-center gap-1 w-fit shadow-xs">
+                  <span>🔥 {{ item.card.normalizedData.promo_badge }}</span>
+                </span>
+                <div v-if="item.card.normalizedData?.promo_start_date" class="text-[9px] text-gray-400 font-mono mt-0.5">
+                  Periode: {{ item.card.normalizedData.promo_start_date }} s/d {{ item.card.normalizedData.promo_end_date }}
+                </div>
+              </div>
             </td>
+
 
 
             <!-- Action Buttons -->

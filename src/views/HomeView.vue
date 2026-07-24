@@ -36,8 +36,12 @@
       </div>
     </section>
 
+    <!-- Promo JSM Section -->
+    <JsmPromoSection />
+
     <!-- Flash Sale Countdown Section -->
     <FlashSaleSection />
+
 
     <!-- Quick Shopping Packages / Bundles -->
     <section>
@@ -121,6 +125,8 @@ import OfflineBanner from '../features/shared/components/OfflineBanner.vue';
 import PwaInstallBanner from '../features/shared/components/PwaInstallBanner.vue';
 import BannerSlider from '../features/promotions/components/BannerSlider.vue';
 import FlashSaleSection from '../features/promotions/components/FlashSaleSection.vue';
+import JsmPromoSection from '../features/promotions/components/JsmPromoSection.vue';
+
 import PackageCard from '../features/shopping/components/PackageCard.vue';
 import ProductCard from '../features/catalog/components/ProductCard.vue';
 import ProductDetailModal from '../features/catalog/components/ProductDetailModal.vue';

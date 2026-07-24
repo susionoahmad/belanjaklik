@@ -313,9 +313,11 @@ const handleSubmit = async () => {
 const handleDelete = async () => {
   if (!form.value.id) return;
   if (confirm(`Yakin ingin menghapus produk "${form.value.name}"?`)) {
-    await dataService.deleteProduct(form.value.id);
-    emit('saved');
+    const targetId = form.value.id;
     emit('close');
+    await dataService.deleteProduct(targetId);
+    emit('saved');
   }
 };
+
 </script>
