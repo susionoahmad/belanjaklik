@@ -69,11 +69,7 @@ export class GeminiVisionAdapter extends OCRAdapter {
       }
     };
 
-    // thinkingConfig only for 2.5+ models (inside generationConfig)
-    if (model.includes('2.5')) {
-      (body.generationConfig as Record<string, unknown>).thinkingConfig = { thinkingBudget: 0 };
-    }
-
+    // Remove unsupported custom parameters
     const attempt = async (): Promise<{ ok: boolean; text?: string; error?: string; isRateLimit?: boolean }> => {
       try {
         const res = await fetch(
@@ -89,7 +85,7 @@ export class GeminiVisionAdapter extends OCRAdapter {
 
         if (res.status === 429) {
           console.warn(`[GeminiVision] ${model} rate limited (429), will retry after delay`);
-          return { ok: false, isRateLimit: true, error: `${model}: Quota terlampaui` };
+          return { ok: false, isRateLimit: true, error: `${model}: Quota terlampaui (429 Rate Limit)` };
         }
 
         if (!res.ok) {
@@ -138,11 +134,13 @@ export class GeminiVisionAdapter extends OCRAdapter {
       `[{"product_name":"...","brand":"...","size":"...","current_price":42500,"original_price":null,"discount_percent":null,"promo_badge":null},...]`;
 
     const { data: base64, mimeType } = await this._compressImage(fullImageDataUrl);
-    const result = await this._callGemini('gemini-2.5-flash', apiKey, base64, mimeType, BATCH_PROMPT, 2048);
+    // Primary valid model: gemini-2.0-flash
+    const result = await this._callGemini('gemini-2.0-flash', apiKey, base64, mimeType, BATCH_PROMPT, 2048);
 
     if (!result.ok || !result.text) {
-      // Try fallback model
-      const r2 = await this._callGemini('gemini-2.0-flash', apiKey, base64, mimeType, BATCH_PROMPT, 2048);
+      if (result.isRateLimit) return [];
+      // Secondary fallback model: gemini-2.0-flash-lite
+      const r2 = await this._callGemini('gemini-2.0-flash-lite', apiKey, base64, mimeType, BATCH_PROMPT, 2048);
       if (!r2.ok || !r2.text) return [];
       return this._parseBatchResponse(r2.text);
     }
@@ -185,8 +183,8 @@ export class GeminiVisionAdapter extends OCRAdapter {
     // Compress image before sending
     const { data: base64, mimeType } = await this._compressImage(cropImageUrl);
 
-    // Try models in order
-    const MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+    // Try models in order: gemini-2.0-flash and gemini-2.0-flash-lite
+    const MODELS = ['gemini-2.0-flash', 'gemini-2.0-flash-lite'];
     const errors: string[] = [];
 
     for (const model of MODELS) {
@@ -200,6 +198,10 @@ export class GeminiVisionAdapter extends OCRAdapter {
         // Raw text fallback
         const lines = result.text.split('\n').filter(l => l.trim());
         return { text: result.text, confidence: 82, lines };
+      }
+
+      if (result.isRateLimit) {
+        return this._errorFallback('Quota Gratis Gemini (15 req/menit) terlampaui. Mohon tunggu 1 menit.');
       }
       errors.push(result.error ?? model);
     }

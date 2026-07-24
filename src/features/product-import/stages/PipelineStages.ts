@@ -116,9 +116,25 @@ export class VisionOCRStage implements PipelineStage {
       fullImageUrl = context.input.fileUrls[0];
     }
 
+    // Convert blob: or fetchable URLs to data URL if needed
+    if (fullImageUrl.startsWith('blob:')) {
+      try {
+        const response = await fetch(fullImageUrl);
+        const blob = await response.blob();
+        fullImageUrl = await new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onload = (e) => resolve(e.target?.result as string || '');
+          reader.onerror = () => resolve('');
+          reader.readAsDataURL(blob);
+        });
+      } catch (err) {
+        console.warn('[PipelineStages] Failed to convert blob URL:', err);
+      }
+    }
+
     // If we have real image + API key: use full-screenshot Gemini OCR (single request)
     const apiKey = import.meta.env.VITE_GEMINI_API_KEY?.trim();
-    if (apiKey && apiKey.length > 20 && fullImageUrl.startsWith('data:image')) {
+    if (apiKey && apiKey.length > 20 && (fullImageUrl.startsWith('data:image') || fullImageUrl.length > 50)) {
       context.logs.push('Using Gemini full-screenshot batch OCR (1 API call for all cards)...');
       const batchResults = await ocrAdapter.processFullScreenshot(fullImageUrl, cardCount);
 
