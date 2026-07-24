@@ -91,7 +91,7 @@ export class GeminiVisionAdapter extends OCRAdapter {
         const rawText = await res.text();
 
         if (res.status === 429) {
-          console.warn(`[GeminiVision] ${model} rate limited (429), will retry after delay`);
+          console.warn(`[GeminiVision] ${model} rate limited (429)`);
           return { ok: false, isRateLimit: true, error: `${model}: Quota terlampaui (429 Rate Limit)` };
         }
 
@@ -112,13 +112,7 @@ export class GeminiVisionAdapter extends OCRAdapter {
       }
     };
 
-    // Try once, if rate limited wait 3s and retry once more
-    const result = await attempt();
-    if (result.isRateLimit) {
-      await new Promise(r => setTimeout(r, 3000));
-      return await attempt();
-    }
-    return result;
+    return await attempt();
   }
 
   // ─── Full-screenshot batch OCR (1 call → all products) ───────────────────
@@ -141,8 +135,8 @@ export class GeminiVisionAdapter extends OCRAdapter {
       `[{"product_name":"...","brand":"...","size":"...","current_price":42500,"original_price":null,"discount_percent":null,"promo_badge":null},...]`;
 
     const { data: base64, mimeType } = await this._compressImage(fullImageDataUrl);
-    // Models: gemini-2.5-flash and gemini-2.0-flash
-    const MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash'];
+    // Models: gemini-2.0-flash (primary) and gemini-1.5-flash (fallback)
+    const MODELS = ['gemini-2.0-flash', 'gemini-1.5-flash'];
     let lastError = '';
 
     for (const model of MODELS) {
@@ -203,8 +197,8 @@ export class GeminiVisionAdapter extends OCRAdapter {
     // Compress image before sending
     const { data: base64, mimeType } = await this._compressImage(cropImageUrl);
 
-    // Try models in order: gemini-2.5-flash and gemini-2.0-flash
-    const MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash'];
+    // Try models in order: gemini-2.0-flash and gemini-1.5-flash
+    const MODELS = ['gemini-2.0-flash', 'gemini-1.5-flash'];
     const errors: string[] = [];
 
     for (const model of MODELS) {

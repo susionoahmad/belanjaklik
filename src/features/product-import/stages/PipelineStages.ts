@@ -153,9 +153,16 @@ export class VisionOCRStage implements PipelineStage {
 
       if (batchRes.error) {
         context.logs.push(`Batch OCR Error: ${batchRes.error}`);
-        for (const card of context.detectedCards) {
-          card.rawOcrText = `[OCR Gagal: ${batchRes.error}]`;
-          card.confidence = 0;
+        const isQuota = batchRes.isRateLimit || batchRes.error.includes('Quota') || batchRes.error.includes('429');
+        for (let i = 0; i < context.detectedCards.length; i++) {
+          const card = context.detectedCards[i];
+          if (isQuota) {
+            card.rawOcrText = `[Limit Quota API Google] Produk #${i + 1}\nSilakan edit nama & harga manual di tabel`;
+            card.confidence = 50;
+          } else {
+            card.rawOcrText = `[OCR Gagal: ${batchRes.error}]`;
+            card.confidence = 0;
+          }
         }
         // Stop pipeline immediately for real upload errors (do NOT spam per-card loop)
         return context;
