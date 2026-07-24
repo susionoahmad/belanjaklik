@@ -161,13 +161,30 @@ export class ExcelDriver implements ImportDriver {
         original_price: this.parseNumericPrice(obj.original_price || obj.harga_coret || obj.harga_asli),
         discount_percentage: this.parseDiscountPercentage(obj.discount_percentage || obj.diskon),
         stock_status: obj.stock_status || obj.stok || obj.status_stok ? String(obj.stock_status || obj.stok || obj.status_stok).trim() : 'Tersedia',
-        category: obj.category || obj.kategori ? String(obj.category || obj.kategori).trim() : 'Mi Instan'
+        category: obj.category || obj.kategori ? String(obj.category || obj.kategori).trim() : undefined,
+        // ✅ Promo fields — dibaca langsung dari kolom Excel
+        promo_type: obj.promo_type || obj.tipe_promo || obj.jenis_promo 
+          ? String(obj.promo_type || obj.tipe_promo || obj.jenis_promo).trim().toUpperCase() 
+          : undefined,
+        promo_badge: obj.promo_badge || obj.badge || obj.label_promo 
+          ? String(obj.promo_badge || obj.badge || obj.label_promo).trim() 
+          : undefined,
+        promo_title: obj.promo_title || obj.judul_promo || obj.campaign_title || obj.nama_promo
+          ? String(obj.promo_title || obj.judul_promo || obj.campaign_title || obj.nama_promo).trim() 
+          : undefined,
+        promo_start_date: obj.promo_start_date || obj.start_date || obj.tanggal_mulai
+          ? String(obj.promo_start_date || obj.start_date || obj.tanggal_mulai).trim() 
+          : undefined,
+        promo_end_date: obj.promo_end_date || obj.end_date || obj.tanggal_akhir
+          ? String(obj.promo_end_date || obj.end_date || obj.tanggal_akhir).trim() 
+          : undefined,
       };
 
       if (standardized.product_name) {
         result.push(standardized);
       }
     });
+
 
 
     return result;
@@ -305,7 +322,8 @@ export class ExcelDriver implements ImportDriver {
       has_strikethrough_price: hasStrikethrough,
       strikethrough_price: originalPrice > 0 ? originalPrice : undefined,
       discount_percentage: discountPct,
-      is_promo: hasStrikethrough || !!promoEndDate,
+      // ✅ is_promo = true jika ada harga coret, promo_type, ATAU promo_badge diset
+      is_promo: hasStrikethrough || !!promoType || !!promoBadge || !!promoEndDate,
       promo_title: promoTitle,
       promo_start_date: promoStartDate,
       promo_end_date: promoEndDate,
@@ -315,6 +333,7 @@ export class ExcelDriver implements ImportDriver {
       stock_status: stockStatus,
       is_available: isAvailable
     };
+
   }
 
 

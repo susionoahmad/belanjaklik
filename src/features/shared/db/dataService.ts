@@ -444,20 +444,31 @@ export const dataService = {
     }
 
 
-    // Merge offlineDb products (e.g., local newly created/imported products)
+    // Merge offlineDb products — hanya tambahkan produk lokal yang BELUM ADA di Supabase
+    // Supabase adalah sumber kebenaran (source of truth) — TIDAK boleh ditimpa IndexedDB
     const offlineList = (await offlineDb.getProducts()) || [];
-    const mergedList = [...baseList];
-    offlineList.forEach(offProd => {
-      const idx = mergedList.findIndex(p => p.id === offProd.id || (offProd.external_product_code && p.external_product_code === offProd.external_product_code));
-      if (idx >= 0) {
-        mergedList[idx] = { ...mergedList[idx], ...offProd };
-      } else {
-        mergedList.unshift(offProd);
-      }
-    });
+    const mergedList = [...baseList]; // Supabase data selalu dipakai sebagai base
 
-    if (mergedList.length === 0) {
-      baseList = offlineList;
+    if (baseList.length > 0) {
+      // Supabase tersedia: hanya tambahkan produk lokal yang belum ada di Supabase
+      offlineList.forEach(offProd => {
+        const existsInSupabase = mergedList.some(
+          p => p.id === offProd.id || 
+               (offProd.external_product_code && p.external_product_code === offProd.external_product_code)
+        );
+        if (!existsInSupabase) {
+          // Produk ini hanya ada di lokal (belum di-sync ke Supabase) → tambahkan
+          mergedList.unshift(offProd);
+        }
+        // Jika ada di Supabase → biarkan data Supabase yang dipakai (tidak ditimpa IndexedDB lama)
+      });
+    } else {
+      // Supabase tidak tersedia (offline mode) → gunakan semua data IndexedDB sebagai fallback
+      offlineList.forEach(offProd => {
+        if (!mergedList.some(p => p.id === offProd.id)) {
+          mergedList.push(offProd);
+        }
+      });
     }
 
     // Filter out user-deleted product IDs, slugs, or names
