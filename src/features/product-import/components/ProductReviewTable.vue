@@ -130,12 +130,24 @@
                 <span>{{ item.card.normalizedData?.is_available ? 'Tersedia (Ready)' : 'Stok Kosong' }}</span>
               </button>
 
-              <div class="text-[11px] font-bold" :class="item.card.aiCategoryRecommendation?.category === 'Promo Merchant' ? 'text-brand-red font-black' : 'text-gray-700 dark:text-gray-300'">
-                {{ item.card.aiCategoryRecommendation?.category }}
+              <div class="text-[11px] font-bold mb-1" :class="item.card.aiCategoryRecommendation?.category === 'Promo Merchant' ? 'text-brand-red font-black' : 'text-gray-700 dark:text-gray-300'">
+                AI Detect: {{ item.card.aiCategoryRecommendation?.category }}
               </div>
-              <div class="text-[10px] text-gray-400 font-mono">
-                Shelf: {{ item.card.aiCategoryRecommendation?.shelf_group }}
+
+              <!-- Interactive Category Selection Dropdown before Publish -->
+              <div class="mt-1.5">
+                <label class="block text-[9px] font-extrabold text-brand-red uppercase tracking-wider mb-0.5">Target Kategori:</label>
+                <select 
+                  :value="getSelectedCategoryId(item)"
+                  @change="updateItemCategory(item, ($event.target as HTMLSelectElement).value)"
+                  class="w-full px-2 py-1 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-xs font-extrabold text-gray-900 dark:text-white focus:ring-2 focus:ring-brand-red outline-none shadow-xs"
+                >
+                  <option v-for="cat in catalogStore.categories" :key="cat.id" :value="cat.id">
+                    {{ cat.name }}
+                  </option>
+                </select>
               </div>
+
 
               <!-- JSM Promo Badge Tag -->
               <div v-if="item.card.normalizedData?.promo_badge" class="mt-1">
@@ -189,10 +201,39 @@
 <script setup lang="ts">
 import { CheckSquare } from 'lucide-vue-next';
 import type { ReviewItem } from '../types';
+import { useCatalogStore } from '../../catalog/stores/catalogStore';
 
 const props = defineProps<{
   reviewItems: ReviewItem[];
 }>();
+
+const catalogStore = useCatalogStore();
+
+const getSelectedCategoryId = (item: ReviewItem): string => {
+  if (item.editedData?.category_id) return item.editedData.category_id;
+
+  const currentCategoryName = item.card.aiCategoryRecommendation?.category;
+  if (currentCategoryName) {
+    const found = catalogStore.categories.find(c => c.name.toLowerCase() === currentCategoryName.toLowerCase() || currentCategoryName.toLowerCase().includes(c.name.toLowerCase()));
+    if (found) return found.id;
+  }
+
+  return 'c1111111-1111-1111-1111-111111111111'; // Default Sembako
+};
+
+const updateItemCategory = (item: ReviewItem, categoryId: string) => {
+  const foundCat = catalogStore.categories.find(c => c.id === categoryId);
+  if (!item.editedData) {
+    item.editedData = {};
+  }
+  item.editedData.category_id = categoryId;
+  if (foundCat) {
+    item.editedData.category = foundCat.name;
+    if (item.card.aiCategoryRecommendation) {
+      item.card.aiCategoryRecommendation.category = foundCat.name;
+    }
+  }
+};
 
 const toggleStockStatus = (item: ReviewItem) => {
   if (item.card.normalizedData) {
@@ -202,4 +243,5 @@ const toggleStockStatus = (item: ReviewItem) => {
   }
 };
 </script>
+
 

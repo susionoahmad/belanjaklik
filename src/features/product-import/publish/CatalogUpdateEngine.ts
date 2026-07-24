@@ -56,6 +56,9 @@ export class CatalogUpdateEngine {
       const unit = item.editedData?.unit || norm?.normalized_unit || norm?.package_size || 'pcs';
       const imageUrl = item.editedData?.image_url || card.cropImageUrl || 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=300';
       const isPromoCategory = card.aiCategoryRecommendation?.category === 'Promo Merchant' || isPromo;
+      
+      const targetCategoryId = item.editedData?.category_id;
+      const targetCategoryName = item.editedData?.category;
 
       if (item.action === 'ACCEPT' || item.action === 'MERGE_PRODUCT') {
         const candidate = card.matchResult?.candidateProduct;
@@ -75,8 +78,8 @@ export class CatalogUpdateEngine {
             promo_type: promoType,
             is_available: isAvailable,
             stock_status: stockStatus,
-            category_id: isPromoCategory ? 'c2222222-2222-2222-2222-222222222222' : candidate.category_id,
-            category: isPromoCategory ? 'Promo Merchant' : candidate.category,
+            category_id: targetCategoryId || (isPromoCategory ? 'c2222222-2222-2222-2222-222222222222' : candidate.category_id),
+            category: targetCategoryName || (isPromoCategory ? 'Promo Merchant' : candidate.category),
             image_url: imageUrl,
             purchase_method: 'owner_checkout'
           });
@@ -85,7 +88,7 @@ export class CatalogUpdateEngine {
           console.log(`[CatalogUpdateEngine] Creating new product from ACCEPT: ${productName}`);
           await this.createNewProduct(
             productName, brand, finalPrice, finalPromoPrice, isPromo, isPromoCategory, unit, imageUrl, isAvailable, stockStatus,
-            promoTitle, promoStartDate, promoEndDate, promoBadge, promoType
+            promoTitle, promoStartDate, promoEndDate, promoBadge, promoType, targetCategoryId, targetCategoryName
           );
           createdCount++;
         }
@@ -106,6 +109,8 @@ export class CatalogUpdateEngine {
             promo_type: promoType,
             is_available: isAvailable,
             stock_status: stockStatus,
+            category_id: targetCategoryId || card.matchResult.candidateProduct.category_id,
+            category: targetCategoryName || card.matchResult.candidateProduct.category,
             image_url: imageUrl,
             purchase_method: 'owner_checkout'
           });
@@ -114,7 +119,7 @@ export class CatalogUpdateEngine {
           console.log(`[CatalogUpdateEngine] Creating new product from CREATE_PRODUCT: ${productName}`);
           await this.createNewProduct(
             productName, brand, finalPrice, finalPromoPrice, isPromo, isPromoCategory, unit, imageUrl, isAvailable, stockStatus,
-            promoTitle, promoStartDate, promoEndDate, promoBadge, promoType
+            promoTitle, promoStartDate, promoEndDate, promoBadge, promoType, targetCategoryId, targetCategoryName
           );
           createdCount++;
         }
@@ -122,7 +127,7 @@ export class CatalogUpdateEngine {
         console.log(`[CatalogUpdateEngine] Creating product from default fallback action (${item.action}): ${productName}`);
         await this.createNewProduct(
           productName, brand, finalPrice, finalPromoPrice, isPromo, isPromoCategory, unit, imageUrl, isAvailable, stockStatus,
-          promoTitle, promoStartDate, promoEndDate, promoBadge, promoType
+          promoTitle, promoStartDate, promoEndDate, promoBadge, promoType, targetCategoryId, targetCategoryName
         );
         createdCount++;
       }
@@ -160,20 +165,23 @@ export class CatalogUpdateEngine {
     promoStartDate?: string,
     promoEndDate?: string,
     promoBadge?: string,
-    promoType?: 'JSM' | 'FLASHSALE' | 'MEMBER' | 'SUPER_SAVER' | 'REGULAR'
+    promoType?: 'JSM' | 'FLASHSALE' | 'MEMBER' | 'SUPER_SAVER' | 'REGULAR',
+    targetCategoryId?: string,
+    targetCategoryName?: string
   ): Promise<Product> {
     const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || `prod-${Date.now()}`;
 
     const isBeauty = ['slavina', 'pixy', 'hanasui', 'parfum', 'perfume', 'lotion', 'lip', 'powder', 'foundation', 'shampoo', 'sabun', 'beauty', 'cosmetic', 'emeron', 'lifebuoy', 'fres', 'pepsodent', 'systema', 'close up']
       .some(kw => name.toLowerCase().includes(kw) || brand.toLowerCase().includes(kw));
 
-    const defaultCatId = isBeauty ? 'c6666666-6666-6666-6666-666666666666' : 'c1111111-1111-1111-1111-111111111111';
-    const defaultCatName = isBeauty ? 'Health & Beauty' : 'Alfamart (Sembako)';
+    const defaultCatId = targetCategoryId || (isBeauty ? 'c6666666-6666-6666-6666-666666666666' : 'c1111111-1111-1111-1111-111111111111');
+    const defaultCatName = targetCategoryName || (isBeauty ? 'Health & Beauty' : 'Alfamart (Sembako)');
 
     return await dataService.saveProduct({
       id: `f_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-      category_id: isPromoCategory ? 'c2222222-2222-2222-2222-222222222222' : defaultCatId,
-      category: isPromoCategory ? 'Promo Merchant' : defaultCatName,
+      category_id: targetCategoryId || (isPromoCategory ? 'c2222222-2222-2222-2222-222222222222' : defaultCatId),
+      category: targetCategoryName || (isPromoCategory ? 'Promo Merchant' : defaultCatName),
+
 
       name,
       slug,
