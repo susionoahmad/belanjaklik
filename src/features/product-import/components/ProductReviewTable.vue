@@ -148,6 +148,22 @@
                 </select>
               </div>
 
+              <!-- Interactive Promo Type Selector before Publish -->
+              <div class="mt-1.5">
+                <label class="block text-[9px] font-extrabold text-amber-600 dark:text-amber-400 uppercase tracking-wider mb-0.5">Tipe Promo / JSM:</label>
+                <select 
+                  :value="getSelectedPromoType(item)"
+                  @change="updateItemPromoType(item, ($event.target as HTMLSelectElement).value)"
+                  class="w-full px-2 py-1 rounded-xl border border-amber-300 dark:border-amber-700 bg-amber-50/60 dark:bg-amber-950/40 text-xs font-extrabold text-amber-900 dark:text-amber-200 focus:ring-2 focus:ring-brand-red outline-none shadow-xs"
+                >
+                  <option value="JSM">🔥 PROMO JSM (3 Hari)</option>
+                  <option value="FLASHSALE">⚡ Flash Sale Hari Ini</option>
+                  <option value="REGULAR">🏷️ Diskon Katalog Regular</option>
+                  <option value="NONE">❌ Bukan Produk Promo</option>
+                </select>
+              </div>
+
+
 
               <!-- JSM Promo Badge Tag -->
               <div v-if="item.card.normalizedData?.promo_badge" class="mt-1">
@@ -234,6 +250,44 @@ const updateItemCategory = (item: ReviewItem, categoryId: string) => {
     }
   }
 };
+
+const getSelectedPromoType = (item: ReviewItem): string => {
+  if (item.editedData?.promo_type) return item.editedData.promo_type;
+  if (item.editedData?.is_promo === false) return 'NONE';
+
+  const norm = item.card.normalizedData;
+  if (norm?.promo_type) return norm.promo_type;
+  if (norm?.promo_badge?.includes('JSM')) return 'JSM';
+  if (norm?.promo_badge?.includes('FLASHSALE')) return 'FLASHSALE';
+  if (norm?.original_price || norm?.promo_badge) return 'JSM';
+
+  return 'JSM'; // Default to JSM for flyer imports
+};
+
+const updateItemPromoType = (item: ReviewItem, promoType: string) => {
+  if (!item.editedData) {
+    item.editedData = {};
+  }
+  item.editedData.promo_type = promoType as any;
+  if (promoType === 'JSM') {
+    item.editedData.promo_badge = 'PROMO JSM (3 HARI)';
+    item.editedData.promo_title = 'Promo Jumat Sabtu Minggu';
+    item.editedData.is_promo = true;
+  } else if (promoType === 'FLASHSALE') {
+    item.editedData.promo_badge = 'FLASHSALE';
+    item.editedData.promo_title = 'Flash Sale Hari Ini';
+    item.editedData.is_promo = true;
+  } else if (promoType === 'REGULAR') {
+    item.editedData.promo_badge = 'Diskon!';
+    item.editedData.promo_title = 'Diskon Spesial';
+    item.editedData.is_promo = true;
+  } else {
+    item.editedData.promo_badge = undefined;
+    item.editedData.promo_title = undefined;
+    item.editedData.is_promo = false;
+  }
+};
+
 
 const toggleStockStatus = (item: ReviewItem) => {
   if (item.card.normalizedData) {

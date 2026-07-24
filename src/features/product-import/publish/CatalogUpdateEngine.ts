@@ -31,7 +31,10 @@ export class CatalogUpdateEngine {
       const promoBadge = item.editedData?.promo_badge || norm?.promo_badge;
       const promoType = item.editedData?.promo_type || norm?.promo_type;
 
-      const isPromo = norm?.is_promo || norm?.has_strikethrough_price || (!!originalPrice && originalPrice > currentPrice) || !!promoType || !!promoBadge;
+      const isPromo = item.editedData?.is_promo !== undefined 
+        ? item.editedData.is_promo 
+        : (norm?.is_promo || norm?.has_strikethrough_price || (!!originalPrice && originalPrice > currentPrice) || !!promoType || !!promoBadge);
+
       
       // If strikethrough original price is present: price = normal price, promo_price = discounted current price
       const finalPrice = item.editedData?.price !== undefined 

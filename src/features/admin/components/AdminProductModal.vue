@@ -24,6 +24,34 @@
           </div>
         </div>
 
+        <!-- Promo & JSM Settings Block -->
+        <div class="p-3 bg-amber-50/60 dark:bg-amber-950/30 rounded-2xl border border-amber-200 dark:border-amber-800/60 space-y-3">
+          <div class="flex items-center justify-between">
+            <label class="flex items-center gap-2 font-bold text-xs text-amber-900 dark:text-amber-300 cursor-pointer">
+              <input type="checkbox" v-model="form.is_promo" class="w-4 h-4 accent-brand-red rounded" />
+              <span>Aktifkan Status Promo / Diskon Spesial</span>
+            </label>
+            <span class="text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-amber-200 text-amber-900">Config Promo</span>
+          </div>
+
+          <div v-if="form.is_promo || form.promo_price" class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+            <div>
+              <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Tipe Promo (Lokasi Tampilan)</label>
+              <select v-model="form.promo_type" class="w-full px-3 py-2 rounded-xl border border-amber-300 dark:border-amber-700 bg-white dark:bg-gray-800 text-xs font-bold focus:ring-2 focus:ring-brand-red outline-none">
+                <option value="JSM">🔥 PROMO JSM (Tampil di Banner JSM 3 Hari)</option>
+                <option value="FLASHSALE">⚡ FLASH SALE (Tampil di Banner Flash Sale)</option>
+                <option value="REGULAR">🏷️ Promo Regular (Diskon Katalog Biasa)</option>
+                <option value="SUPER_SAVER">💰 Super Saver (Hemat Banget)</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Teks Badge Promo (Tampilan Kartu)</label>
+              <input v-model="form.promo_badge" type="text" placeholder="Contoh: PROMO JSM (3 HARI)" class="w-full px-3 py-2 rounded-xl border border-amber-300 dark:border-amber-700 bg-white dark:bg-gray-800 text-xs font-bold focus:ring-2 focus:ring-brand-red outline-none" />
+            </div>
+          </div>
+        </div>
+
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Brand / Merk</label>
@@ -37,6 +65,7 @@
             </select>
           </div>
         </div>
+
 
         <div>
           <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Deskripsi Produk</label>
@@ -164,6 +193,10 @@ const form = ref<{
   name: string;
   price: number;
   promo_price?: number;
+  is_promo?: boolean;
+  promo_type?: 'JSM' | 'FLASHSALE' | 'MEMBER' | 'SUPER_SAVER' | 'REGULAR';
+  promo_badge?: string;
+  promo_title?: string;
   brand?: string;
   description?: string;
   category_id?: string;
@@ -178,6 +211,10 @@ const form = ref<{
   name: '',
   price: 0,
   promo_price: undefined,
+  is_promo: false,
+  promo_type: 'REGULAR',
+  promo_badge: '',
+  promo_title: '',
   brand: '',
   description: '',
   category_id: '',
@@ -201,6 +238,10 @@ watch(() => props.product, (newP) => {
       name: newP.name,
       price: newP.price,
       promo_price: newP.promo_price,
+      is_promo: newP.is_promo ?? (!!newP.promo_price && newP.promo_price < newP.price),
+      promo_type: newP.promo_type || (newP.promo_badge?.includes('JSM') ? 'JSM' : 'REGULAR'),
+      promo_badge: newP.promo_badge || '',
+      promo_title: newP.promo_title || '',
       brand: newP.brand || '',
       description: newP.description || '',
       category_id: newP.category_id || '',
@@ -217,6 +258,10 @@ watch(() => props.product, (newP) => {
       name: '',
       price: 0,
       promo_price: undefined,
+      is_promo: false,
+      promo_type: 'REGULAR',
+      promo_badge: '',
+      promo_title: '',
       brand: '',
       description: '',
       category_id: '',
@@ -230,6 +275,7 @@ watch(() => props.product, (newP) => {
     };
   }
 }, { immediate: true });
+
 
 const selectedChannel = computed<FulfillmentChannel | undefined>(() => {
   return catalogStore.channels.find(c => c.id === form.value.channel_id);
@@ -295,6 +341,8 @@ const removeImage = (idx: number) => {
 const handleSubmit = async () => {
   const primaryImg = form.value.images[0] || form.value.image_url || 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=400';
   const selectedCat = catalogStore.categories.find(c => c.id === form.value.category_id);
+  const isPromo = form.value.is_promo || (!!form.value.promo_price && form.value.promo_price < form.value.price);
+  
   const payload: Partial<Product> = {
     ...form.value,
     category_id: form.value.category_id,
@@ -302,13 +350,17 @@ const handleSubmit = async () => {
     image_url: primaryImg,
     images: form.value.images,
     slug: form.value.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
-    is_promo: !!form.value.promo_price && form.value.promo_price < form.value.price
+    is_promo: isPromo,
+    promo_type: isPromo ? (form.value.promo_type || 'REGULAR') : undefined,
+    promo_badge: isPromo ? (form.value.promo_badge || (form.value.promo_type === 'JSM' ? 'PROMO JSM (3 HARI)' : 'Diskon!')) : undefined,
+    promo_title: isPromo ? (form.value.promo_title || (form.value.promo_type === 'JSM' ? 'Promo Jumat Sabtu Minggu' : 'Diskon Spesial')) : undefined
   };
 
   await dataService.saveProduct(payload);
   emit('saved');
   emit('close');
 };
+
 
 const handleDelete = async () => {
   if (!form.value.id) return;

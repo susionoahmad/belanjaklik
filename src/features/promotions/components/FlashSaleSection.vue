@@ -1,6 +1,6 @@
 <template>
   <div 
-    v-if="catalogStore.promoProducts.length > 0" 
+    v-if="flashSaleProducts.length > 0" 
     class="bg-gradient-to-br from-brand-red-dark via-brand-red to-rose-600 rounded-3xl p-5 text-white shadow-floating relative overflow-hidden group"
     @mouseenter="pauseAutoScroll"
     @mouseleave="resumeAutoScroll"
@@ -52,10 +52,11 @@
       class="flex items-center gap-3 overflow-x-auto pb-2 scrollbar-none scroll-smooth"
     >
       <div 
-        v-for="product in catalogStore.promoProducts" 
+        v-for="product in flashSaleProducts" 
         :key="product.id"
         class="w-36 shrink-0 bg-white dark:bg-gray-800 rounded-2xl p-2.5 text-gray-900 dark:text-white shadow-md flex flex-col justify-between group/card hover:scale-[1.02] transition-transform duration-200"
       >
+
         <div class="relative w-full aspect-square rounded-xl overflow-hidden mb-2 bg-gray-100 dark:bg-gray-700">
           <img :src="proxyImageUrl(product.image_url || '')" :alt="product.name" class="w-full h-full object-cover group-hover/card:scale-105 transition-transform duration-300" @error="($event.target as HTMLImageElement).src='https://images.unsplash.com/photo-1542838132-92c53300491e?w=400'" />
           <span class="absolute top-1 left-1 bg-brand-red text-white text-[9px] font-black px-1.5 py-0.5 rounded-full shadow-xs">
@@ -83,7 +84,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
+
+const flashSaleProducts = computed(() => {
+  const explicitFlash = catalogStore.products.filter(p => p.promo_type === 'FLASHSALE' || p.promo_badge?.toUpperCase().includes('FLASH'));
+  if (explicitFlash.length > 0) return explicitFlash;
+  
+  return catalogStore.promoProducts;
+});
+
 import { Zap, Clock, ChevronLeft, ChevronRight, Plus, ExternalLink, ShoppingBag, MessageSquare, CheckCircle2, HelpCircle } from 'lucide-vue-next';
 import { formatRupiah } from '../../shared/utils/formatters';
 import { useCatalogStore } from '../../catalog/stores/catalogStore';

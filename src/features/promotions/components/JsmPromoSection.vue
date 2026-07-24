@@ -170,18 +170,27 @@ const jsmProducts = computed(() => {
   return catalogStore.products.filter(p => {
     if (!p.is_promo && !p.promo_price) return false;
 
-    if (p.promo_type === 'JSM' || p.promo_badge?.includes('JSM')) return true;
+    // 1. Explicit JSM promo_type or promo_badge
+    if (p.promo_type === 'JSM' || p.promo_badge?.toUpperCase().includes('JSM')) return true;
 
-    const cat = String(p.category || '').toLowerCase();
-    const title = String(p.promo_title || '').toLowerCase();
-    if (cat.includes('jsm') || title.includes('jsm')) return true;
+    // 2. Promo title contains JSM or PROMO SPECIAL or Promo Merchant category
+    const title = String(p.promo_title || '').toUpperCase();
+    const cat = String(p.category || '').toUpperCase();
+    if (title.includes('JSM') || title.includes('PROMO SPECIAL') || cat.includes('PROMO')) return true;
 
+    // 3. Known JSM flyer brands that have a promo price
     const name = String(p.name || '').toLowerCase();
     const brand = String(p.brand || '').toLowerCase();
-    const jsmKeywords = ['fres & natural', 'fres&nat', 'lifebuoy', 'pepsodent', 'systema', 'emeron', 'close up', 'closeup'];
-    return jsmKeywords.some(kw => name.includes(kw) || brand.includes(kw));
+    const jsmBrands = [
+      'fres & natural', 'fres&nat', 'fres', 'lifebuoy', 'pepsodent', 'systema', 'emeron', 'close up', 'closeup',
+      'so good', 'benfarm', 'kraft', 'braskita'
+    ];
+    return jsmBrands.some(b => name.includes(b) || brand.includes(b));
   });
 });
+
+
+
 
 const getButtonConfig = (product: Product) => {
   return PurchaseService.getButtonConfig(product);
