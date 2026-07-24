@@ -76,11 +76,13 @@ export class GeminiVisionAdapter extends OCRAdapter {
       }
     };
 
-    // Remove unsupported custom parameters
+    // Dynamic API version selection (v1 for stable 1.5 models, v1beta for 2.0+ models)
+    const apiVersion = model.includes('1.5') ? 'v1' : 'v1beta';
+
     const attempt = async (): Promise<{ ok: boolean; text?: string; error?: string; isRateLimit?: boolean }> => {
       try {
         const res = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+          `https://generativelanguage.googleapis.com/${apiVersion}/models/${model}:generateContent?key=${apiKey}`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -98,7 +100,7 @@ export class GeminiVisionAdapter extends OCRAdapter {
         if (!res.ok) {
           let msg = `HTTP ${res.status}`;
           try { msg = JSON.parse(rawText)?.error?.message || msg; } catch { /* ignore */ }
-          console.error(`[GeminiVision] ${model} → ${res.status}:`, rawText.slice(0, 300));
+          console.error(`[GeminiVision] ${model} (${apiVersion}) → ${res.status}:`, rawText.slice(0, 300));
           return { ok: false, error: `${model}: ${msg}` };
         }
 
