@@ -134,24 +134,36 @@ export class VisionOCRStage implements PipelineStage {
 
     // If we have real image + API key: use full-screenshot Gemini OCR (single request)
     const apiKey = import.meta.env.VITE_GEMINI_API_KEY?.trim();
-    if (apiKey && apiKey.length > 20 && (fullImageUrl.startsWith('data:image') || fullImageUrl.length > 50)) {
-      context.logs.push('Using Gemini full-screenshot batch OCR (1 API call for all cards)...');
-      const batchResults = await ocrAdapter.processFullScreenshot(fullImageUrl, cardCount);
+    const isRealUpload = fullImageUrl.startsWith('data:image') || fullImageUrl.length > 50;
 
-      if (batchResults && batchResults.length > 0) {
+    if (apiKey && apiKey.length > 20 && isRealUpload) {
+      context.logs.push('Using Gemini full-screenshot batch OCR (1 API call for all cards)...');
+      const batchRes = await ocrAdapter.processFullScreenshot(fullImageUrl, cardCount);
+
+      if (batchRes.results && batchRes.results.length > 0) {
         for (let i = 0; i < context.detectedCards.length; i++) {
           const card = context.detectedCards[i];
-          const result = batchResults[i] || batchResults[batchResults.length - 1];
+          const result = batchRes.results[i] || batchRes.results[batchRes.results.length - 1];
           card.rawOcrText = result.text;
           card.confidence = result.confidence;
         }
-        context.logs.push(`Batch OCR complete: ${batchResults.length} products extracted.`);
+        context.logs.push(`Batch OCR complete: ${batchRes.results.length} products extracted.`);
+        return context;
+      }
+
+      if (batchRes.error) {
+        context.logs.push(`Batch OCR Error: ${batchRes.error}`);
+        for (const card of context.detectedCards) {
+          card.rawOcrText = `[OCR Gagal: ${batchRes.error}]`;
+          card.confidence = 0;
+        }
+        // Stop pipeline immediately for real upload errors (do NOT spam per-card loop)
         return context;
       }
     }
 
-    // Fallback: per-card sequential OCR (for demo sample images)
-    context.logs.push('Fallback: per-card OCR mode.');
+    // Fallback: per-card sequential OCR (ONLY for demo preset sample images)
+    context.logs.push('Fallback: per-card OCR mode (Preset samples).');
     for (let i = 0; i < cardCount; i++) {
       const card = context.detectedCards[i];
       if (i > 0) await new Promise(r => setTimeout(r, 1200));

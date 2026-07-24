@@ -115,9 +115,9 @@ export class GeminiVisionAdapter extends OCRAdapter {
   }
 
   // ─── Full-screenshot batch OCR (1 call → all products) ───────────────────
-  async processFullScreenshot(fullImageDataUrl: string, expectedCount: number): Promise<RawOCRResult[]> {
+  async processFullScreenshot(fullImageDataUrl: string, expectedCount: number): Promise<{ results: RawOCRResult[]; error?: string; isRateLimit?: boolean }> {
     const apiKey = import.meta.env.VITE_GEMINI_API_KEY?.trim();
-    if (!apiKey || apiKey.length <= 20) return [];
+    if (!apiKey || apiKey.length <= 20) return { results: [], error: 'Gemini API Key belum diatur.' };
 
     const BATCH_PROMPT =
       `This is a screenshot of an Indonesian grocery app (Alfamind) showing a product grid.\n` +
@@ -135,17 +135,30 @@ export class GeminiVisionAdapter extends OCRAdapter {
 
     const { data: base64, mimeType } = await this._compressImage(fullImageDataUrl);
     // Primary valid model: gemini-2.0-flash
-    const result = await this._callGemini('gemini-2.0-flash', apiKey, base64, mimeType, BATCH_PROMPT, 2048);
+    let result = await this._callGemini('gemini-2.0-flash', apiKey, base64, mimeType, BATCH_PROMPT, 2048);
 
     if (!result.ok || !result.text) {
-      if (result.isRateLimit) return [];
+      if (result.isRateLimit) {
+        return {
+          results: [],
+          error: 'Quota Gratis Gemini (15 req/menit) terlampaui. Mohon tunggu 1 menit.',
+          isRateLimit: true
+        };
+      }
       // Secondary fallback model: gemini-2.0-flash-lite
       const r2 = await this._callGemini('gemini-2.0-flash-lite', apiKey, base64, mimeType, BATCH_PROMPT, 2048);
-      if (!r2.ok || !r2.text) return [];
-      return this._parseBatchResponse(r2.text);
+      if (!r2.ok || !r2.text) {
+        return {
+          results: [],
+          error: r2.error || result.error || 'Gemini Vision API error',
+          isRateLimit: r2.isRateLimit
+        };
+      }
+      result = r2;
     }
 
-    return this._parseBatchResponse(result.text);
+    const results = this._parseBatchResponse(result.text!);
+    return { results };
   }
 
   private _parseBatchResponse(raw: string): RawOCRResult[] {
