@@ -79,6 +79,8 @@ export interface ParsedProductData {
   discount_badge?: string;
   barcode?: string;
   external_product_code?: string;
+  stock_status?: 'in_stock' | 'low_stock' | 'out_of_stock';
+  is_available?: boolean;
 }
 
 export interface NormalizedProductData extends ParsedProductData {

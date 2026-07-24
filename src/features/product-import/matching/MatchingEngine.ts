@@ -52,7 +52,7 @@ export class MatchingEngine {
 
     // 3. Priority 3: Brand + Name Text Matcher
     const textResult = TextMatcher.match(data, catalog);
-    if (textResult.candidate && textResult.score >= 0.50) {
+    if (textResult.candidate && textResult.score >= 0.85 && !textResult.hasConflict) {
       const confidence = Math.round(textResult.score * 100);
       notes.push(`Matched by Brand & Name similarity (${confidence}%)`);
 
@@ -71,6 +71,7 @@ export class MatchingEngine {
         }
       };
     }
+
 
     // 4. Priority 4: Image Similarity Matcher (With Sanity Category Check)
     const imageResult = ImageMatcher.match(cropImageUrl, data, catalog);

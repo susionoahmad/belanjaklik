@@ -66,13 +66,23 @@
               </div>
             </td>
 
-            <!-- Price (With Strikethrough Price / Harga Coret Detection) -->
-            <td class="p-3 min-w-[140px]">
+            <!-- Price (Editable Inline) -->
+            <td class="p-3 min-w-[150px]">
               <div class="font-extrabold text-brand-red text-xs flex items-center gap-1">
-                <span>Rp {{ (item.card.normalizedData?.normalized_price || 0).toLocaleString('id-ID') }}</span>
+                <span class="text-gray-500">Rp</span>
+                <input 
+                  v-model.number="item.card.normalizedData!.normalized_price" 
+                  type="number"
+                  placeholder="0"
+                  class="font-extrabold text-brand-red text-xs bg-gray-50 dark:bg-gray-700/50 border-b border-dashed border-gray-300 focus:border-brand-red outline-none w-20 px-1 py-0.5 rounded"
+                />
                 <span v-if="item.card.normalizedData?.original_price" class="text-[9px] bg-red-100 dark:bg-red-950 text-red-700 dark:text-red-300 font-extrabold px-1.5 py-0.5 rounded-md border border-red-200">
                   PROMO
                 </span>
+              </div>
+
+              <div v-if="!item.card.normalizedData?.normalized_price" class="text-[9px] font-extrabold text-amber-600 dark:text-amber-400 mt-0.5">
+                ⚠️ Harga belum diisi (0)
               </div>
               
               <!-- Strikethrough Price (Harga Coret) -->
@@ -84,14 +94,10 @@
                   -{{ item.card.normalizedData.discount_percentage }}%
                 </span>
               </div>
-              
-              <div v-if="item.card.normalizedData?.has_strikethrough_price" class="text-[9px] font-extrabold text-amber-600 dark:text-amber-400 mt-0.5 flex items-center gap-0.5">
-                <span>🔥 Terdeteksi Harga Coret</span>
-              </div>
             </td>
 
             <!-- Match Status & Confidence -->
-            <td class="p-3 min-w-[190px]">
+            <td class="p-3 min-w-[180px]">
               <div class="flex items-center gap-1.5">
                 <span 
                   v-if="item.card.matchResult?.candidateProduct"
@@ -109,23 +115,28 @@
               <div class="text-[10px] font-bold mt-1" :class="item.card.matchResult?.candidateProduct ? 'text-gray-700 dark:text-gray-300' : 'text-blue-600 dark:text-blue-400'">
                 {{ item.card.matchResult?.candidateProduct ? `Matched: ${item.card.matchResult.candidateProduct.name}` : '✨ Produk Baru Siap Ditambahkan' }}
               </div>
-              <div v-if="item.card.matchResult?.matchReason?.notes?.length" class="text-[9px] text-gray-400 italic mt-0.5">
-                {{ item.card.matchResult.matchReason.notes[0] }}
-              </div>
             </td>
 
-            <!-- AI Category Recommendation (Promo Merchant Category) -->
-            <td class="p-3 min-w-[160px]">
+            <!-- Stock Status & Category Recommendation -->
+            <td class="p-3 min-w-[170px]">
+              <!-- Stock Status Badge Toggle -->
+              <button 
+                @click="toggleStockStatus(item)" 
+                class="px-2 py-0.5 rounded-full text-[10px] font-extrabold border transition-all flex items-center gap-1 mb-1"
+                :class="item.card.normalizedData?.is_available ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-red-50 text-red-700 border-red-200'"
+              >
+                <span class="w-1.5 h-1.5 rounded-full" :class="item.card.normalizedData?.is_available ? 'bg-emerald-500' : 'bg-red-500'"></span>
+                <span>{{ item.card.normalizedData?.is_available ? 'Tersedia (Ready)' : 'Stok Kosong' }}</span>
+              </button>
+
               <div class="text-[11px] font-bold" :class="item.card.aiCategoryRecommendation?.category === 'Promo Merchant' ? 'text-brand-red font-black' : 'text-gray-700 dark:text-gray-300'">
                 {{ item.card.aiCategoryRecommendation?.category }}
               </div>
-              <div class="text-[10px] font-bold text-gray-500 dark:text-gray-400">
-                {{ item.card.aiCategoryRecommendation?.subcategory }}
-              </div>
-              <div class="text-[9px] text-gray-400 font-mono mt-0.5">
+              <div class="text-[10px] text-gray-400 font-mono">
                 Shelf: {{ item.card.aiCategoryRecommendation?.shelf_group }}
               </div>
             </td>
+
 
             <!-- Action Buttons -->
             <td class="p-3 text-right whitespace-nowrap min-w-[210px]">
@@ -170,4 +181,13 @@ import type { ReviewItem } from '../types';
 const props = defineProps<{
   reviewItems: ReviewItem[];
 }>();
+
+const toggleStockStatus = (item: ReviewItem) => {
+  if (item.card.normalizedData) {
+    const current = item.card.normalizedData.is_available ?? true;
+    item.card.normalizedData.is_available = !current;
+    item.card.normalizedData.stock_status = !current ? 'in_stock' : 'out_of_stock';
+  }
+};
 </script>
+

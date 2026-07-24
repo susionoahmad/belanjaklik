@@ -11,6 +11,7 @@ import { MatchingEngine } from '../matching/MatchingEngine';
 import { DuplicateEngine } from '../duplicate/DuplicateEngine';
 import { dataService } from '../../shared/db/dataService';
 import { auditTrailService } from '../audit/AuditTrailService';
+import { ExcelDriver } from '../drivers/ExcelDriver';
 
 const ocrAdapter = new GeminiVisionAdapter();
 
@@ -20,6 +21,10 @@ export class LayoutDetectionStage implements PipelineStage {
   enabled = true;
 
   async execute(context: PipelineContext): Promise<PipelineContext> {
+    if (context.sourceType === 'EXCEL') {
+      context.logs.push('Layout Detection Stage: Skipped for Excel source.');
+      return context;
+    }
     context.logs.push('Executing Layout Detection: Filtering top header, search box, status bar, and bottom cart nav.');
     const bounds = LayoutDetector.detectLayout(800, 1400);
     context.metadata.layoutBounds = bounds;
@@ -33,6 +38,16 @@ export class ProductDetectionStage implements PipelineStage {
   enabled = true;
 
   async execute(context: PipelineContext): Promise<PipelineContext> {
+    if (context.sourceType === 'EXCEL') {
+      context.logs.push('Executing Product Card Detection for Excel: Parsing rows from Excel workbook.');
+      const driver = new ExcelDriver();
+      const result = await driver.import(context.input);
+      context.detectedCards = result.items;
+      context.logs.push(`Successfully extracted ${result.items.length} products from Excel file.`);
+      await auditTrailService.logStage(context.sessionId, this.name, { cardCount: result.items.length }, result.items);
+      return context;
+    }
+
     context.logs.push('Executing Product Card Detection: Locating product card grid rectangles.');
     const layout = context.metadata.layoutBounds || LayoutDetector.detectLayout(800, 1400);
     const cardSubBounds = ProductCardDetector.detectCards(layout.contentRegion);
@@ -57,6 +72,11 @@ export class CardCroppingStage implements PipelineStage {
   enabled = true;
 
   async execute(context: PipelineContext): Promise<PipelineContext> {
+    if (context.sourceType === 'EXCEL') {
+      context.logs.push('Card Cropping Stage: Skipped for Excel source.');
+      return context;
+    }
+
     context.logs.push('Executing Card Cropping: Extracting clean product image regions via HTML5 Canvas.');
 
     let baseImageSrc = '';
@@ -100,6 +120,11 @@ export class VisionOCRStage implements PipelineStage {
   enabled = true;
 
   async execute(context: PipelineContext): Promise<PipelineContext> {
+    if (context.sourceType === 'EXCEL') {
+      context.logs.push('Vision OCR Stage: Skipped for Excel source (Structured text extracted directly).');
+      return context;
+    }
+
     const cardCount = context.detectedCards.length;
     context.logs.push(`Executing Vision OCR: Sending full screenshot to Gemini for ${cardCount}-product batch extraction.`);
 
@@ -188,6 +213,10 @@ export class ProductParsingStage implements PipelineStage {
   enabled = true;
 
   async execute(context: PipelineContext): Promise<PipelineContext> {
+    if (context.sourceType === 'EXCEL') {
+      context.logs.push('Product Parsing Stage: Preserving structured Excel parsed fields.');
+      return context;
+    }
     context.logs.push('Executing Product Parsing: Structuring raw OCR lines into product fields.');
     for (const card of context.detectedCards) {
       if (card.rawOcrText) {
@@ -197,6 +226,7 @@ export class ProductParsingStage implements PipelineStage {
     return context;
   }
 }
+
 
 export class NormalizationStage implements PipelineStage {
   name = 'Normalization Stage';

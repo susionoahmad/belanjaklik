@@ -1,8 +1,10 @@
 import type { Product } from '../../shared/types';
 import type { NormalizedProductData } from '../types';
 import { ImageEmbeddingService } from '../embeddings/ImageEmbeddingService';
+import { TextMatcher } from './TextMatcher';
 
 export class ImageMatcher {
+
   static match(cropImageUrl: string, data: NormalizedProductData, catalog: Product[]): { candidate: Product | null; score: number } {
     if (!cropImageUrl || !catalog || catalog.length === 0) return { candidate: null, score: 0 };
 
@@ -31,6 +33,12 @@ export class ImageMatcher {
       if (!hasWordOverlap) {
         continue;
       }
+
+      // Sanity Check 3: Reject candidates with variant or size conflict (e.g. 120g vs 86g, Cabe Ijo vs Tori Miso)
+      if (TextMatcher.isVariantConflict(data.normalized_name, p.name)) {
+        continue;
+      }
+
 
       const cropVector = ImageEmbeddingService.generateEmbedding(cropImageUrl);
       const prodVector = ImageEmbeddingService.generateEmbedding(p.image_url || p.name);

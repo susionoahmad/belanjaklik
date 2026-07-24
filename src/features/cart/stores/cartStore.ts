@@ -68,6 +68,10 @@ export const useCartStore = defineStore('cart', () => {
   };
 
   const addItem = (product: Product, quantity = 1, notes?: string) => {
+    if (product.is_available === false || product.stock_status === 'out_of_stock') {
+      alert(`Maaf, stok "${product.name}" sedang kosong.`);
+      return;
+    }
     const existing = items.value.find(i => i.product.id === product.id);
     if (existing) {
       existing.quantity += quantity;
@@ -76,6 +80,7 @@ export const useCartStore = defineStore('cart', () => {
       items.value.push({ product, quantity, item_notes: notes });
     }
   };
+
 
   const updateQuantity = (productId: string, quantity: number) => {
     if (quantity <= 0) {

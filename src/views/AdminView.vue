@@ -127,12 +127,14 @@
               <span>Tambah Produk</span>
             </button>
 
-            <!-- Excel/CSV Import Trigger -->
-            <label class="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs px-4 py-2.5 rounded-xl flex items-center gap-1.5 cursor-pointer shadow-md">
+            <!-- Excel/CSV Import Trigger: Navigate to Product Import Engine with Review Queue -->
+            <button 
+              @click="activeTab = 'import-engine'" 
+              class="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs px-4 py-2.5 rounded-xl flex items-center gap-1.5 shadow-md"
+            >
               <Upload class="w-4 h-4" />
-              <span>Impor Excel / CSV</span>
-              <input type="file" accept=".csv, .xlsx, .xls" class="hidden" @change="handleFileImport" />
-            </label>
+              <span>Impor Excel / CSV (Dengan Review)</span>
+            </button>
           </div>
 
           <span class="text-xs text-gray-500 font-semibold">

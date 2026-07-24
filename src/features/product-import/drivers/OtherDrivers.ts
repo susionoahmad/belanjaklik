@@ -18,14 +18,7 @@ export class UrlDriver implements ImportDriver {
   async parse(raw: any): Promise<ParsedProductData[]> { return []; }
 }
 
-export class ExcelDriver implements ImportDriver {
-  name = 'Excel / CSV Import Driver';
-  sourceType: SourceType = 'EXCEL';
-  async detect(input: DriverInput): Promise<boolean> { return true; }
-  async validate(input: DriverInput): Promise<boolean> { return true; }
-  async import(input: DriverInput): Promise<DriverResult> { return { sessionId: `excel_${Date.now()}`, sourceType: 'EXCEL', items: [] }; }
-  async parse(raw: any): Promise<ParsedProductData[]> { return []; }
-}
+export { ExcelDriver } from './ExcelDriver';
 
 export class ApiDriver implements ImportDriver {
   name = 'Supplier API Driver';

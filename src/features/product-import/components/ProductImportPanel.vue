@@ -84,8 +84,14 @@
       </div>
     </div>
 
-    <!-- Step 1: Upload Screenshot & Live Scan Preview -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <!-- Step 1: Upload Screenshot / Excel Uploader -->
+    <div v-if="selectedSourceType === 'EXCEL'">
+      <ExcelUploader 
+        @filesSelected="handleFilesSelected"
+        @presetSelected="handleExcelPresetSelected"
+      />
+    </div>
+    <div v-else class="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <div class="lg:col-span-2">
         <ScreenshotUploader 
           currentDriverName="Screenshot Driver (Groceries Scanner)" 
@@ -107,7 +113,7 @@
       <div class="flex items-center justify-between border-b border-gray-800 pb-2 text-white font-bold">
         <span class="flex items-center gap-2">
           <Terminal class="w-4 h-4 text-emerald-400" />
-          <span>Pipeline Engine Execution Logs</span>
+          <span>Pipeline Engine Execution Logs ({{ selectedSourceType }})</span>
         </span>
         <span v-if="isProcessing" class="text-amber-400 animate-pulse text-[11px]">Memproses Pipeline 11 Stages...</span>
       </div>
@@ -158,6 +164,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { Cpu, Sliders, Terminal, Send } from 'lucide-vue-next';
 import ScreenshotUploader from './ScreenshotUploader.vue';
+import ExcelUploader from './ExcelUploader.vue';
 import ScanPreview from './ScanPreview.vue';
 import ProductReviewTable from './ProductReviewTable.vue';
 import CatalogVersionManager from './CatalogVersionManager.vue';
@@ -170,7 +177,7 @@ import { useCatalogStore } from '../../catalog/stores/catalogStore';
 
 const catalogStore = useCatalogStore();
 
-const selectedSourceType = ref<SourceType>('SCREENSHOT');
+const selectedSourceType = ref<SourceType>('EXCEL');
 const isProcessing = ref(false);
 const isPublishing = ref(false);
 const isPublishDialogOpen = ref(false);
@@ -205,7 +212,7 @@ const refreshMetrics = async () => {
 };
 
 const handleFilesSelected = async (files: File[]) => {
-  if (files && files.length > 0) {
+  if (files && files.length > 0 && selectedSourceType.value === 'SCREENSHOT') {
     try {
       activePreviewImage.value = URL.createObjectURL(files[0]);
     } catch (e) {}
@@ -218,12 +225,16 @@ const handlePresetSelected = async (preset: { id: string; title: string; preview
   await executeImportSession({ fileUrls: [preset.preview] });
 };
 
+const handleExcelPresetSelected = async (url: string) => {
+  await executeImportSession({ fileUrls: [url] });
+};
+
 const executeImportSession = async (input: any) => {
   isProcessing.value = true;
-  logs.value = ['Initializing Pipeline Engine execution...'];
+  logs.value = [`Initializing Pipeline Engine execution for ${selectedSourceType.value}...`];
 
   try {
-    const result = await productImportEngine.runImportSession('SCREENSHOT', input);
+    const result = await productImportEngine.runImportSession(selectedSourceType.value, input);
     reviewItems.value = result.reviewItems;
     detectedCards.value = result.reviewItems.map(r => r.card);
     logs.value = result.logs;
@@ -259,3 +270,4 @@ onMounted(async () => {
   await refreshMetrics();
 });
 </script>
+

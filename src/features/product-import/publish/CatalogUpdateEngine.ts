@@ -21,14 +21,30 @@ export class CatalogUpdateEngine {
 
       const productName = item.editedData?.name || ai?.corrected_name || norm?.extracted_name || norm?.normalized_name || 'Produk Impor Sembako';
       const brand = item.editedData?.brand || ai?.corrected_brand || norm?.extracted_brand || norm?.normalized_brand || 'Umum';
-      const currentPrice = norm?.normalized_price || norm?.current_price || 10000;
+      const currentPrice = item.editedData?.price !== undefined 
+        ? item.editedData.price 
+        : (norm?.normalized_price ?? norm?.current_price ?? 0);
       const originalPrice = norm?.original_price || norm?.strikethrough_price;
       const isPromo = norm?.is_promo || norm?.has_strikethrough_price || (!!originalPrice && originalPrice > currentPrice);
       
       // If strikethrough original price is present: price = normal price, promo_price = discounted current price
-      const finalPrice = item.editedData?.price || (originalPrice && originalPrice > currentPrice ? originalPrice : currentPrice);
-      const finalPromoPrice = item.editedData?.promo_price || (originalPrice && originalPrice > currentPrice ? currentPrice : undefined);
+      const finalPrice = item.editedData?.price !== undefined 
+        ? item.editedData.price 
+        : (originalPrice && originalPrice > currentPrice ? originalPrice : currentPrice);
+      const finalPromoPrice = item.editedData?.promo_price !== undefined 
+        ? item.editedData.promo_price 
+        : (originalPrice && originalPrice > currentPrice ? currentPrice : undefined);
       
+      const isAvailable = item.editedData?.is_available !== undefined
+        ? item.editedData.is_available
+        : norm?.is_available !== undefined
+          ? norm.is_available
+          : norm?.stock_status ? norm.stock_status !== 'out_of_stock' : true;
+
+      const stockStatus: 'in_stock' | 'low_stock' | 'out_of_stock' = item.editedData?.stock_status 
+        || norm?.stock_status 
+        || (isAvailable ? 'in_stock' : 'out_of_stock');
+
       const unit = item.editedData?.unit || norm?.normalized_unit || norm?.package_size || 'pcs';
       const imageUrl = item.editedData?.image_url || card.cropImageUrl || 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=300';
       const isPromoCategory = card.aiCategoryRecommendation?.category === 'Promo Merchant' || isPromo;
@@ -43,6 +59,8 @@ export class CatalogUpdateEngine {
             price: finalPrice,
             promo_price: finalPromoPrice,
             is_promo: isPromo,
+            is_available: isAvailable,
+            stock_status: stockStatus,
             category_id: isPromoCategory ? 'c2222222-2222-2222-2222-222222222222' : candidate.category_id,
             category: isPromoCategory ? 'Promo Merchant' : candidate.category,
             image_url: imageUrl,
@@ -50,7 +68,7 @@ export class CatalogUpdateEngine {
           });
           updatedCount++;
         } else {
-          await this.createNewProduct(productName, brand, finalPrice, finalPromoPrice, isPromo, isPromoCategory, unit, imageUrl);
+          await this.createNewProduct(productName, brand, finalPrice, finalPromoPrice, isPromo, isPromoCategory, unit, imageUrl, isAvailable, stockStatus);
           createdCount++;
         }
       } else if (item.action === 'CREATE_PRODUCT' || item.action === 'EDIT') {
@@ -62,12 +80,14 @@ export class CatalogUpdateEngine {
             price: finalPrice,
             promo_price: finalPromoPrice,
             is_promo: isPromo,
+            is_available: isAvailable,
+            stock_status: stockStatus,
             image_url: imageUrl,
             purchase_method: 'owner_checkout'
           });
           updatedCount++;
         } else {
-          await this.createNewProduct(productName, brand, finalPrice, finalPromoPrice, isPromo, isPromoCategory, unit, imageUrl);
+          await this.createNewProduct(productName, brand, finalPrice, finalPromoPrice, isPromo, isPromoCategory, unit, imageUrl, isAvailable, stockStatus);
           createdCount++;
         }
       }
@@ -96,7 +116,9 @@ export class CatalogUpdateEngine {
     isPromo: boolean, 
     isPromoCategory: boolean, 
     unit: string, 
-    imageUrl: string
+    imageUrl: string,
+    isAvailable: boolean = true,
+    stockStatus: 'in_stock' | 'low_stock' | 'out_of_stock' = 'in_stock'
   ): Promise<Product> {
     const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || `prod-${Date.now()}`;
 
@@ -111,10 +133,11 @@ export class CatalogUpdateEngine {
       price,
       promo_price: promoPrice,
       is_promo: isPromo,
-      is_available: true,
-      stock_status: 'in_stock',
+      is_available: isAvailable,
+      stock_status: stockStatus,
       image_url: imageUrl,
       purchase_method: 'owner_checkout'
     });
   }
 }
+
