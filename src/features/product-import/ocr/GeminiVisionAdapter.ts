@@ -141,10 +141,18 @@ export class GeminiVisionAdapter extends OCRAdapter {
       `[{"product_name":"...","brand":"...","size":"...","current_price":42500,"original_price":null,"discount_percent":null,"promo_badge":null},...]`;
 
     const { data: base64, mimeType } = await this._compressImage(fullImageDataUrl);
-    // Primary valid model: gemini-2.0-flash
-    let result = await this._callGemini('gemini-2.0-flash', apiKey, base64, mimeType, BATCH_PROMPT, 2048);
+    // Models: gemini-2.5-flash and gemini-2.0-flash
+    const MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash'];
+    let lastError = '';
 
-    if (!result.ok || !result.text) {
+    for (const model of MODELS) {
+      const result = await this._callGemini(model, apiKey, base64, mimeType, BATCH_PROMPT, 2048);
+      if (result.ok && result.text) {
+        const results = this._parseBatchResponse(result.text);
+        if (results && results.length > 0) {
+          return { results };
+        }
+      }
       if (result.isRateLimit) {
         return {
           results: [],
@@ -152,20 +160,12 @@ export class GeminiVisionAdapter extends OCRAdapter {
           isRateLimit: true
         };
       }
-      // Secondary fallback model: gemini-2.0-flash-lite
-      const r2 = await this._callGemini('gemini-2.0-flash-lite', apiKey, base64, mimeType, BATCH_PROMPT, 2048);
-      if (!r2.ok || !r2.text) {
-        return {
-          results: [],
-          error: r2.error || result.error || 'Gemini Vision API error',
-          isRateLimit: r2.isRateLimit
-        };
+      if (result.error) {
+        lastError = result.error;
       }
-      result = r2;
     }
 
-    const results = this._parseBatchResponse(result.text!);
-    return { results };
+    return { results: [], error: lastError || 'Gagal mengekstrak data dari screenshot.' };
   }
 
   private _parseBatchResponse(raw: string): RawOCRResult[] {
@@ -203,8 +203,8 @@ export class GeminiVisionAdapter extends OCRAdapter {
     // Compress image before sending
     const { data: base64, mimeType } = await this._compressImage(cropImageUrl);
 
-    // Try models in order: gemini-2.0-flash and gemini-2.0-flash-lite
-    const MODELS = ['gemini-2.0-flash', 'gemini-2.0-flash-lite'];
+    // Try models in order: gemini-2.5-flash and gemini-2.0-flash
+    const MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash'];
     const errors: string[] = [];
 
     for (const model of MODELS) {
