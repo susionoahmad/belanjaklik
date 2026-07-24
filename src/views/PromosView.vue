@@ -5,6 +5,9 @@
       <p class="text-xs text-gray-500">Hemat lebih banyak dengan penawaran diskon minggu ini</p>
     </div>
 
+    <!-- Promo JSM Section -->
+    <JsmPromoSection />
+
     <!-- Flash Sale Section -->
     <FlashSaleSection />
 
@@ -20,6 +23,7 @@
         />
       </div>
     </section>
+
 
     <!-- Promo Brochure Files (PDF / Gambar) -->
     <section class="bg-white dark:bg-gray-800 rounded-3xl p-5 border border-gray-100 dark:border-gray-700 space-y-3 shadow-soft">
@@ -108,6 +112,8 @@ import { FileText, Eye, Download, X } from 'lucide-vue-next';
 import type { Product, PromoFile } from '../features/shared/types';
 import { updatePageSeo } from '../features/shared/utils/seo';
 import FlashSaleSection from '../features/promotions/components/FlashSaleSection.vue';
+import JsmPromoSection from '../features/promotions/components/JsmPromoSection.vue';
+
 import ProductCard from '../features/catalog/components/ProductCard.vue';
 import ProductDetailModal from '../features/catalog/components/ProductDetailModal.vue';
 import { useCatalogStore } from '../features/catalog/stores/catalogStore';
