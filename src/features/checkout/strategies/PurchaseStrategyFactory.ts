@@ -35,9 +35,12 @@ class PurchaseStrategyFactoryService {
   }
 
   getStrategyForProduct(product: Product, channel?: FulfillmentChannel): PurchaseStrategy {
-    // 1. Explicit purchase_method takes precedence if set to non-owner or if explicitly self_checkout
+    // 1. Explicit purchase_method takes precedence
     if (product.purchase_method === 'self_checkout') {
       return this.selfCheckoutStrategy;
+    }
+    if (product.purchase_method === 'owner_checkout') {
+      return this.ownerCheckoutStrategy;
     }
     if (product.purchase_method === 'quote_request') {
       return this.strategies.get('quote_request') || this.ownerCheckoutStrategy;
@@ -46,22 +49,20 @@ class PurchaseStrategyFactoryService {
       return this.strategies.get('coming_soon') || this.ownerCheckoutStrategy;
     }
 
-    // 2. Check if product is a Merchant / Store Link product (e.g., Olymplast, Wardah, external links, TokoSaya)
-    const nameText = `${product.name} ${product.brand || ''}`.toLowerCase();
-    const isLinkProduct = 
-      nameText.includes('olymplast') ||
-      nameText.includes('wardah') ||
-      (product.notes && (product.notes.includes('http://') || product.notes.includes('https://') || product.notes.toLowerCase().includes('tokosaya'))) ||
-      (product.external_product_code && product.external_product_code.length > 0) ||
+    // 2. Check if product has explicit external code or URL link in notes
+    const hasExternalLink = 
+      (product.notes && (product.notes.includes('http://') || product.notes.includes('https://'))) ||
+      (product.external_product_code && product.external_product_code.trim().length > 0) ||
       (channel?.slug === 'alfamind-official' || channel?.slug === 'marketplace-partner');
 
-    if (isLinkProduct) {
+    if (hasExternalLink) {
       return this.selfCheckoutStrategy;
     }
 
     // 3. Default to Alfamart WA Owner Checkout (+ Beli)
     return this.ownerCheckoutStrategy;
   }
+
 }
 
 export const PurchaseStrategyFactory = new PurchaseStrategyFactoryService();

@@ -87,11 +87,20 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 
 const flashSaleProducts = computed(() => {
+  // 1. Explicit FLASHSALE items
   const explicitFlash = catalogStore.products.filter(p => p.promo_type === 'FLASHSALE' || p.promo_badge?.toUpperCase().includes('FLASH'));
   if (explicitFlash.length > 0) return explicitFlash;
   
-  return catalogStore.products.filter(p => p.is_promo && p.promo_type === 'FLASHSALE');
+  // 2. Fallback: Display promo products that are NOT JSM flyer items (Bodimax, Kenmaster, Asta, etc.)
+  const nonJsmPromos = catalogStore.products.filter(p => {
+    if (!p.is_promo && !p.promo_price) return false;
+    if (p.promo_type === 'JSM' || p.promo_badge?.toUpperCase().includes('JSM')) return false;
+    return true;
+  });
+
+  return nonJsmPromos.length > 0 ? nonJsmPromos : catalogStore.promoProducts;
 });
+
 
 
 import { Zap, Clock, ChevronLeft, ChevronRight, Plus, ExternalLink, ShoppingBag, MessageSquare, CheckCircle2, HelpCircle } from 'lucide-vue-next';

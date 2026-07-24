@@ -429,7 +429,12 @@ export const dataService = {
     let baseList: Product[] = [];
     if (isSupabaseConfigured) {
       try {
-        const { data, error } = await supabase.from('products').select('*').is('deleted_at', null).order('created_at', { ascending: false });
+        const { data, error } = await supabase
+          .from('products')
+          .select('*')
+          .is('deleted_at', null)
+          .order('created_at', { ascending: false })
+          .limit(2000);
         if (!error && data && data.length > 0) {
           baseList = data;
         }
@@ -437,6 +442,7 @@ export const dataService = {
         console.warn('Supabase fetchProducts failed', err);
       }
     }
+
 
     // Merge offlineDb products (e.g., local newly created/imported products)
     const offlineList = (await offlineDb.getProducts()) || [];

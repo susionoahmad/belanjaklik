@@ -283,15 +283,16 @@ export class ExcelDriver implements ImportDriver {
     const isAvailable = !isKosong;
 
     const isJsmItem = row.promo_type === 'JSM' || 
-                      String(row.category || '').toUpperCase().includes('JSM') ||
-                      ['fres & natural', 'fres&nat', 'lifebuoy', 'pepsodent', 'systema', 'emeron', 'close up', 'closeup', 'indomie', 'sedaap', 'sarimi']
-                        .some(kw => (row.product_name || '').toLowerCase().includes(kw) || (row.brand || '').toLowerCase().includes(kw));
+                      String(row.promo_badge || '').toUpperCase().includes('JSM') ||
+                      String(row.promo_title || '').toUpperCase().includes('JSM') ||
+                      String(row.category || '').toUpperCase().includes('JSM');
 
     const promoType = row.promo_type || (isJsmItem ? 'JSM' : undefined);
     const promoBadge = row.promo_badge || (isJsmItem ? 'PROMO JSM (3 HARI)' : (hasStrikethrough ? 'Diskon!' : undefined));
-    const promoTitle = row.promo_title || row.campaign_title || (isJsmItem ? 'Promo Jumat Sabtu Minggu' : 'Diskon Spesial');
-    const promoStartDate = row.promo_start_date || row.start_date || (isJsmItem ? '24 Juli 2026' : undefined);
-    const promoEndDate = row.promo_end_date || row.end_date || (isJsmItem ? '26 Juli 2026' : undefined);
+    const promoTitle = row.promo_title || row.campaign_title || (isJsmItem ? 'Promo Jumat Sabtu Minggu' : (hasStrikethrough ? 'Diskon Spesial' : undefined));
+    const promoStartDate = row.promo_start_date || row.start_date;
+    const promoEndDate = row.promo_end_date || row.end_date;
+
 
 
     return {
