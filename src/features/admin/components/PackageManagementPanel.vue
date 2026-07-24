@@ -213,19 +213,23 @@
             </div>
 
             <!-- Items Table Rows -->
-            <div class="space-y-2 max-h-48 overflow-y-auto pr-1">
+            <div class="space-y-2 max-h-56 overflow-y-auto pr-1">
               <div 
                 v-for="(item, idx) in editingPackage.items" 
                 :key="idx"
                 class="flex items-center gap-2 bg-white dark:bg-gray-800 p-2.5 rounded-xl border border-gray-200 dark:border-gray-700 shadow-2xs"
               >
-                <input 
-                  v-model="item.product_name" 
-                  type="text" 
-                  placeholder="Nama Produk" 
-                  required 
-                  class="flex-1 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 text-xs font-semibold outline-none"
-                />
+                <div class="flex-1 min-w-0">
+                  <input 
+                    v-model="item.product_name" 
+                    list="catalog-products-datalist"
+                    @change="onItemNameChange(item)"
+                    type="text" 
+                    placeholder="Pilih atau Ketik Produk Katalog..." 
+                    required 
+                    class="w-full px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 text-xs font-semibold outline-none focus:ring-2 focus:ring-brand-red"
+                  />
+                </div>
                 
                 <input 
                   v-model.number="item.quantity" 
@@ -254,13 +258,21 @@
                 <button 
                   type="button" 
                   @click="removeItemRow(idx)" 
-                  class="text-red-500 hover:text-red-700 p-1 font-bold"
+                  class="text-red-500 hover:text-red-700 p-1 font-bold shrink-0"
                   title="Hapus Baris"
                 >
                   &times;
                 </button>
               </div>
+
+              <!-- Datalist Auto-Complete -->
+              <datalist id="catalog-products-datalist">
+                <option v-for="p in catalogStore.products" :key="p.id" :value="p.name">
+                  {{ formatRupiah(p.promo_price || p.price) }} ({{ p.brand || 'Umum' }})
+                </option>
+              </datalist>
             </div>
+
 
             <div class="flex items-center justify-between bg-amber-50 dark:bg-amber-950/40 p-3 rounded-2xl border border-amber-200 dark:border-amber-900 text-xs">
               <span class="font-bold text-amber-800 dark:text-amber-300">Estimasi Total Harga Bundel:</span>
@@ -334,6 +346,15 @@ const duplicatePackage = (tpl: any) => {
   editingPackage.value = dup;
 };
 
+const onItemNameChange = (item: any) => {
+  if (!item || !item.product_name) return;
+  const matched = catalogStore.products.find(p => p.name.toLowerCase() === item.product_name.toLowerCase().trim());
+  if (matched) {
+    item.default_price = matched.promo_price || matched.price;
+    item.unit = matched.unit || 'pcs';
+  }
+};
+
 const addItemRow = () => {
   if (!editingPackage.value) return;
   editingPackage.value.items.push({
@@ -343,6 +364,7 @@ const addItemRow = () => {
     unit: 'pcs'
   });
 };
+
 
 const addSelectedCatalogProduct = () => {
   if (!selectedCatalogProductId.value || !editingPackage.value) return;
