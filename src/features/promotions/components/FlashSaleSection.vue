@@ -54,24 +54,29 @@
       <div 
         v-for="product in flashSaleProducts" 
         :key="product.id"
-        class="w-36 shrink-0 bg-white dark:bg-gray-800 rounded-2xl p-2.5 text-gray-900 dark:text-white shadow-md flex flex-col justify-between group/card hover:scale-[1.02] transition-transform duration-200"
+        @click="$emit('select', product)"
+        class="w-40 sm:w-44 shrink-0 bg-white dark:bg-gray-800 rounded-2xl p-2.5 text-gray-900 dark:text-white shadow-md flex flex-col justify-between group/card hover:scale-[1.02] transition-transform duration-200 cursor-pointer"
       >
-
-        <div class="relative w-full aspect-square rounded-xl overflow-hidden mb-2 bg-gray-100 dark:bg-gray-700">
-          <img :src="proxyImageUrl(product.image_url || '')" :alt="product.name" class="w-full h-full object-cover group-hover/card:scale-105 transition-transform duration-300" @error="($event.target as HTMLImageElement).src='https://images.unsplash.com/photo-1542838132-92c53300491e?w=400'" />
-          <span class="absolute top-1 left-1 bg-brand-red text-white text-[9px] font-black px-1.5 py-0.5 rounded-full shadow-xs">
-            Diskon!
-          </span>
-        </div>
-
         <div>
-          <h4 class="font-bold text-xs line-clamp-1 mb-1">{{ product.name }}</h4>
-          <div class="font-black text-xs text-brand-red">{{ formatRupiah(product.promo_price || product.price) }}</div>
-          <div class="text-[10px] text-gray-400 line-through">{{ formatRupiah(product.price) }}</div>
+          <div class="relative w-full aspect-square rounded-xl overflow-hidden mb-2 bg-gray-100 dark:bg-gray-700">
+            <img :src="proxyImageUrl(product.image_url || '')" :alt="product.name" class="w-full h-full object-cover group-hover/card:scale-105 transition-transform duration-300" @error="($event.target as HTMLImageElement).src='https://images.unsplash.com/photo-1542838132-92c53300491e?w=400'" />
+            <span class="absolute top-1 left-1 bg-brand-red text-white text-[9px] font-black px-1.5 py-0.5 rounded-full shadow-xs">
+              Diskon!
+            </span>
+          </div>
+
+          <div>
+            <h4 class="font-bold text-xs line-clamp-1 mb-0.5">{{ product.name }}</h4>
+            <p v-if="product.description" class="text-[10px] text-gray-500 dark:text-gray-400 line-clamp-2 leading-tight font-sans mb-1">
+              {{ product.description }}
+            </p>
+            <div class="font-black text-xs text-brand-red">{{ formatRupiah(product.promo_price || product.price) }}</div>
+            <div class="text-[10px] text-gray-400 line-through">{{ formatRupiah(product.price) }}</div>
+          </div>
         </div>
 
         <button 
-          @click="handlePurchase(product)" 
+          @click.stop="handlePurchase(product)" 
           class="w-full mt-2 font-extrabold text-[11px] py-1.5 rounded-lg flex items-center justify-center gap-1 shadow-sm transition-all active:scale-95 cursor-pointer"
           :class="getButtonConfig(product).buttonClass"
         >
@@ -85,30 +90,14 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue';
-
-const flashSaleProducts = computed(() => {
-  // 1. Explicit FLASHSALE items
-  const explicitFlash = catalogStore.products.filter(p => p.promo_type === 'FLASHSALE' || p.promo_badge?.toUpperCase().includes('FLASH'));
-  if (explicitFlash.length > 0) return explicitFlash;
-  
-  // 2. Fallback: Display promo products that are NOT JSM flyer items (Bodimax, Kenmaster, Asta, etc.)
-  const nonJsmPromos = catalogStore.products.filter(p => {
-    if (!p.is_promo && !p.promo_price) return false;
-    if (p.promo_type === 'JSM' || p.promo_badge?.toUpperCase().includes('JSM')) return false;
-    return true;
-  });
-
-  return nonJsmPromos.length > 0 ? nonJsmPromos : catalogStore.promoProducts;
-});
-
-
-
 import { Zap, Clock, ChevronLeft, ChevronRight, Plus, ExternalLink, ShoppingBag, MessageSquare, CheckCircle2, HelpCircle } from 'lucide-vue-next';
 import { formatRupiah } from '../../shared/utils/formatters';
 import { useCatalogStore } from '../../catalog/stores/catalogStore';
 import { PurchaseService } from '../../purchase/services/PurchaseService';
 import { proxyImageUrl } from '../../tokosaya-sync/services/ImageProxyService';
 import type { Product } from '../../shared/types';
+
+defineEmits(['select']);
 
 const catalogStore = useCatalogStore();
 const scrollContainerRef = ref<HTMLElement | null>(null);
@@ -126,7 +115,7 @@ const iconMap: Record<string, any> = {
 
 const scroll = (direction: 'left' | 'right') => {
   if (!scrollContainerRef.value) return;
-  const scrollAmount = 220;
+  const scrollAmount = 240;
   if (direction === 'left') {
     scrollContainerRef.value.scrollBy({ left: -scrollAmount, behavior: 'smooth' });
   } else {
@@ -145,7 +134,7 @@ const startAutoScroll = () => {
     if (!isPaused && scrollContainerRef.value) {
       scroll('right');
     }
-  }, 3500);
+  }, 3000);
 };
 
 const pauseAutoScroll = () => {
@@ -164,6 +153,17 @@ onUnmounted(() => {
   if (autoScrollTimer) clearInterval(autoScrollTimer);
 });
 
+const flashSaleProducts = computed(() => {
+  const explicitFlash = catalogStore.products.filter(p => p.promo_type === 'FLASHSALE' || p.promo_badge?.toUpperCase().includes('FLASH'));
+  if (explicitFlash.length > 0) return explicitFlash;
+  
+  return catalogStore.products.filter(p => {
+    if (!p.is_promo && !p.promo_price) return false;
+    if (p.promo_type === 'JSM' || p.promo_badge?.toUpperCase().includes('JSM')) return false;
+    return true;
+  });
+});
+
 const getButtonConfig = (product: Product) => {
   return PurchaseService.getButtonConfig(product);
 };
@@ -177,4 +177,3 @@ const handlePurchase = async (product: Product) => {
   await PurchaseService.execute(product);
 };
 </script>
-

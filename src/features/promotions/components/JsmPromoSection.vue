@@ -60,38 +60,44 @@
       <div 
         v-for="product in jsmProducts" 
         :key="product.id"
-        class="w-40 sm:w-44 shrink-0 bg-white dark:bg-gray-800 rounded-2xl p-3 text-gray-900 dark:text-white shadow-lg flex flex-col justify-between group/card hover:scale-[1.02] transition-transform duration-200"
+        @click="$emit('select', product)"
+        class="w-44 sm:w-48 shrink-0 bg-white dark:bg-gray-800 rounded-2xl p-3 text-gray-900 dark:text-white shadow-lg flex flex-col justify-between group/card hover:scale-[1.02] transition-transform duration-200 cursor-pointer"
       >
-        <div class="relative w-full aspect-square rounded-xl overflow-hidden mb-2 bg-gray-50 dark:bg-gray-700/50 p-2 flex items-center justify-center">
-          <img 
-            :src="proxyImageUrl(product.image_url || product.thumbnail_url || '')" 
-            :alt="product.name" 
-            class="max-w-full max-h-full object-contain drop-shadow-sm group-hover/card:scale-105 transition-transform duration-300" 
-            @error="($event.target as HTMLImageElement).src='https://images.unsplash.com/photo-1542838132-92c53300491e?w=400'" 
-          />
-          <span class="absolute top-1.5 left-1.5 bg-gradient-to-r from-red-600 to-amber-500 text-white text-[9px] font-black px-2 py-0.5 rounded-md shadow-xs">
-            JSM
-          </span>
-        </div>
-
-        <div class="space-y-1">
-          <div class="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider line-clamp-1">
-            {{ product.brand || 'Alfamart' }}
+        <div>
+          <div class="relative w-full aspect-square rounded-xl overflow-hidden mb-2 bg-gray-50 dark:bg-gray-700/50 p-2 flex items-center justify-center">
+            <img 
+              :src="proxyImageUrl(product.image_url || product.thumbnail_url || '')" 
+              :alt="product.name" 
+              class="max-w-full max-h-full object-contain drop-shadow-sm group-hover/card:scale-105 transition-transform duration-300" 
+              @error="($event.target as HTMLImageElement).src='https://images.unsplash.com/photo-1542838132-92c53300491e?w=400'" 
+            />
+            <span class="absolute top-1.5 left-1.5 bg-gradient-to-r from-red-600 to-amber-500 text-white text-[9px] font-black px-2 py-0.5 rounded-md shadow-xs">
+              JSM
+            </span>
           </div>
-          <h4 class="font-extrabold text-xs line-clamp-2 leading-snug min-h-[32px]">{{ product.name }}</h4>
-          
-          <div class="pt-1">
-            <div class="font-black text-sm text-brand-red">
-              {{ formatRupiah(product.promo_price || product.price) }}
+
+          <div class="space-y-1">
+            <div class="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider line-clamp-1">
+              {{ product.brand || 'Alfamart' }}
             </div>
-            <div v-if="product.promo_price && product.price > product.promo_price" class="text-[10px] text-gray-400 line-through font-semibold">
-              {{ formatRupiah(product.price) }}
+            <h4 class="font-extrabold text-xs line-clamp-2 leading-snug min-h-[32px]">{{ product.name }}</h4>
+            <p v-if="product.description" class="text-[10px] text-gray-500 dark:text-gray-400 line-clamp-2 leading-tight font-sans">
+              {{ product.description }}
+            </p>
+            
+            <div class="pt-1">
+              <div class="font-black text-sm text-brand-red">
+                {{ formatRupiah(product.promo_price || product.price) }}
+              </div>
+              <div v-if="product.promo_price && product.price > product.promo_price" class="text-[10px] text-gray-400 line-through font-semibold">
+                {{ formatRupiah(product.price) }}
+              </div>
             </div>
           </div>
         </div>
 
         <button 
-          @click="handlePurchase(product)" 
+          @click.stop="handlePurchase(product)" 
           class="w-full mt-3 font-extrabold text-xs py-2 rounded-xl flex items-center justify-center gap-1.5 shadow-md transition-all active:scale-95 cursor-pointer"
           :class="getButtonConfig(product).buttonClass"
         >
@@ -111,6 +117,8 @@ import { useCatalogStore } from '../../catalog/stores/catalogStore';
 import { PurchaseService } from '../../purchase/services/PurchaseService';
 import { proxyImageUrl } from '../../tokosaya-sync/services/ImageProxyService';
 import type { Product } from '../../shared/types';
+
+defineEmits(['select']);
 
 const catalogStore = useCatalogStore();
 const scrollContainerRef = ref<HTMLElement | null>(null);
@@ -170,29 +178,18 @@ const jsmProducts = computed(() => {
   return catalogStore.products.filter(p => {
     if (!p.is_promo && !p.promo_price) return false;
 
-    // 1. Explicit JSM promo_type or promo_badge set in database
     if (p.promo_type === 'JSM' || p.promo_badge?.toUpperCase().includes('JSM')) {
       return true;
     }
 
-    // 2. Exclude explicit FLASHSALE products
     if (p.promo_type === 'FLASHSALE' || p.promo_badge?.toUpperCase().includes('FLASH')) {
       return false;
     }
 
-    // 3. Database promo_title check
     const title = String(p.promo_title || '').toUpperCase();
     return title.includes('JSM') || title.includes('PROMO SPECIAL');
   });
 });
-
-
-
-
-
-
-
-
 
 const getButtonConfig = (product: Product) => {
   return PurchaseService.getButtonConfig(product);
@@ -207,4 +204,3 @@ const handlePurchase = async (product: Product) => {
   await PurchaseService.execute(product);
 };
 </script>
-

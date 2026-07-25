@@ -441,6 +441,14 @@ export const dataService = {
             updated.category = matchedCat.name;
           }
         }
+        // Auto-populate description if missing or empty
+        if (!updated.description || updated.description.trim() === '') {
+          const pBrand = updated.brand || 'Alfamind';
+          const pCat = updated.category || 'Alfamart (Sembako)';
+          const pCode = updated.external_product_code || '-';
+          updated.description = `${updated.name} - Produk Original Toko Saya Alfamind.\n\nSpesifikasi Produk:\n• Merek: ${pBrand}\n• Kategori: ${pCat}\n• Kode PLU: ${pCode}\n\nDeskripsi:\nDapatkan ${updated.name} kualitas terjamin langsung dari Toko Saya Alfamind. Dikirim cepat dan aman dari lokasi Alfamart terdekat.`;
+        }
+
         return updated;
       });
     };
@@ -459,7 +467,7 @@ export const dataService = {
       try {
         const { data, error } = await supabase
           .from('products')
-          .select('id, category_id, name, slug, brand, barcode, unit, price, promo_price, is_promo, is_featured, is_popular, is_available, stock_status, thumbnail_url, image_url, weight, notes, promo_title, promo_start_date, promo_end_date, promo_badge, promo_type, purchase_method, external_product_code')
+          .select('id, category_id, name, slug, brand, description, barcode, unit, price, promo_price, is_promo, is_featured, is_popular, is_available, stock_status, thumbnail_url, image_url, weight, notes, promo_title, promo_start_date, promo_end_date, promo_badge, promo_type, purchase_method, external_product_code')
           .is('deleted_at', null)
           .order('created_at', { ascending: false })
           .limit(1000);

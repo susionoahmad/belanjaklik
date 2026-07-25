@@ -28,3 +28,13 @@ dist-ssr
 .env.production
 .env.development
 !.env.example
+
+# OCR Temporary Outputs & Test Crops
+ocr/master_images/
+ocr/*.xlsx
+ocr/__pycache__/
+ocr/temp_thumbnails/
+ocr/test_16_cards/
+ocr/test_crops/
+ocr/test_jsm6_exact/
+ocr/test_pure_packs/

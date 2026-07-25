@@ -44,17 +44,6 @@ export class ProductParser {
       });
     }
 
-    // Clean HTML tags from description if present
-    let cleanDesc: string | undefined;
-    if (apiData.description) {
-      cleanDesc = apiData.description
-        .replace(/<br\s*\/?>/gi, '\n')
-        .replace(/<\/p>/gi, '\n')
-        .replace(/<[^>]+>/g, '')
-        .replace(/\n\s*\n/g, '\n')
-        .trim();
-    }
-
     // Extract brand name
     let brandName: string | undefined;
     if (typeof apiData.brand === 'object' && apiData.brand !== null) {
@@ -64,6 +53,7 @@ export class ProductParser {
     } else if (apiData.brand_name) {
       brandName = apiData.brand_name;
     }
+    const finalBrand = brandName || 'Alfamind';
 
     // Extract category name
     let categoryName: string | undefined;
@@ -72,13 +62,31 @@ export class ProductParser {
     } else if (apiData.category_name) {
       categoryName = apiData.category_name;
     }
+    const finalCategory = categoryName || 'Alfamart (Sembako)';
+
+    const productTitle = apiData.product_name || `Produk #${externalCode}`;
+
+    // Clean HTML tags from description or construct rich description
+    const rawDescApi = apiData.description || (apiData as any).deskripsi || (apiData as any).product_description || (apiData as any).keterangan || (apiData as any).details;
+    let cleanDesc: string;
+    
+    if (rawDescApi && typeof rawDescApi === 'string' && rawDescApi.trim().length > 5) {
+      cleanDesc = rawDescApi
+        .replace(/<br\s*\/?>/gi, '\n')
+        .replace(/<\/p>/gi, '\n')
+        .replace(/<[^>]+>/g, '')
+        .replace(/\n\s*\n/g, '\n')
+        .trim();
+    } else {
+      cleanDesc = `${productTitle} - Produk Original Toko Saya Alfamind.\n\nSpesifikasi Produk:\n• Merek: ${finalBrand}\n• Kategori: ${finalCategory}\n• Kode PLU: ${externalCode}\n\nDeskripsi:\nDapatkan ${productTitle} kualitas terjamin langsung dari Toko Saya Alfamind. Dikirim cepat dan aman dari lokasi Alfamart terdekat.`;
+    }
 
     return {
-      title: apiData.product_name || `Produk #${externalCode}`,
+      title: productTitle,
       price: apiData.price || apiData.final_price || 0,
       promoPrice: apiData.special_price && apiData.special_price < apiData.price ? apiData.special_price : undefined,
-      brand: brandName || 'Sembako',
-      category: categoryName || 'Lain-lain',
+      brand: finalBrand,
+      category: finalCategory,
       description: cleanDesc,
       images: rawImages.length > 0 ? rawImages : ['https://images.unsplash.com/photo-1542838132-92c53300491e?w=800'],
       externalCode,
@@ -87,13 +95,13 @@ export class ProductParser {
   }
 
   /**
-   * Extract high-fidelity Toko Saya product details with exact official mapping per PLU.
+   * Extract high-fidelity Toko Saya product details with HTML DOM parsing + description extraction.
    */
   static parse(html: string, sourceUrl: string): RawParsedProduct {
     const parser = new DOMParser();
     const doc = parser.parseFromString(html, 'text/html');
 
-    // 1. Extract External Code (PLU Code) from URL (e.g. .../detail/860865 or .../detail/853313)
+    // 1. Extract External Code (PLU Code) from URL
     const codeMatch = sourceUrl.match(/\/detail\/([^\/\?#]+)/i) || sourceUrl.match(/[\?&]id=([^\/\?#]+)/i);
     const externalCode = codeMatch ? codeMatch[1] : `p_${Date.now()}`;
 
@@ -107,7 +115,6 @@ export class ProductParser {
 
     const fullText = doc.body ? doc.body.textContent || '' : '';
 
-    // Helper to resolve relative URL against sourceUrl base
     const resolveUrl = (rawSrc: string): string | null => {
       if (!rawSrc) return null;
       try {
@@ -165,7 +172,40 @@ export class ProductParser {
       }
     }
 
-    // 4. Prices Extraction
+    // 4. Description Extraction from HTML DOM & Meta Tags
+    const descCandidates: string[] = [];
+
+    // Meta description tag
+    const metaDesc = doc.querySelector('meta[name="description"], meta[property="og:description"]')?.getAttribute('content');
+    if (metaDesc && metaDesc.trim().length > 10 && !metaDesc.toLowerCase().includes('personal shopping') && !metaDesc.toLowerCase().includes('tokovirtualku')) {
+      descCandidates.push(metaDesc.trim());
+    }
+
+    // DOM Selectors for Product Description
+    doc.querySelectorAll('.product-description, .description, #description, .deskripsi, [class*="desc"], [id*="desc"], .product-detail, .detail-description').forEach(el => {
+      const txt = el.textContent?.trim();
+      if (txt && txt.length > 15 && !txt.toLowerCase().includes('copyright') && !txt.toLowerCase().includes('all rights reserved')) {
+        descCandidates.push(txt);
+      }
+    });
+
+    // Regex match in HTML
+    const descMatch = html.match(/Deskripsi[\s\S]*?<div[^>]*>([\s\S]*?)<\/div>/i)
+      || html.match(/Deskripsi[\s\S]*?<td[^>]*>([\s\S]*?)<\/td>/i)
+      || html.match(/Keterangan[\s\S]*?<div[^>]*>([\s\S]*?)<\/div>/i)
+      || html.match(/Detail Produk[\s\S]*?<div[^>]*>([\s\S]*?)<\/div>/i);
+    if (descMatch && descMatch[1]) {
+      const cleanText = descMatch[1].replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, '').trim();
+      if (cleanText.length > 10) {
+        descCandidates.unshift(cleanText);
+      }
+    }
+
+    if (descCandidates.length > 0) {
+      description = descCandidates[0];
+    }
+
+    // 5. Prices Extraction
     const priceMatches = [...fullText.matchAll(/Rp\s*([\d\.,]+)/gi)];
     const extractedPrices: number[] = [];
     priceMatches.forEach(m => {
@@ -184,7 +224,7 @@ export class ProductParser {
       price = extractedPrices[0];
     }
 
-    // 5. Image Extraction – proxy all scraped URLs to bypass CORS/hotlink protection
+    // 6. Image Extraction
     doc.querySelectorAll('meta[property="og:image"], meta[property="og:image:secure_url"]').forEach(meta => {
       const content = meta.getAttribute('content');
       if (content) {
@@ -196,7 +236,6 @@ export class ProductParser {
       }
     });
 
-    // Also look for product images in JSON script tags and data- attributes
     doc.querySelectorAll('script[type="application/json"], script[type="application/ld+json"]').forEach(script => {
       const text = script.textContent || '';
       const imgMatches = text.match(/https?:\/\/[^\s"']+\.(?:jpg|jpeg|png|webp|gif)[^\s"']*/gi);
@@ -244,14 +283,17 @@ export class ProductParser {
       price = promoPrice ? Math.round(promoPrice * 1.15) : 85000;
     }
 
-    const cleanDescription = description || `Merek: ${brand || 'Alfamind'}\nKode PLU: ${externalCode}\nProduk resmi Toko Saya Alfamind.`;
+    const finalBrand = brand || 'Alfamind';
+    const finalCategory = category || 'Alfamart (Sembako)';
+
+    const cleanDescription = description || `${cleanTitle} - Produk Original Toko Saya Alfamind.\n\nSpesifikasi Produk:\n• Merek: ${finalBrand}\n• Kategori: ${finalCategory}\n• Kode PLU: ${externalCode}\n\nDeskripsi:\nDapatkan ${cleanTitle} kualitas terjamin langsung dari Toko Saya Alfamind. Dikirim cepat dan aman dari lokasi Alfamart terdekat.`;
 
     return {
       title: cleanTitle,
       price: price,
       promoPrice: promoPrice,
-      brand: brand || 'Alfamind',
-      category: category || 'Peralatan Rumah Tangga',
+      brand: finalBrand,
+      category: finalCategory,
       description: cleanDescription,
       images: finalImages,
       externalCode,

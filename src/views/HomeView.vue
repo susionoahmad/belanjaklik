@@ -37,10 +37,10 @@
     </section>
 
     <!-- Promo JSM Section -->
-    <JsmPromoSection />
+    <JsmPromoSection @select="openProductDetail" />
 
     <!-- Flash Sale Countdown Section -->
-    <FlashSaleSection />
+    <FlashSaleSection @select="openProductDetail" />
 
 
     <!-- Quick Shopping Packages / Bundles -->

@@ -50,9 +50,12 @@
           <span v-if="product.promo_price" class="text-xs text-gray-400 line-through">{{ formatRupiah(product.price) }}</span>
         </div>
 
-        <p class="text-xs text-gray-600 dark:text-gray-300 leading-relaxed bg-gray-50 dark:bg-gray-700/50 p-3 rounded-2xl border border-gray-100 dark:border-gray-700">
-          {{ product.description || 'Produk kualitas terjamin untuk kebutuhan sehari-hari.' }}
-        </p>
+        <div class="space-y-1">
+          <div class="font-bold text-xs text-gray-700 dark:text-gray-200">Deskripsi Produk:</div>
+          <p class="text-xs text-gray-600 dark:text-gray-300 leading-relaxed whitespace-pre-line bg-gray-50 dark:bg-gray-700/50 p-3 rounded-2xl border border-gray-100 dark:border-gray-700">
+            {{ product.description || 'Produk kualitas terjamin untuk kebutuhan sehari-hari.' }}
+          </p>
+        </div>
 
         <!-- Channel Description -->
         <div v-if="channel" class="p-3 bg-blue-50/50 dark:bg-blue-950/30 rounded-2xl border border-blue-100 dark:border-blue-900 text-xs flex items-center gap-3">
@@ -81,11 +84,12 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
-import { ShoppingBag, Plus, ExternalLink, MessageSquare, Clock, CheckCircle2, HelpCircle } from 'lucide-vue-next';
+import { ShoppingBag, Plus, ExternalLink, MessageSquare, Clock, CheckCircle2, HelpCircle, XCircle } from 'lucide-vue-next';
 import Modal from '../../shared/components/Modal.vue';
 import type { Product, FulfillmentChannel } from '../../shared/types';
 import { formatRupiah } from '../../shared/utils/formatters';
 import { useCatalogStore } from '../stores/catalogStore';
+import { useCartStore } from '../../cart/stores/cartStore';
 import { PurchaseService } from '../../purchase/services/PurchaseService';
 import { proxyImageUrl } from '../../tokosaya-sync/services/ImageProxyService';
 
@@ -97,49 +101,40 @@ const props = defineProps<{
 const emit = defineEmits(['close']);
 
 const catalogStore = useCatalogStore();
+const cartStore = useCartStore();
 const activeImage = ref<string>('');
-
-const productImages = computed<string[]>(() => {
-  if (!props.product) return [];
-  const list: string[] = [];
-  
-  if (props.product.images && props.product.images.length > 0) {
-    props.product.images.forEach(img => {
-      if (img && !list.includes(img)) list.push(proxyImageUrl(img));
-    });
-  } else if (props.product.image_url) {
-    list.push(proxyImageUrl(props.product.image_url));
-  }
-
-  // Hide default placeholders if custom images are present
-  const hasCustomImages = list.some(img => !img.includes('1542838132-92c53300491e'));
-  if (hasCustomImages) {
-    return list.filter(img => !img.includes('1542838132-92c53300491e'));
-  }
-
-  return list;
-});
-
-watch(() => props.product, (newP) => {
-  if (newP) {
-    const list = newP.images && newP.images.length > 0 ? newP.images : [newP.image_url || ''];
-    const cleanList = list.filter(img => !img.includes('1542838132-92c53300491e'));
-    activeImage.value = proxyImageUrl(cleanList[0] || list[0] || '');
-  }
-}, { immediate: true });
 
 const channel = computed<FulfillmentChannel | undefined>(() => {
   if (!props.product?.channel_id) return undefined;
   return catalogStore.channels.find(c => c.id === props.product?.channel_id);
 });
 
+const productImages = computed<string[]>(() => {
+  if (!props.product) return [];
+  const imgs: string[] = [];
+  if (props.product.image_url) imgs.push(proxyImageUrl(props.product.image_url));
+  if (props.product.images && Array.isArray(props.product.images)) {
+    props.product.images.forEach(img => {
+      const p = proxyImageUrl(img);
+      if (!imgs.includes(p)) imgs.push(p);
+    });
+  }
+  return imgs.length > 0 ? imgs : ['https://images.unsplash.com/photo-1542838132-92c53300491e?w=800'];
+});
+
+watch(() => props.product, (newProd) => {
+  if (newProd) {
+    activeImage.value = productImages.value[0];
+  }
+}, { immediate: true });
+
 const buttonConfig = computed(() => {
-  if (!props.product) return { label: '', iconName: 'Plus', buttonClass: '' };
+  if (!props.product) return { label: 'Lihat Produk', buttonClass: 'bg-brand-red text-white' };
   return PurchaseService.getButtonConfig(props.product, channel.value);
 });
 
 const badgeConfig = computed(() => {
-  if (!props.product) return { label: '', badgeClass: '', iconName: 'ShoppingBag' };
+  if (!props.product) return { label: 'Produk', badgeClass: '' };
   return PurchaseService.getBadgeConfig(props.product, channel.value);
 });
 
@@ -150,16 +145,26 @@ const iconMap: Record<string, any> = {
   MessageSquare,
   Clock,
   CheckCircle2,
-  HelpCircle
+  HelpCircle,
+  XCircle
 };
 
-const buttonIcon = computed(() => iconMap[buttonConfig.value.iconName] || Plus);
-const badgeIcon = computed(() => iconMap[badgeConfig.value.iconName] || ShoppingBag);
+const buttonIcon = computed(() => {
+  const iconName = (buttonConfig.value as any)?.iconName;
+  return iconMap[iconName] || Plus;
+});
+const badgeIcon = computed(() => {
+  const iconName = (badgeConfig.value as any)?.iconName;
+  return iconMap[iconName] || ShoppingBag;
+});
 
-const handlePurchase = async () => {
-  if (props.product) {
-    await PurchaseService.execute(props.product, channel.value);
+async function handlePurchase() {
+  if (!props.product) return;
+  if (props.product.purchase_method === 'owner_checkout') {
+    cartStore.addItem(props.product);
     emit('close');
+  } else {
+    await PurchaseService.execute(props.product, channel.value);
   }
-};
+}
 </script>

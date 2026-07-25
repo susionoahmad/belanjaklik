@@ -236,6 +236,12 @@ watch(() => props.product, (newP) => {
     const isPromoProd = newP.is_promo ?? (!!newP.promo_price && newP.promo_price < newP.price);
     const pType = newP.promo_type || (newP.promo_badge?.includes('JSM') || newP.category === 'Promo Merchant' || newP.category_id === 'c2222222-2222-2222-2222-222222222222' || isPromoProd ? 'JSM' : 'REGULAR');
 
+    const descClean = newP.description?.trim();
+    const pBrand = newP.brand || 'Alfamind';
+    const pCat = newP.category || 'Alfamart (Sembako)';
+    const pCode = newP.external_product_code || '-';
+    const autoDesc = `${newP.name} - Produk Original Toko Saya Alfamind.\n\nSpesifikasi Produk:\n• Merek: ${pBrand}\n• Kategori: ${pCat}\n• Kode PLU: ${pCode}\n\nDeskripsi:\nDapatkan ${newP.name} kualitas terjamin langsung dari Toko Saya Alfamind. Dikirim cepat dan aman dari lokasi Alfamart terdekat.`;
+
     form.value = {
       id: newP.id,
       name: newP.name,
@@ -246,7 +252,7 @@ watch(() => props.product, (newP) => {
       promo_badge: newP.promo_badge || (pType === 'JSM' ? 'PROMO JSM (3 HARI)' : ''),
       promo_title: newP.promo_title || (pType === 'JSM' ? 'Promo Jumat Sabtu Minggu' : ''),
       brand: newP.brand || '',
-      description: newP.description || '',
+      description: descClean || autoDesc,
       category_id: newP.category_id || '',
       channel_id: newP.channel_id || '',
       purchase_method: newP.purchase_method || 'owner_checkout',
@@ -266,7 +272,7 @@ watch(() => props.product, (newP) => {
       promo_badge: '',
       promo_title: '',
       brand: '',
-      description: '',
+      description: 'Produk kualitas terjamin langsung dari Toko Saya Alfamind. Bebas ongkir dan dikirim cepat dari gudang Alfamart terdekat.',
       category_id: '',
       channel_id: '',
       purchase_method: 'owner_checkout',
