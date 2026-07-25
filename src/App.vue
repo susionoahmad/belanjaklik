@@ -12,6 +12,9 @@
       </router-view>
     </main>
 
+    <!-- Global App Footer (Accesstrade Publisher Compliance) -->
+    <AppFooter />
+
     <!-- Slide-over Cart Drawer -->
     <CartDrawer />
 
@@ -22,6 +25,7 @@
 
 <script setup lang="ts">
 import AppHeader from './features/shared/components/AppHeader.vue';
+import AppFooter from './features/shared/components/AppFooter.vue';
 import BottomNav from './features/shared/components/BottomNav.vue';
 import CartDrawer from './features/cart/components/CartDrawer.vue';
 </script>

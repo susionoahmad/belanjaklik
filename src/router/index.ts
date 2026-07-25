@@ -61,6 +61,26 @@ const routes = [
     path: '/admin',
     name: 'admin',
     component: () => import('../views/AdminView.vue')
+  },
+  {
+    path: '/privacy',
+    name: 'privacy',
+    component: () => import('../views/PrivacyPolicyView.vue')
+  },
+  {
+    path: '/terms',
+    name: 'terms',
+    component: () => import('../views/TermsOfServiceView.vue')
+  },
+  {
+    path: '/affiliate-disclosure',
+    name: 'affiliate-disclosure',
+    component: () => import('../views/AffiliateDisclosureView.vue')
+  },
+  {
+    path: '/about',
+    name: 'about',
+    component: () => import('../views/AboutView.vue')
   }
 ];
 
