@@ -12,15 +12,15 @@ from config import GEMINI_API_KEY
 from promo_parser import normalize_product_dict, detect_jsm_promo, extract_brand, extract_package_size, clean_price, clean_product_name
 
 PLACEHOLDER_KEYS = {
-    "AIzaSyBC6RgR1v3JOsDM1JmrAlei4OcxogaQEBU",
-    "AIzaSy...",
-    "YOUR_GEMINI_API_KEY"
+    "DUMMY_GEMINI_API_KEY",
+    "YOUR_GEMINI_API_KEY",
+    "PLACEHOLDER"
 }
 
 def is_valid_gemini_key(key: str) -> bool:
     if not key or key.strip() in PLACEHOLDER_KEYS:
         return False
-    return key.startswith("AIzaSy") and len(key) > 20
+    return len(key) > 20 and not key.startswith("YOUR_")
 
 def encode_image_to_base64(image_path: str) -> tuple[str, str]:
     """Reads image file and returns (base64_string, mime_type)."""

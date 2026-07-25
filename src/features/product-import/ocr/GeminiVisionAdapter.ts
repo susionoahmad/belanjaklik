@@ -311,7 +311,7 @@ export class GeminiVisionAdapter extends OCRAdapter {
   private _noKeyFallback(): RawOCRResult {
     const lines = [
       '[GEMINI API KEY belum diisi]',
-      'Set VITE_GEMINI_API_KEY di .env (format: AIzaSy...)',
+      'Set VITE_GEMINI_API_KEY di file .env',
       'Dapatkan gratis: aistudio.google.com/apikey'
     ];
     return { text: lines.join('\n'), confidence: 0, lines };

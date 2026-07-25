@@ -48,7 +48,7 @@ pip install -r requirements.txt
 3. (Opsional) Untuk akurasi terbaik membaca flyer JSM, pastikan `VITE_GEMINI_API_KEY` terisi di file `.env` yang berada di root project Alfamind:
 
 ```env
-VITE_GEMINI_API_KEY=AIzaSy...
+VITE_GEMINI_API_KEY=YOUR_GEMINI_API_KEY_HERE
 ```
 
 ---
