@@ -59,7 +59,8 @@
           Jika Anda adalah pemilik merek, pengelola program afiliasi, atau perwakilan jaringan media seperti Accesstrade Indonesia yang ingin mendiskusikan peluang kemitraan, silakan hubungi tim kami di:
         </p>
         <div class="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-2xl border border-gray-200 dark:border-gray-600 space-y-1 font-mono text-xs">
-          <div><strong>Departemen Kemitraan:</strong> affiliate@belanjaklik.id</div>
+          <div><strong>Email Kemitraan:</strong> susiono.ahmad@gmail.com</div>
+          <div><strong>Kontak WA / HP:</strong> 081392156513</div>
           <div><strong>Website Media:</strong> BelanjAKlik Personal Shopping Assistant</div>
         </div>
       </section>

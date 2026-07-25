@@ -56,8 +56,8 @@
           Jika Anda memiliki pertanyaan mengenai Kebijakan Privasi ini atau ingin mengajukan masukan terkait privasi data Anda, silakan hubungi tim kami melalui:
         </p>
         <div class="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-2xl border border-gray-200 dark:border-gray-600 space-y-1 font-mono text-xs">
-          <div><strong>Email Resmi:</strong> support@belanjaklik.id</div>
-          <div><strong>Layanan WA:</strong> +62 812-3456-7890</div>
+          <div><strong>Email Resmi:</strong> susiono.ahmad@gmail.com</div>
+          <div><strong>Layanan WA / HP:</strong> 081392156513</div>
           <div><strong>Platform:</strong> BelanjAKlik Personal Shopping Assistant</div>
         </div>
       </section>

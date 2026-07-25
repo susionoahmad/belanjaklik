@@ -44,11 +44,23 @@
         </div>
       </div>
 
-      <!-- Contact Us Form Mock & Contact Channel -->
-      <section class="space-y-4 pt-4 border-t border-gray-100 dark:border-gray-700">
+      <!-- Direct Contact Info Banner -->
+      <div class="p-4 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 rounded-2xl space-y-2 text-blue-900 dark:text-blue-200">
+        <div class="font-bold text-xs uppercase tracking-wider flex items-center gap-1.5">
+          <PhoneCall class="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />
+          <span>Kontak Langsung Pengelola BelanjAKlik:</span>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-mono">
+          <div>📧 Email: <a href="mailto:susiono.ahmad@gmail.com" class="font-bold underline hover:text-brand-red">susiono.ahmad@gmail.com</a></div>
+          <div>📱 WhatsApp / HP: <a href="https://wa.me/6281392156513" target="_blank" class="font-bold underline hover:text-emerald-500">081392156513</a></div>
+        </div>
+      </div>
+
+      <!-- Contact Us Form -->
+      <section class="space-y-4 pt-2 border-t border-gray-100 dark:border-gray-700">
         <h2 class="font-extrabold text-base text-gray-900 dark:text-white flex items-center gap-2">
           <Mail class="w-5 h-5 text-brand-blue" />
-          <span>Hubungi Tim Dukungan Kami</span>
+          <span>Kirim Pesan Dukungan & Kerjasama</span>
         </h2>
         <p class="text-xs text-gray-500">Ada pertanyaan, kendala penggunaan, atau penawaran kerjasama afiliasi? Kirim pesan kepada kami di bawah ini:</p>
 
@@ -61,7 +73,7 @@
 
             <div>
               <label class="block text-xs font-bold mb-1">Email Anda</label>
-              <input v-model="contactForm.email" type="email" required placeholder="name@example.com" class="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-xs focus:ring-2 focus:ring-brand-red outline-none" />
+              <input v-model="contactForm.email" type="email" required placeholder="susiono.ahmad@gmail.com" class="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-xs focus:ring-2 focus:ring-brand-red outline-none" />
             </div>
           </div>
 
@@ -90,7 +102,7 @@
           </button>
 
           <p v-if="submittedSuccess" class="text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 p-3 rounded-xl border border-emerald-200 dark:border-emerald-800">
-            ✓ Terima kasih! Pesan Anda telah berhasil dikirim ke tim dukungan BelanjAKlik. Kami akan merespons melalui email dalam 1x24 jam.
+            ✓ Terima kasih! Pesan Anda telah berhasil dikirim ke susiono.ahmad@gmail.com. Kami akan merespons melalui WhatsApp/Email dalam 1x24 jam.
           </p>
         </form>
       </section>
@@ -101,7 +113,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import { HelpCircle, Sparkles, Mail, Send } from 'lucide-vue-next';
+import { HelpCircle, Sparkles, Mail, Send, PhoneCall } from 'lucide-vue-next';
 import { updatePageSeo } from '../features/shared/utils/seo';
 
 const isSubmitting = ref(false);
