@@ -72,17 +72,46 @@
 
     <!-- Authenticated CMS Dashboard -->
     <div v-else class="space-y-5">
-      <!-- Nav Tabs -->
-      <div class="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+      <!-- Nav Tabs with Mouse Drag Scroll & Scroll Buttons for Laptop/PC -->
+      <div class="relative flex items-center group">
+        <!-- Left Scroll Button (Laptop/PC) -->
         <button 
-          v-for="tab in tabs" 
-          :key="tab.id"
-          @click="activeTab = tab.id"
-          class="px-4 py-2 rounded-2xl text-xs font-bold whitespace-nowrap transition-all border flex items-center gap-1.5"
-          :class="activeTab === tab.id ? 'bg-brand-red text-white border-brand-red shadow-sm' : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:border-brand-red/50'"
+          @click="scrollTabContainer('left')"
+          class="hidden sm:flex absolute -left-3 z-10 w-8 h-8 rounded-full bg-white dark:bg-gray-800 shadow-md border border-gray-200 dark:border-gray-700 items-center justify-center text-gray-600 dark:text-gray-300 hover:text-brand-red opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+          title="Geser Kiri"
         >
-          <component :is="tab.icon" class="w-4 h-4" />
-          <span>{{ tab.name }}</span>
+          <ChevronLeft class="w-4 h-4" />
+        </button>
+
+        <!-- Tab Container -->
+        <div 
+          ref="tabContainerRef"
+          @mousedown="startDrag"
+          @mouseleave="stopDrag"
+          @mouseup="stopDrag"
+          @mousemove="doDrag"
+          @wheel.prevent="handleTabWheel"
+          class="flex items-center gap-2 overflow-x-auto pb-2 pt-1 scrollbar-none cursor-grab active:cursor-grabbing select-none w-full scroll-smooth"
+        >
+          <button 
+            v-for="tab in tabs" 
+            :key="tab.id"
+            @click="selectTab(tab.id)"
+            class="px-4 py-2 rounded-2xl text-xs font-bold whitespace-nowrap transition-all border flex items-center gap-1.5 shrink-0 cursor-pointer"
+            :class="activeTab === tab.id ? 'bg-brand-red text-white border-brand-red shadow-sm' : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:border-brand-red/50'"
+          >
+            <component :is="tab.icon" class="w-4 h-4" />
+            <span>{{ tab.name }}</span>
+          </button>
+        </div>
+
+        <!-- Right Scroll Button (Laptop/PC) -->
+        <button 
+          @click="scrollTabContainer('right')"
+          class="hidden sm:flex absolute -right-3 z-10 w-8 h-8 rounded-full bg-white dark:bg-gray-800 shadow-md border border-gray-200 dark:border-gray-700 items-center justify-center text-gray-600 dark:text-gray-300 hover:text-brand-red opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+          title="Geser Kanan"
+        >
+          <ChevronRight class="w-4 h-4" />
         </button>
       </div>
 
@@ -527,7 +556,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
-import { Lock, LogOut, BarChart2, Package, Store, Settings, Plus, Upload, Edit3, Save, RefreshCw, ScanLine, BrainCircuit, Copy, Trash2, Power, Search, Eye, CheckCircle, AlertTriangle, Megaphone, PackageCheck, PackagePlus } from 'lucide-vue-next';
+import { Lock, LogOut, BarChart2, Package, Store, Settings, Plus, Upload, Edit3, Save, RefreshCw, ScanLine, BrainCircuit, Copy, Trash2, Power, Search, Eye, CheckCircle, AlertTriangle, Megaphone, PackageCheck, PackagePlus, ChevronLeft, ChevronRight } from 'lucide-vue-next';
 import Modal from '../features/shared/components/Modal.vue';
 import type { Product, FulfillmentChannel } from '../features/shared/types';
 import { formatRupiah } from '../features/shared/utils/formatters';
@@ -558,6 +587,53 @@ const activeTab = ref('analytics');
 const channels = ref<FulfillmentChannel[]>([]);
 const isProductModalOpen = ref(false);
 const editingProduct = ref<Product | null>(null);
+
+// Tab Drag & Wheel Scroll for Laptop/PC
+const tabContainerRef = ref<HTMLElement | null>(null);
+const isDragging = ref(false);
+const startX = ref(0);
+const scrollLeft = ref(0);
+const hasDragged = ref(false);
+
+const scrollTabContainer = (direction: 'left' | 'right') => {
+  if (!tabContainerRef.value) return;
+  const amount = direction === 'left' ? -250 : 250;
+  tabContainerRef.value.scrollBy({ left: amount, behavior: 'smooth' });
+};
+
+const handleTabWheel = (e: WheelEvent) => {
+  if (!tabContainerRef.value) return;
+  tabContainerRef.value.scrollLeft += e.deltaY;
+};
+
+const startDrag = (e: MouseEvent) => {
+  if (!tabContainerRef.value) return;
+  isDragging.value = true;
+  hasDragged.value = false;
+  startX.value = e.pageX - tabContainerRef.value.offsetLeft;
+  scrollLeft.value = tabContainerRef.value.scrollLeft;
+};
+
+const stopDrag = () => {
+  isDragging.value = false;
+};
+
+const doDrag = (e: MouseEvent) => {
+  if (!isDragging.value || !tabContainerRef.value) return;
+  e.preventDefault();
+  const x = e.pageX - tabContainerRef.value.offsetLeft;
+  const walk = (x - startX.value) * 1.5;
+  if (Math.abs(walk) > 5) {
+    hasDragged.value = true;
+  }
+  tabContainerRef.value.scrollLeft = scrollLeft.value - walk;
+};
+
+const selectTab = (id: string) => {
+  if (!hasDragged.value) {
+    activeTab.value = id;
+  }
+};
 
 const isChannelModalOpen = ref(false);
 const editingChannel = ref<Partial<FulfillmentChannel>>({ name: '', base_url: '', description: '', is_active: true });
