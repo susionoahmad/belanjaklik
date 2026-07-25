@@ -1,5 +1,6 @@
 import type { ChannelDriver } from './ChannelDriver';
 import type { Product, FulfillmentChannel } from '../../shared/types';
+import { AccesstradeService } from '../../affiliate/services/AccesstradeService';
 
 export class MarketplaceDriver implements ChannelDriver {
   channelSlug = 'marketplace';
@@ -7,7 +8,10 @@ export class MarketplaceDriver implements ChannelDriver {
   generateUrl(product: Product, channel?: FulfillmentChannel): string {
     const baseUrl = channel?.base_url || 'https://shopee.co.id/product/';
     const code = product.external_product_code || product.slug || product.id;
-    return `${baseUrl.endsWith('/') ? baseUrl : baseUrl + '/'}${code}`;
+    const rawUrl = `${baseUrl.endsWith('/') ? baseUrl : baseUrl + '/'}${code}`;
+
+    const finalCode = product.external_product_code || product.slug || product.id || undefined;
+    return AccesstradeService.convertToAffiliateUrl(rawUrl, finalCode);
   }
 
   openExternal(product: Product, channel?: FulfillmentChannel): void {

@@ -1,16 +1,22 @@
 import type { ChannelDriver } from './ChannelDriver';
 import type { Product, FulfillmentChannel } from '../../shared/types';
+import { AccesstradeService } from '../../affiliate/services/AccesstradeService';
 
 export class AlfamindDriver implements ChannelDriver {
   channelSlug = 'alfamind-official';
 
   generateUrl(product: Product, channel?: FulfillmentChannel): string {
+    let rawUrl = '';
     if (product.notes && (product.notes.startsWith('http://') || product.notes.startsWith('https://'))) {
-      return product.notes;
+      rawUrl = product.notes;
+    } else {
+      const baseUrl = channel?.base_url || 'https://tokovirtualku.id/nessamart/detail/';
+      const code = product.external_product_code || product.slug || product.id;
+      rawUrl = `${baseUrl.endsWith('/') ? baseUrl : baseUrl + '/'}${code}`;
     }
-    const baseUrl = channel?.base_url || 'https://tokovirtualku.id/nessamart/detail/';
-    const code = product.external_product_code || product.slug || product.id;
-    return `${baseUrl.endsWith('/') ? baseUrl : baseUrl + '/'}${code}`;
+
+    const finalCode = product.external_product_code || product.slug || product.id || undefined;
+    return AccesstradeService.convertToAffiliateUrl(rawUrl, finalCode);
   }
 
   openExternal(product: Product, channel?: FulfillmentChannel): void {
@@ -18,4 +24,3 @@ export class AlfamindDriver implements ChannelDriver {
     window.open(targetUrl, '_blank', 'noopener,noreferrer');
   }
 }
-

@@ -42,6 +42,59 @@
       </div>
     </div>
 
+    <!-- Accesstrade Affiliate Integration Panel -->
+    <div class="bg-white dark:bg-gray-800 p-5 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-soft space-y-3">
+      <div class="flex items-center justify-between">
+        <div>
+          <h3 class="font-extrabold text-base text-gray-900 dark:text-white flex items-center gap-2">
+            <Link2 class="w-5 h-5 text-emerald-500" />
+            <span>Integrasi Afiliasi Accesstrade Indonesia</span>
+          </h3>
+          <p class="text-xs text-gray-500 mt-0.5">
+            Aktifkan konversi otomatis tautan belanja ke Deep Link Afiliasi Accesstrade Indonesia.
+          </p>
+        </div>
+        <span class="text-[10px] font-black uppercase px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+          {{ accesstradeConfig.isEnabled ? '● Afiliasi Aktif' : '○ Afiliasi Non-Aktif' }}
+        </span>
+      </div>
+
+      <form @submit.prevent="saveAccesstradeSettings" class="space-y-3 pt-1">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Publisher Site ID (Accesstrade)</label>
+            <input 
+              v-model="accesstradeConfig.siteId" 
+              type="text" 
+              placeholder="Contoh: 123456" 
+              class="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700 text-xs font-mono font-bold focus:ring-2 focus:ring-emerald-500 outline-none" 
+            />
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">SubID / RK ID (Opsional)</label>
+            <input 
+              v-model="accesstradeConfig.rkId" 
+              type="text" 
+              placeholder="Contoh: belanjaklik_app" 
+              class="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700 text-xs font-mono font-bold focus:ring-2 focus:ring-emerald-500 outline-none" 
+            />
+          </div>
+        </div>
+
+        <div class="flex items-center justify-between pt-1">
+          <label class="flex items-center gap-2 font-bold text-xs text-gray-700 dark:text-gray-300 cursor-pointer">
+            <input type="checkbox" v-model="accesstradeConfig.isEnabled" class="w-4 h-4 accent-emerald-600 rounded" />
+            <span>Aktifkan Konversi Otomatis Deep Link Afiliasi</span>
+          </label>
+
+          <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold px-4 py-2 rounded-xl shadow-sm cursor-pointer">
+            Simpan Pengaturan Afiliasi
+          </button>
+        </div>
+      </form>
+    </div>
+
     <!-- Sources Data Table -->
     <div class="bg-white dark:bg-gray-800 p-5 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-soft space-y-3">
       <div class="flex items-center justify-between">
@@ -148,14 +201,14 @@
     </div>
 
     <!-- Image Patch Modal -->
-    <div v-if="imagePatchTarget" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div class="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl p-6 w-full max-w-lg space-y-4">
+    <div v-if="imagePatchTarget" class="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4" @click.self="imagePatchTarget = null">
+      <div class="bg-white dark:bg-gray-900 rounded-3xl p-6 max-w-lg w-full shadow-2xl border border-gray-100 dark:border-gray-700 space-y-4">
         <div class="flex items-center justify-between">
           <h3 class="font-extrabold text-base text-gray-900 dark:text-white flex items-center gap-2">
             <ImageIcon class="w-5 h-5 text-purple-600" />
-            Patch Gambar Produk
+            <span>Tambah / Ubah Gambar Produk</span>
           </h3>
-          <button @click="imagePatchTarget = null" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">✕</button>
+          <button @click="imagePatchTarget = null" class="text-gray-400 hover:text-gray-600 font-bold">✕</button>
         </div>
 
         <div class="bg-gray-50 dark:bg-gray-800 rounded-2xl px-4 py-3 text-xs text-gray-600 dark:text-gray-300">
@@ -214,19 +267,28 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
-import { RefreshCw, ExternalLink, Play, Pause, Trash2, Image as ImageIcon } from 'lucide-vue-next';
+import { RefreshCw, ExternalLink, Play, Pause, Trash2, Image as ImageIcon, Link2 } from 'lucide-vue-next';
 import type { ProductSource } from '../../shared/types';
 import { dataService } from '../../shared/db/dataService';
 import { ProductSyncService } from '../../tokosaya-sync/services/ProductSyncService';
 import { useCatalogStore } from '../../catalog/stores/catalogStore';
 import { useAdminStore } from '../stores/adminStore';
 import { proxyImageUrl } from '../../tokosaya-sync/services/ImageProxyService';
+import { AccesstradeService, type AccesstradeConfig } from '../../affiliate/services/AccesstradeService';
 
 const catalogStore = useCatalogStore();
 const adminStore = useAdminStore();
 const inputUrl = ref('');
 const isSyncing = ref(false);
+const isRefreshing = ref(false);
 const sources = ref<ProductSource[]>([]);
+
+// Accesstrade Config state
+const accesstradeConfig = ref<AccesstradeConfig>({
+  siteId: '',
+  rkId: '',
+  isEnabled: false
+});
 
 // Image Patch state
 const imagePatchTarget = ref<ProductSource | null>(null);
@@ -240,6 +302,25 @@ const parsedPatchUrls = computed(() => {
     .filter(u => u.startsWith('http'));
 });
 
+onMounted(() => {
+  loadSources();
+  accesstradeConfig.value = AccesstradeService.getConfig();
+});
+
+const saveAccesstradeSettings = () => {
+  AccesstradeService.saveConfig(accesstradeConfig.value);
+  alert('✓ Pengaturan Afiliasi Accesstrade Indonesia berhasil disimpan!');
+};
+
+const loadSources = async () => {
+  isRefreshing.value = true;
+  try {
+    sources.value = await dataService.fetchProductSources();
+  } finally {
+    isRefreshing.value = false;
+  }
+};
+
 const openImagePatch = (src: ProductSource) => {
   imagePatchTarget.value = src;
   imagePatchUrls.value = src.product_image_url ? src.product_image_url : '';
@@ -249,7 +330,6 @@ const handleApplyImagePatch = async () => {
   if (!imagePatchTarget.value || parsedPatchUrls.value.length === 0) return;
   isPatchSaving.value = true;
   try {
-    // Find the product linked to this source
     const products = await dataService.fetchProducts();
     const linked = products.find(p => p.external_product_code === imagePatchTarget.value!.external_product_code);
     if (linked) {
@@ -258,38 +338,12 @@ const handleApplyImagePatch = async () => {
         image_url: parsedPatchUrls.value[0],
         images: parsedPatchUrls.value
       });
+      await catalogStore.fetchCatalogData();
+      await loadSources();
+      imagePatchTarget.value = null;
     }
-    // Also update the source's preview image
-    await dataService.saveProductSource({
-      ...imagePatchTarget.value,
-      product_image_url: parsedPatchUrls.value[0]
-    });
-    await loadSources();
-    imagePatchTarget.value = null;
-    imagePatchUrls.value = '';
-    alert('Gambar produk berhasil diperbarui!');
-  } catch (err: any) {
-    alert('Gagal menyimpan gambar: ' + (err?.message || err));
   } finally {
     isPatchSaving.value = false;
-  }
-};
-
-onMounted(() => {
-  loadSources();
-});
-
-const isRefreshing = ref(false);
-
-const loadSources = async () => {
-  isRefreshing.value = true;
-  try {
-    await Promise.all([
-      dataService.fetchProductSources().then(data => { sources.value = data; }),
-      catalogStore.fetchCatalogData()
-    ]);
-  } finally {
-    isRefreshing.value = false;
   }
 };
 
@@ -297,15 +351,12 @@ const handleSyncInput = async () => {
   if (!inputUrl.value.trim()) return;
   isSyncing.value = true;
   try {
-    const res = await ProductSyncService.syncProductUrl(inputUrl.value);
+    await ProductSyncService.syncProductUrl(inputUrl.value);
     inputUrl.value = '';
-    await Promise.all([
-      loadSources(),
-      catalogStore.fetchCatalogData()
-    ]);
-    alert(`Berhasil menyinkronkan produk "${res.product.name}"!`);
+    await loadSources();
+    await catalogStore.fetchCatalogData();
   } catch (err: any) {
-    alert(err?.message || 'Gagal menyinkronkan produk.');
+    alert(err.message || 'Gagal menyinkronkan URL produk.');
   } finally {
     isSyncing.value = false;
   }
@@ -313,29 +364,26 @@ const handleSyncInput = async () => {
 
 const handleForceSync = async (src: ProductSource) => {
   try {
-    const res = await ProductSyncService.forceSyncSource(src);
-    await Promise.all([
-      loadSources(),
-      catalogStore.fetchCatalogData()
-    ]);
-    alert(`Berhasil memperbarui sinkronisasi produk "${res.product.name}"!`);
+    await ProductSyncService.syncProductUrl(src.source_url, src.id);
+    await loadSources();
+    await catalogStore.fetchCatalogData();
   } catch (err: any) {
-    alert(err?.message || 'Gagal memperbarui sinkronisasi.');
+    alert(err.message || 'Gagal sinkronisasi ulang.');
   }
 };
 
 const handlePause = async (src: ProductSource) => {
-  await ProductSyncService.pauseSyncSource(src);
+  await dataService.saveProductSource({ ...src, sync_status: 'paused' });
   await loadSources();
 };
 
 const handleResume = async (src: ProductSource) => {
-  await ProductSyncService.resumeSyncSource(src);
+  await dataService.saveProductSource({ ...src, sync_status: 'synced' });
   await loadSources();
 };
 
 const handleDelete = async (src: ProductSource) => {
-  if (confirm(`Hapus sumber sinkronisasi untuk kode produk ${src.external_product_code}?`)) {
+  if (confirm(`Hapus sumber produk ${src.external_product_code}?`)) {
     await dataService.deleteProductSource(src.id);
     await loadSources();
   }
@@ -344,13 +392,11 @@ const handleDelete = async (src: ProductSource) => {
 const getStatusBadgeClass = (status: string) => {
   switch (status) {
     case 'synced':
-      return 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300';
-    case 'failed':
-      return 'bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300';
-    case 'paused':
-      return 'bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300';
-    default:
-      return 'bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300';
+    case 'active': return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300';
+    case 'paused': return 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300';
+    case 'error':
+    case 'failed': return 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300';
+    default: return 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300';
   }
 };
 </script>
