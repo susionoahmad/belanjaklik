@@ -531,6 +531,26 @@ export const dataService = {
     );
 
     const sanitized = sanitizeImageUrls(finalFiltered);
+
+    // Auto-heal promo classification for products in Promo Merchant or promo items missing explicit promo_type
+    sanitized.forEach(p => {
+      const isPromoProd = p.is_promo || (!!p.promo_price && p.promo_price < p.price) || p.category === 'Promo Merchant' || p.category_id === 'c2222222-2222-2222-2222-222222222222';
+      if (isPromoProd) {
+        p.is_promo = true;
+        if (!p.promo_type || p.promo_type === 'REGULAR' || p.promo_badge?.toUpperCase().includes('JSM')) {
+          if (!p.promo_type || p.promo_type === 'REGULAR') {
+            p.promo_type = 'JSM';
+          }
+          if (!p.promo_badge || p.promo_badge === 'Diskon!' || p.promo_badge === 'PROMO') {
+            p.promo_badge = 'PROMO JSM (3 HARI)';
+          }
+          if (!p.promo_title || p.promo_title === 'Diskon Spesial') {
+            p.promo_title = 'Promo Jumat Sabtu Minggu';
+          }
+        }
+      }
+    });
+
     await offlineDb.setProducts(sanitized);
     return sanitized;
   },

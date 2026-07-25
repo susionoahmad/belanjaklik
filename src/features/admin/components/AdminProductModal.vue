@@ -233,15 +233,18 @@ watch(() => props.product, (newP) => {
       ? [...newP.images] 
       : (newP.image_url ? [newP.image_url] : []);
 
+    const isPromoProd = newP.is_promo ?? (!!newP.promo_price && newP.promo_price < newP.price);
+    const pType = newP.promo_type || (newP.promo_badge?.includes('JSM') || newP.category === 'Promo Merchant' || newP.category_id === 'c2222222-2222-2222-2222-222222222222' || isPromoProd ? 'JSM' : 'REGULAR');
+
     form.value = {
       id: newP.id,
       name: newP.name,
       price: newP.price,
       promo_price: newP.promo_price,
-      is_promo: newP.is_promo ?? (!!newP.promo_price && newP.promo_price < newP.price),
-      promo_type: newP.promo_type || (newP.promo_badge?.includes('JSM') ? 'JSM' : 'REGULAR'),
-      promo_badge: newP.promo_badge || '',
-      promo_title: newP.promo_title || '',
+      is_promo: isPromoProd,
+      promo_type: pType,
+      promo_badge: newP.promo_badge || (pType === 'JSM' ? 'PROMO JSM (3 HARI)' : ''),
+      promo_title: newP.promo_title || (pType === 'JSM' ? 'Promo Jumat Sabtu Minggu' : ''),
       brand: newP.brand || '',
       description: newP.description || '',
       category_id: newP.category_id || '',
@@ -351,7 +354,7 @@ const handleSubmit = async () => {
     images: form.value.images,
     slug: form.value.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
     is_promo: isPromo,
-    promo_type: isPromo ? (form.value.promo_type || 'REGULAR') : undefined,
+    promo_type: isPromo ? (form.value.promo_type || 'JSM') : undefined,
     promo_badge: isPromo ? (form.value.promo_badge || (form.value.promo_type === 'JSM' ? 'PROMO JSM (3 HARI)' : 'Diskon!')) : undefined,
     promo_title: isPromo ? (form.value.promo_title || (form.value.promo_type === 'JSM' ? 'Promo Jumat Sabtu Minggu' : 'Diskon Spesial')) : undefined
   };

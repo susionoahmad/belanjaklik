@@ -25,15 +25,26 @@ export class CatalogUpdateEngine {
         ? item.editedData.price 
         : (norm?.normalized_price ?? norm?.current_price ?? 0);
       const originalPrice = norm?.original_price || norm?.strikethrough_price;
-      const promoTitle = item.editedData?.promo_title || norm?.promo_title;
-      const promoStartDate = item.editedData?.promo_start_date || norm?.promo_start_date;
-      const promoEndDate = item.editedData?.promo_end_date || norm?.promo_end_date;
-      const promoBadge = item.editedData?.promo_badge || norm?.promo_badge;
-      const promoType = item.editedData?.promo_type || norm?.promo_type;
-
       const isPromo = item.editedData?.is_promo !== undefined 
         ? item.editedData.is_promo 
-        : (norm?.is_promo || norm?.has_strikethrough_price || (!!originalPrice && originalPrice > currentPrice) || !!promoType || !!promoBadge);
+        : (norm?.is_promo || norm?.has_strikethrough_price || (!!originalPrice && originalPrice > currentPrice) || !!norm?.promo_type || !!norm?.promo_badge || true);
+
+      // Determine effective promo_type (default to JSM for flyer/Excel promo imports)
+      const promoType = item.editedData?.promo_type 
+        || norm?.promo_type 
+        || (norm?.promo_badge?.toUpperCase().includes('FLASHSALE') ? 'FLASHSALE' : undefined)
+        || (isPromo ? 'JSM' : undefined);
+
+      const promoBadge = item.editedData?.promo_badge 
+        || norm?.promo_badge 
+        || (promoType === 'JSM' ? 'PROMO JSM (3 HARI)' : (promoType === 'FLASHSALE' ? 'FLASHSALE' : (isPromo ? 'Diskon!' : undefined)));
+
+      const promoTitle = item.editedData?.promo_title 
+        || norm?.promo_title 
+        || (promoType === 'JSM' ? 'Promo Jumat Sabtu Minggu' : (promoType === 'FLASHSALE' ? 'Flash Sale Hari Ini' : (isPromo ? 'Diskon Spesial' : undefined)));
+
+      const promoStartDate = item.editedData?.promo_start_date || norm?.promo_start_date;
+      const promoEndDate = item.editedData?.promo_end_date || norm?.promo_end_date;
 
       
       // If strikethrough original price is present: price = normal price, promo_price = discounted current price

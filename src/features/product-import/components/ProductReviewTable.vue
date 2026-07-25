@@ -256,12 +256,24 @@ const getSelectedPromoType = (item: ReviewItem): string => {
   if (item.editedData?.is_promo === false) return 'NONE';
 
   const norm = item.card.normalizedData;
-  if (norm?.promo_type) return norm.promo_type;
-  if (norm?.promo_badge?.includes('JSM')) return 'JSM';
-  if (norm?.promo_badge?.includes('FLASHSALE')) return 'FLASHSALE';
-  if (norm?.original_price || norm?.promo_badge) return 'JSM';
+  let type = 'JSM';
+  if (norm?.promo_type) type = norm.promo_type;
+  else if (norm?.promo_badge?.includes('FLASHSALE')) type = 'FLASHSALE';
 
-  return 'JSM'; // Default to JSM for flyer imports
+  // Explicitly sync into item.editedData so publish engine reads it correctly
+  if (!item.editedData) item.editedData = {};
+  item.editedData.promo_type = type as any;
+  if (!item.editedData.promo_badge) {
+    item.editedData.promo_badge = type === 'JSM' ? 'PROMO JSM (3 HARI)' : (type === 'FLASHSALE' ? 'FLASHSALE' : 'Diskon!');
+  }
+  if (!item.editedData.promo_title) {
+    item.editedData.promo_title = type === 'JSM' ? 'Promo Jumat Sabtu Minggu' : (type === 'FLASHSALE' ? 'Flash Sale Hari Ini' : 'Diskon Spesial');
+  }
+  if (item.editedData.is_promo === undefined) {
+    item.editedData.is_promo = true;
+  }
+
+  return type;
 };
 
 const updateItemPromoType = (item: ReviewItem, promoType: string) => {
