@@ -230,6 +230,16 @@
                         <span>+ Duplikat</span>
                       </button>
 
+                      <!-- Action 2.5: Tambah ke Paket -->
+                      <button 
+                        @click="openAddToPackageModal(p)" 
+                        title="Tambah produk ini ke Paket Belanja Hemat"
+                        class="px-2 py-1 text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/50 hover:bg-amber-100 rounded-lg transition-colors border border-amber-200 dark:border-amber-900 text-[10px] font-extrabold flex items-center gap-1"
+                      >
+                        <PackagePlus class="w-3.5 h-3.5" />
+                        <span>+ Paket</span>
+                      </button>
+
                       <!-- Action 3: Quick Toggle Status Stok -->
                       <button 
                         @click="handleToggleAvailability(p)" 
@@ -470,6 +480,41 @@
       </div>
     </Modal>
 
+    <!-- Modal 4: Tambah Produk ke Paket Belanja Hemat -->
+    <Modal :is-open="isAddToPackageModalOpen" title="Tambah Produk ke Paket Belanja Hemat" @close="isAddToPackageModalOpen = false">
+      <div v-if="selectedPackageProduct" class="space-y-4">
+        <div class="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-2xl border border-gray-100 dark:border-gray-700">
+          <img :src="proxyImageUrl(selectedPackageProduct.image_url || '')" :alt="selectedPackageProduct.name" class="w-12 h-12 object-cover rounded-xl shrink-0" @error="($event.target as HTMLImageElement).src='https://images.unsplash.com/photo-1542838132-92c53300491e?w=150'" />
+          <div>
+            <div class="font-extrabold text-sm text-gray-900 dark:text-white">{{ selectedPackageProduct.name }}</div>
+            <div class="text-xs text-brand-red font-bold font-mono">{{ formatRupiah(selectedPackageProduct.promo_price || selectedPackageProduct.price) }}</div>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Pilih Paket Belanja Target</label>
+          <select v-model="targetPackageId" class="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700 text-xs font-semibold focus:ring-2 focus:ring-brand-red outline-none">
+            <option value="">-- Pilih Paket Target --</option>
+            <option v-for="tpl in shoppingStore.templates" :key="tpl.id" :value="tpl.id">
+              {{ tpl.name }} ({{ tpl.items.length }} Jenis Barang)
+            </option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Jumlah (Qty)</label>
+          <input v-model.number="targetPackageQty" type="number" min="1" class="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700 text-xs font-bold font-mono outline-none" />
+        </div>
+
+        <div class="flex items-center justify-end gap-2 pt-3 border-t border-gray-100 dark:border-gray-700">
+          <button @click="isAddToPackageModalOpen = false" class="px-4 py-2 rounded-xl text-xs font-bold text-gray-500">Batal</button>
+          <button @click="confirmAddToPackage" :disabled="!targetPackageId" class="px-5 py-2 rounded-xl bg-brand-red hover:bg-brand-red-dark text-white text-xs font-extrabold shadow-md disabled:opacity-50 transition-all">
+            Simpan ke Paket
+          </button>
+        </div>
+      </div>
+    </Modal>
+
     <!-- Floating Toast Notification -->
     <Transition enter-active-class="transition duration-300 ease-out" enter-from-class="transform translate-y-4 opacity-0" enter-to-class="transform translate-y-0 opacity-100" leave-active-class="transition duration-200 ease-in" leave-from-class="transform translate-y-0 opacity-100" leave-to-class="transform translate-y-4 opacity-0">
       <div v-if="toastMessage" class="fixed bottom-6 right-6 z-50 bg-gray-900 text-white font-bold text-xs px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-2 border border-gray-700">
@@ -482,7 +527,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
-import { Lock, LogOut, BarChart2, Package, Store, Settings, Plus, Upload, Edit3, Save, RefreshCw, ScanLine, BrainCircuit, Copy, Trash2, Power, Search, Eye, CheckCircle, AlertTriangle, Megaphone, PackageCheck } from 'lucide-vue-next';
+import { Lock, LogOut, BarChart2, Package, Store, Settings, Plus, Upload, Edit3, Save, RefreshCw, ScanLine, BrainCircuit, Copy, Trash2, Power, Search, Eye, CheckCircle, AlertTriangle, Megaphone, PackageCheck, PackagePlus } from 'lucide-vue-next';
 import Modal from '../features/shared/components/Modal.vue';
 import type { Product, FulfillmentChannel } from '../features/shared/types';
 import { formatRupiah } from '../features/shared/utils/formatters';
@@ -502,10 +547,12 @@ import type { CampaignParsedData } from '../features/promotions/types/campaignTy
 import { parseProductFile } from '../features/admin/services/csvImportService';
 import { useAdminStore } from '../features/admin/stores/adminStore';
 import { useCatalogStore } from '../features/catalog/stores/catalogStore';
+import { useShoppingStore } from '../features/shopping/stores/shoppingStore';
 import { proxyImageUrl } from '../features/tokosaya-sync/services/ImageProxyService';
 
 const adminStore = useAdminStore();
 const catalogStore = useCatalogStore();
+const shoppingStore = useShoppingStore();
 
 const activeTab = ref('analytics');
 const channels = ref<FulfillmentChannel[]>([]);
@@ -523,6 +570,10 @@ const isConfirmDeleteOpen = ref(false);
 const productToDelete = ref<Product | null>(null);
 const isPreviewProductOpen = ref(false);
 const productToPreview = ref<Product | null>(null);
+const isAddToPackageModalOpen = ref(false);
+const selectedPackageProduct = ref<Product | null>(null);
+const targetPackageId = ref('');
+const targetPackageQty = ref(1);
 const toastMessage = ref('');
 
 // Campaign Engine state
@@ -657,6 +708,27 @@ const handleToggleAvailability = async (p: Product) => {
   await dataService.toggleProductAvailability(p);
   await catalogStore.fetchCatalogData();
   showToast(`Status "${p.name}" diubah ke ${!p.is_available ? 'Tersedia' : 'Stok Habis'}`);
+};
+
+const openAddToPackageModal = (p: Product) => {
+  selectedPackageProduct.value = p;
+  targetPackageId.value = shoppingStore.templates[0]?.id || '';
+  targetPackageQty.value = 1;
+  isAddToPackageModalOpen.value = true;
+};
+
+const confirmAddToPackage = async () => {
+  if (!selectedPackageProduct.value || !targetPackageId.value) return;
+  const targetTpl = shoppingStore.templates.find(t => t.id === targetPackageId.value);
+  const success = await shoppingStore.addProductToTemplate(
+    targetPackageId.value,
+    selectedPackageProduct.value,
+    targetPackageQty.value
+  );
+  if (success) {
+    showToast(`✅ ${selectedPackageProduct.value.name} (+${targetPackageQty.value}) berhasil ditambahkan ke paket "${targetTpl?.name || 'Hemat'}"!`);
+  }
+  isAddToPackageModalOpen.value = false;
 };
 
 const confirmDeleteProduct = (p: Product) => {

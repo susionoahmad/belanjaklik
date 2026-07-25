@@ -142,6 +142,7 @@ export interface ShoppingTemplate {
   icon: string;
   is_active: boolean;
   items: Array<{
+    product_id?: string;
     product_name: string;
     quantity: number;
     default_price: number;

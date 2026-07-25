@@ -29,13 +29,17 @@ export const useShoppingStore = defineStore('shopping', () => {
 
     template.items.forEach(item => {
       // Find matching catalog product if possible
-      const matched = catalogStore.products.find(p => p.name.toLowerCase().includes(item.product_name.toLowerCase()));
+      const matched = catalogStore.products.find(p => 
+        (item.product_id && p.id === item.product_id) ||
+        p.name.toLowerCase().trim() === item.product_name.toLowerCase().trim() ||
+        p.name.toLowerCase().includes(item.product_name.toLowerCase())
+      );
       if (matched) {
         cartStore.addItem(matched, item.quantity);
       } else {
         // Fallback custom dummy product
         cartStore.addItem({
-          id: `custom_${Date.now()}_${Math.random()}`,
+          id: item.product_id || `custom_${Date.now()}_${Math.random()}`,
           name: item.product_name,
           slug: item.product_name.toLowerCase().replace(/\s+/g, '-'),
           brand: 'Paket',
@@ -55,6 +59,42 @@ export const useShoppingStore = defineStore('shopping', () => {
     });
 
     cartStore.isDrawerOpen = true;
+  };
+
+  const addProductToTemplate = async (templateId: string, product: any, quantity = 1) => {
+    const target = templates.value.find(t => t.id === templateId);
+    if (!target) return false;
+
+    const updatedItems = [...target.items];
+    const existingIdx = updatedItems.findIndex(i => 
+      (i.product_id && i.product_id === product.id) || 
+      i.product_name.toLowerCase().trim() === product.name.toLowerCase().trim()
+    );
+
+    if (existingIdx >= 0) {
+      updatedItems[existingIdx] = {
+        ...updatedItems[existingIdx],
+        product_id: product.id,
+        product_name: product.name,
+        quantity: (updatedItems[existingIdx].quantity || 1) + quantity,
+        default_price: product.promo_price || product.price,
+        unit: product.unit || 'pcs'
+      };
+    } else {
+      updatedItems.push({
+        product_id: product.id,
+        product_name: product.name,
+        quantity,
+        default_price: product.promo_price || product.price,
+        unit: product.unit || 'pcs'
+      });
+    }
+
+    await saveTemplate({
+      ...target,
+      items: updatedItems
+    });
+    return true;
   };
 
   const repeatOrder = (request: ShoppingRequest) => {
@@ -108,6 +148,7 @@ export const useShoppingStore = defineStore('shopping', () => {
     isLoading,
     fetchShoppingData,
     loadTemplateToCart,
+    addProductToTemplate,
     repeatOrder,
     saveTemplate,
     deleteTemplate
