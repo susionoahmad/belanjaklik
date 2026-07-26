@@ -1,12 +1,13 @@
 import { defineStore } from 'pinia';
-import { ref, onMounted } from 'vue';
+import { ref } from 'vue';
 import type { Product, StoreProfile } from '../../shared/types';
 import { dataService } from '../../shared/db/dataService';
 import { supabase, isSupabaseConfigured } from '../../shared/db/supabaseClient';
 
 export const useAdminStore = defineStore('admin', () => {
-  const storedAuth = localStorage.getItem('psa_store_auth') === 'true';
-  const storedUser = localStorage.getItem('psa_store_user');
+  const isClient = typeof window !== 'undefined';
+  const storedAuth = isClient ? localStorage.getItem('psa_store_auth') === 'true' : false;
+  const storedUser = isClient ? localStorage.getItem('psa_store_user') : null;
 
   const isAuthenticated = ref(storedAuth);
   const user = ref<any>(storedUser ? JSON.parse(storedUser) : (storedAuth ? { email: 'pengelola@tokoberkah.com' } : null));
@@ -26,7 +27,7 @@ export const useAdminStore = defineStore('admin', () => {
 
   // Check initial Supabase session
   const checkSession = async () => {
-    if (!isSupabaseConfigured) return;
+    if (!isSupabaseConfigured || !isClient) return;
     try {
       const { data } = await supabase.auth.getSession();
       if (data.session?.user) {
@@ -38,7 +39,9 @@ export const useAdminStore = defineStore('admin', () => {
     } catch (e) {}
   };
 
-  checkSession();
+  if (isClient) {
+    checkSession();
+  }
 
   const login = async (inputEmail: string, inputPass: string): Promise<boolean> => {
     errorMessage.value = '';
@@ -60,8 +63,10 @@ export const useAdminStore = defineStore('admin', () => {
 
       isAuthenticated.value = true;
       user.value = loggedUser;
-      localStorage.setItem('psa_store_auth', 'true');
-      localStorage.setItem('psa_store_user', JSON.stringify(loggedUser));
+      if (isClient) {
+        localStorage.setItem('psa_store_auth', 'true');
+        localStorage.setItem('psa_store_user', JSON.stringify(loggedUser));
+      }
       return true;
     } catch (err: any) {
       errorMessage.value = err.message || 'Gagal masuk ke sistem.';
@@ -79,8 +84,10 @@ export const useAdminStore = defineStore('admin', () => {
     }
     isAuthenticated.value = false;
     user.value = null;
-    localStorage.removeItem('psa_store_auth');
-    localStorage.removeItem('psa_store_user');
+    if (isClient) {
+      localStorage.removeItem('psa_store_auth');
+      localStorage.removeItem('psa_store_user');
+    }
   };
 
   const bulkImportProducts = async (newProducts: Partial<Product>[]) => {

@@ -22,6 +22,8 @@ export const useCartStore = defineStore('cart', () => {
 
   // Load initial cart and customer data from local cache
   const initCart = async () => {
+    if (typeof window === 'undefined') return;
+
     const cachedCart = await offlineDb.getCart();
     if (cachedCart) items.value = cachedCart;
 
@@ -33,17 +35,24 @@ export const useCartStore = defineStore('cart', () => {
     }
   };
 
-  initCart();
+  if (typeof window !== 'undefined') {
+    initCart();
+  }
 
   // Watch cart changes to persist
   watch(items, async (newItems) => {
-    await offlineDb.setCart(newItems);
+    if (typeof window !== 'undefined') {
+      await offlineDb.setCart(newItems);
+    }
   }, { deep: true });
 
   // Watch customer changes to persist
   watch(customer, (newCust) => {
-    localStorage.setItem('psa_customer_info', JSON.stringify(newCust));
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('psa_customer_info', JSON.stringify(newCust));
+    }
   }, { deep: true });
+
 
   const totalItemCount = computed(() => items.value.reduce((acc, item) => acc + item.quantity, 0));
 

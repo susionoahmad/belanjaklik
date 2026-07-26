@@ -1,11 +1,17 @@
-import { createRouter, createWebHistory } from 'vue-router';
+import { createRouter, createWebHistory, createMemoryHistory } from 'vue-router';
 import HomeView from '../views/HomeView.vue';
 
-const routes = [
+export const routes = [
+
   {
     path: '/',
     name: 'home',
     component: HomeView
+  },
+  {
+    path: '/produk/:slug',
+    name: 'affiliate-product-detail',
+    component: () => import('../views/AffiliateProductDetailView.vue')
   },
   {
     path: '/catalog',
@@ -85,11 +91,13 @@ const routes = [
 ];
 
 const router = createRouter({
-  history: createWebHistory(),
+  history: import.meta.env.SSR ? createMemoryHistory() : createWebHistory(),
   routes,
   scrollBehavior() {
     return { top: 0 };
   }
 });
 
+
 export default router;
+

@@ -1,89 +1,163 @@
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { VitePWA } from 'vite-plugin-pwa'
 import path from 'path'
 
-export default defineConfig({
-  plugins: [
-    vue(),
-    VitePWA({
-      registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg', 'robots.txt', 'apple-touch-icon.png', 'icon-192.png', 'icon-512.png', 'maskable-icon-512.png'],
-      manifest: {
-        name: 'Personal Shopping Assistant - BelanjaKlik',
-        short_name: 'BelanjaKlik',
-        description: 'Asisten Belanja Pribadi Serba Ada - Alfamind Store',
-        theme_color: '#e11d48',
-        background_color: '#ffffff',
-        display: 'standalone',
-        orientation: 'portrait',
-        scope: '/',
-        start_url: '/',
-        categories: ['shopping', 'lifestyle', 'business'],
-        icons: [
-          {
-            src: '/icon-192.png',
-            sizes: '192x192',
-            type: 'image/png',
-            purpose: 'any'
-          },
-          {
-            src: '/icon-512.png',
-            sizes: '512x512',
-            type: 'image/png',
-            purpose: 'any'
-          },
-          {
-            src: '/maskable-icon-512.png',
-            sizes: '512x512',
-            type: 'image/png',
-            purpose: 'maskable'
-          },
-          {
-            src: '/apple-touch-icon.png',
-            sizes: '180x180',
-            type: 'image/png'
-          }
-        ]
-      },
-      workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,json}'],
-        runtimeCaching: [
-          {
-            urlPattern: /^https:\/\/images\.unsplash\.com\/.*/i,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'unsplash-images',
-              expiration: {
-                maxEntries: 60,
-                maxAgeSeconds: 30 * 24 * 60 * 60 // 30 Days
-              },
-              cacheableResponse: {
-                statuses: [0, 200]
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), '')
+
+  return {
+    plugins: [
+      vue(),
+      VitePWA({
+        registerType: 'autoUpdate',
+        includeAssets: ['favicon.svg', 'robots.txt', 'apple-touch-icon.png', 'icon-192.png', 'icon-512.png', 'maskable-icon-512.png'],
+        manifest: {
+          name: 'Personal Shopping Assistant - BelanjaKlik',
+          short_name: 'BelanjaKlik',
+          description: 'Asisten Belanja Pribadi Serba Ada - Alfamind Store',
+          theme_color: '#e11d48',
+          background_color: '#ffffff',
+          display: 'standalone',
+          orientation: 'portrait',
+          scope: '/',
+          start_url: '/',
+          categories: ['shopping', 'lifestyle', 'business'],
+          icons: [
+            {
+              src: '/icon-192.png',
+              sizes: '192x192',
+              type: 'image/png',
+              purpose: 'any'
+            },
+            {
+              src: '/icon-512.png',
+              sizes: '512x512',
+              type: 'image/png',
+              purpose: 'any'
+            },
+            {
+              src: '/maskable-icon-512.png',
+              sizes: '512x512',
+              type: 'image/png',
+              purpose: 'maskable'
+            },
+            {
+              src: '/apple-touch-icon.png',
+              sizes: '180x180',
+              type: 'image/png'
+            }
+          ]
+        },
+        workbox: {
+          globPatterns: ['**/*.{js,css,html,ico,png,svg,json}'],
+          runtimeCaching: [
+            {
+              urlPattern: /^https:\/\/images\.unsplash\.com\/.*/i,
+              handler: 'CacheFirst',
+              options: {
+                cacheName: 'unsplash-images',
+                expiration: {
+                  maxEntries: 60,
+                  maxAgeSeconds: 30 * 24 * 60 * 60 // 30 Days
+                },
+                cacheableResponse: {
+                  statuses: [0, 200]
+                }
+              }
+            },
+            {
+              urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
+              handler: 'NetworkFirst',
+              options: {
+                cacheName: 'supabase-api-cache',
+                expiration: {
+                  maxEntries: 100,
+                  maxAgeSeconds: 24 * 60 * 60 // 24 hours
+                },
+                cacheableResponse: {
+                  statuses: [0, 200]
+                }
               }
             }
-          },
-          {
-            urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'supabase-api-cache',
-              expiration: {
-                maxEntries: 100,
-                maxAgeSeconds: 24 * 60 * 60 // 24 hours
-              },
-              cacheableResponse: {
-                statuses: [0, 200]
-              }
-            }
-          }
-        ]
+          ]
+        }
+      })
+    ],
+    resolve: {
+      alias: {
+        '@': path.resolve(__dirname, './src')
       }
-    })
-  ],
-  resolve: {
-    alias: {
-      '@': path.resolve(__dirname, './src')
+    },
+    ssgOptions: {
+      script: 'async',
+      formatting: 'minify',
+      dirStyle: 'nested',
+      async onPageRendered(_route: string, renderedHTML: string, appCtx: any) {
+        if (appCtx.head) {
+          const { renderSSRHead } = await import('@unhead/vue/server')
+          const headPayload = await renderSSRHead(appCtx.head)
+
+          let html = renderedHTML
+          if (headPayload.headTags) {
+            html = html.replace('</head>', `${headPayload.headTags}\n</head>`)
+          }
+          if (headPayload.htmlAttrs) {
+            html = html.replace('<html', `<html ${headPayload.htmlAttrs}`)
+          }
+          if (headPayload.bodyAttrs) {
+            html = html.replace('<body', `<body ${headPayload.bodyAttrs}`)
+          }
+          return html
+        }
+        return renderedHTML
+      },
+      async includedRoutes(paths: string[], _routes: any[]) {
+        const staticPaths = paths.filter((p: string) => !p.includes(':'))
+        const url = env.VITE_SUPABASE_URL || process.env.VITE_SUPABASE_URL
+        const key = env.VITE_SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY
+
+        console.log('[SSG] VITE_SUPABASE_URL:', url ? 'OK' : 'KOSONG')
+        console.log('[SSG] VITE_SUPABASE_ANON_KEY:', key ? 'OK' : 'KOSONG')
+
+        if (!url || !key || url.includes('placeholder')) {
+          console.warn('[SSG] Supabase URL/Key belum diset atau bernilai placeholder. Hanya merender rute statis.')
+          return staticPaths
+        }
+
+        try {
+          const { createClient } = await import('@supabase/supabase-js')
+          const supabase = createClient(url, key)
+          const { data, error } = await supabase
+            .from('affiliate_products')
+            .select('slug')
+            .eq('is_active', true)
+
+          if (error) {
+            console.error('[SSG] Supabase Error Detail:', JSON.stringify(error, null, 2))
+            return staticPaths
+          }
+
+          if (!data) {
+            console.warn('[SSG] Supabase query mengembalikan data null/undefined.')
+            return staticPaths
+          }
+
+          const productRoutes = data
+            .filter((item) => Boolean(item.slug))
+            .map((item) => `/produk/${item.slug}`)
+
+          const finalRoutes = [...staticPaths, ...productRoutes]
+          console.log(`[SSG] Hasil Query: Berhasil mengambil ${data.length} baris, ${productRoutes.length} slug unik valid untuk di-render statis.`)
+          console.log('[SSG] Full Array includedRoutes:', JSON.stringify(finalRoutes, null, 2))
+          return finalRoutes
+        } catch (e) {
+          console.error('[SSG] Exception Error saat mengambil rute SSG:', e)
+          return staticPaths
+        }
+      }
     }
+
+
   }
 })

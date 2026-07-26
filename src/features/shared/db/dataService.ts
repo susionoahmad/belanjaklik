@@ -459,7 +459,7 @@ export const dataService = {
     
     // Smart Egress Cache: check if we fetched from Supabase recently (e.g., within 5 minutes)
     const CACHE_TTL_MS = 5 * 60 * 1000;
-    const lastFetch = Number(sessionStorage.getItem('psa_last_supabase_fetch') || 0);
+    const lastFetch = typeof window !== 'undefined' ? Number(sessionStorage.getItem('psa_last_supabase_fetch') || 0) : 0;
     const now = Date.now();
     const isCacheValid = now - lastFetch < CACHE_TTL_MS;
 
@@ -474,8 +474,11 @@ export const dataService = {
 
         if (!error && data && data.length > 0) {
           baseList = data as Product[];
-          sessionStorage.setItem('psa_last_supabase_fetch', String(now));
+          if (typeof window !== 'undefined') {
+            sessionStorage.setItem('psa_last_supabase_fetch', String(now));
+          }
         }
+
       } catch (err) {
         console.warn('Supabase fetchProducts failed or quota restricted, falling back to local offline DB', err);
       }

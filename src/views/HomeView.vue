@@ -42,8 +42,29 @@
     <!-- Flash Sale Countdown Section -->
     <FlashSaleSection @select="openProductDetail" />
 
+    <!-- Rekomendasi Belanja Hari Ini (Affiliate Products Section) -->
+    <section v-if="affiliateProducts.length > 0">
+      <div class="flex items-center justify-between mb-3">
+        <div>
+          <h2 class="font-extrabold text-base text-gray-900 dark:text-white flex items-center gap-2">
+            <ShoppingBag class="w-5 h-5 text-brand-red" />
+            <span>Rekomendasi Belanja Hari Ini</span>
+          </h2>
+          <p class="text-xs text-gray-500">Penawaran harga promo terbaik dari Shopee, TikTok Shop & Tokopedia</p>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+        <AffiliateProductCard
+          v-for="affProd in affiliateProducts"
+          :key="affProd.id"
+          :product="affProd"
+        />
+      </div>
+    </section>
 
     <!-- Quick Shopping Packages / Bundles -->
+
     <section>
       <div class="flex items-center justify-between mb-3">
         <div>
@@ -130,6 +151,9 @@ import JsmPromoSection from '../features/promotions/components/JsmPromoSection.v
 import PackageCard from '../features/shopping/components/PackageCard.vue';
 import ProductCard from '../features/catalog/components/ProductCard.vue';
 import ProductDetailModal from '../features/catalog/components/ProductDetailModal.vue';
+import AffiliateProductCard from '../features/affiliate/components/AffiliateProductCard.vue';
+import type { AffiliateProduct } from '../features/affiliate/types';
+import { getActiveAffiliateProducts } from '../features/affiliate/services/affiliateService';
 import { useCatalogStore } from '../features/catalog/stores/catalogStore';
 import { useShoppingStore } from '../features/shopping/stores/shoppingStore';
 
@@ -141,13 +165,16 @@ const shoppingStore = useShoppingStore();
 const promotionStore = usePromotionStore();
 
 const selectedProduct = ref<Product | null>(null);
+const affiliateProducts = ref<AffiliateProduct[]>([]);
 
 onMounted(async () => {
   updatePageSeo('Beranda', 'Personal Shopping Assistant - Asisten Belanja Pribadi Serba Ada');
   await catalogStore.fetchCatalogData();
   await shoppingStore.fetchShoppingData();
   await promotionStore.loadCampaignBanners();
+  affiliateProducts.value = await getActiveAffiliateProducts({ limit: 8 });
 });
+
 
 const selectCategory = (slug: string) => {
   catalogStore.selectedCategorySlug = slug;

@@ -38,3 +38,8 @@ ocr/test_16_cards/
 ocr/test_crops/
 ocr/test_jsm6_exact/
 ocr/test_pure_packs/
+
+supabase/.env.secrets
+supabase/.temp/
+*.tsbuildinfo
+
