@@ -16,15 +16,21 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted } from 'vue';
+import { onMounted, onServerPrefetch } from 'vue';
 import { updatePageSeo } from '../features/shared/utils/seo';
 import PackageCard from '../features/shopping/components/PackageCard.vue';
 import { useShoppingStore } from '../features/shopping/stores/shoppingStore';
 
 const shoppingStore = useShoppingStore();
 
+onServerPrefetch(async () => {
+  await shoppingStore.fetchShoppingData();
+});
+
 onMounted(async () => {
   updatePageSeo('Paket Belanja Hemat', 'Bundel belanja praktis murah.');
-  await shoppingStore.fetchShoppingData();
+  if (shoppingStore.templates.length === 0) {
+    await shoppingStore.fetchShoppingData();
+  }
 });
 </script>

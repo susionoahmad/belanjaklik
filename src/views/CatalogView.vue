@@ -62,7 +62,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, onServerPrefetch } from 'vue';
 import { Search } from 'lucide-vue-next';
 import type { Product } from '../features/shared/types';
 import { updatePageSeo } from '../features/shared/utils/seo';
@@ -74,9 +74,15 @@ import { useCatalogStore } from '../features/catalog/stores/catalogStore';
 const catalogStore = useCatalogStore();
 const selectedProduct = ref<Product | null>(null);
 
+onServerPrefetch(async () => {
+  await catalogStore.fetchCatalogData();
+});
+
 onMounted(async () => {
   updatePageSeo('Katalog Sembako', 'Cari & pesan sembako lengkap berkualitas.');
-  await catalogStore.fetchCatalogData();
+  if (catalogStore.products.length === 0) {
+    await catalogStore.fetchCatalogData();
+  }
 });
 
 const openProductDetail = (product: Product) => {

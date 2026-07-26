@@ -137,7 +137,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, onServerPrefetch } from 'vue';
 import { useRouter } from 'vue-router';
 import { Grid, ShoppingBag, Package, Sparkles, Clock } from 'lucide-vue-next';
 import type { Product } from '../features/shared/types';
@@ -167,12 +167,30 @@ const promotionStore = usePromotionStore();
 const selectedProduct = ref<Product | null>(null);
 const affiliateProducts = ref<AffiliateProduct[]>([]);
 
+const loadHomeData = async () => {
+  await Promise.all([
+    catalogStore.fetchCatalogData(),
+    shoppingStore.fetchShoppingData(),
+    promotionStore.loadCampaignBanners(),
+    getActiveAffiliateProducts({ limit: 8 }).then(res => {
+      affiliateProducts.value = res;
+    })
+  ]);
+};
+
+onServerPrefetch(async () => {
+  await loadHomeData();
+});
+
 onMounted(async () => {
   updatePageSeo('Beranda', 'Personal Shopping Assistant - Asisten Belanja Pribadi Serba Ada');
-  await catalogStore.fetchCatalogData();
-  await shoppingStore.fetchShoppingData();
-  await promotionStore.loadCampaignBanners();
-  affiliateProducts.value = await getActiveAffiliateProducts({ limit: 8 });
+  if (
+    catalogStore.products.length === 0 ||
+    shoppingStore.templates.length === 0 ||
+    affiliateProducts.value.length === 0
+  ) {
+    await loadHomeData();
+  }
 });
 
 
