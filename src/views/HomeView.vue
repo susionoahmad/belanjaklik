@@ -42,21 +42,42 @@
     <!-- Flash Sale Countdown Section -->
     <FlashSaleSection @select="openProductDetail" />
 
-    <!-- Rekomendasi Belanja Hari Ini (Affiliate Products Section) -->
+    <!-- Rekomendasi Belanja Marketplace (Affiliate Products Section) -->
     <section v-if="affiliateProducts.length > 0">
-      <div class="flex items-center justify-between mb-3">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
         <div>
           <h2 class="font-extrabold text-base text-gray-900 dark:text-white flex items-center gap-2">
             <ShoppingBag class="w-5 h-5 text-brand-red" />
-            <span>Rekomendasi Belanja Hari Ini</span>
+            <span>Rekomendasi Belanja Marketplace</span>
           </h2>
-          <p class="text-xs text-gray-500">Penawaran harga promo terbaik dari Shopee, TikTok Shop & Tokopedia</p>
+          <p class="text-xs text-gray-500">Penawaran harga promo Shopee & Tokopedia pilihan terbaik dari saringan AI</p>
         </div>
+        <router-link to="/affiliate" class="text-xs font-bold text-brand-red hover:underline self-start sm:self-auto">
+          Lihat Semua Promo ({{ affiliateProducts.length }}+)
+        </router-link>
+      </div>
+
+      <!-- Tab Filter Kategori Populer -->
+      <div class="flex items-center gap-2 overflow-x-auto pb-2.5 mb-3 scrollbar-none">
+        <button
+          v-for="tab in affiliateCategoryTabs"
+          :key="tab.id"
+          @click="activeAffiliateCategory = tab.id"
+          :class="[
+            'px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer',
+            activeAffiliateCategory === tab.id
+              ? 'bg-brand-red text-white shadow-sm'
+              : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-brand-red'
+          ]"
+        >
+          <span>{{ tab.icon }}</span>
+          <span>{{ tab.name }}</span>
+        </button>
       </div>
 
       <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
         <AffiliateProductCard
-          v-for="affProd in affiliateProducts"
+          v-for="affProd in filteredAffiliateProducts"
           :key="affProd.id"
           :product="affProd"
         />
@@ -137,7 +158,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onServerPrefetch } from 'vue';
+import { ref, computed, onMounted, onServerPrefetch } from 'vue';
 import { useRouter } from 'vue-router';
 import { Grid, ShoppingBag, Package, Sparkles, Clock } from 'lucide-vue-next';
 import type { Product } from '../features/shared/types';
@@ -166,13 +187,39 @@ const promotionStore = usePromotionStore();
 
 const selectedProduct = ref<Product | null>(null);
 const affiliateProducts = ref<AffiliateProduct[]>([]);
+const activeAffiliateCategory = ref('all');
+
+const affiliateCategoryTabs = [
+  { id: 'all', name: 'Semua Promo', icon: '🔥' },
+  { id: 'baby', name: 'Ibu & Bayi', icon: '👶', filterKeywords: ['baby', 'diaper', 'bayi', 'anak'] },
+  { id: 'beauty', name: 'Kecantikan', icon: '💄', filterKeywords: ['skincare', 'makeup', 'beauty', 'face', 'sunscreen', 'oral'] },
+  { id: 'kitchen', name: 'Dapur & Kuliner', icon: '🍳', filterKeywords: ['kitchen', 'cooking', 'masak', 'dapur', 'food'] },
+  { id: 'home', name: 'Rumah Tangga', icon: '🏠', filterKeywords: ['home', 'clean', 'supplies', 'toilet', 'sabun'] },
+  { id: 'fashion', name: 'Fashion & Hijab', icon: '👗', filterKeywords: ['fashion', 'wear', 'clothes', 'muslim', 'baju'] },
+];
+
+const filteredAffiliateProducts = computed(() => {
+  if (activeAffiliateCategory.value === 'all') {
+    return affiliateProducts.value.slice(0, 12);
+  }
+  const tab = affiliateCategoryTabs.find(t => t.id === activeAffiliateCategory.value);
+  if (!tab || !tab.filterKeywords) return affiliateProducts.value.slice(0, 12);
+
+  const matches = affiliateProducts.value.filter(p => {
+    const catLower = (p.category || '').toLowerCase();
+    const nameLower = (p.name || '').toLowerCase();
+    return tab.filterKeywords!.some(kw => catLower.includes(kw) || nameLower.includes(kw));
+  });
+
+  return matches.length > 0 ? matches.slice(0, 12) : affiliateProducts.value.slice(0, 12);
+});
 
 const loadHomeData = async () => {
   await Promise.all([
     catalogStore.fetchCatalogData(),
     shoppingStore.fetchShoppingData(),
     promotionStore.loadCampaignBanners(),
-    getActiveAffiliateProducts({ limit: 8 }).then(res => {
+    getActiveAffiliateProducts({ limit: 40 }).then(res => {
       affiliateProducts.value = res;
     })
   ]);
