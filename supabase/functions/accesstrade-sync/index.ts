@@ -311,17 +311,40 @@ function mapCsvRowToProduct(
   merchant: string,
   campaignId: string
 ) {
-  const extId = String(
-    row['Merchant Product ID'] || row['Merchant_Product_ID'] || row['id'] || row['product_id'] || ''
+  let extId = String(
+    row['Merchant Product ID'] ||
+      row['Merchant_Product_ID'] ||
+      row['id'] ||
+      row['product_id'] ||
+      row['external_product_id'] ||
+      ''
   ).trim()
-  const rawName = row['Merchant Product Name'] || row['name'] || row['title'] || 'Produk Afiliasi'
-  const cleanedName = cleanProductName(rawName)
+
   const productUrl =
     row['Product URL Web (encoded)'] ||
     row['Product URL Mobile (encoded)'] ||
     row['Product URL'] ||
     row['product_url'] ||
     ''
+
+  const rawName = row['Merchant Product Name'] || row['name'] || row['title'] || 'Produk Afiliasi'
+  const cleanedName = cleanProductName(rawName)
+
+  // Fallback Unik jika CSV tidak memiliki kolom Merchant Product ID / ID
+  if (!extId) {
+    if (productUrl) {
+      let hash = 0
+      for (let i = 0; i < productUrl.length; i++) {
+        hash = (hash << 5) - hash + productUrl.charCodeAt(i)
+        hash |= 0
+      }
+      const urlPart = slugify(productUrl).replace(/-/g, '').slice(-12)
+      extId = `url_${Math.abs(hash).toString(36)}_${urlPart}`
+    } else {
+      extId = `name_${slugify(cleanedName).replace(/-/g, '').slice(0, 24)}`
+    }
+  }
+
   const affiliateUrl =
     row['Product URL Web (encoded)'] ||
     row['Product URL Mobile (encoded)'] ||
@@ -332,9 +355,11 @@ function mapCsvRowToProduct(
   const cleanedDesc = cleanProductDescription(rawDesc)
 
   const normalPrice = parseNumeric(row['Price'] || row['price'] || row['original_price'])
-  const promoPrice = parseNumeric(row['Discounted Price'] || row['discounted_price'] || row['sale_price'])
+  const promoPrice = parseNumeric(
+    row['Discounted Price'] || row['discounted_price'] || row['sale_price']
+  )
 
-  const finalPrice = promoPrice && promoPrice > 0 ? promoPrice : (normalPrice || 0)
+  const finalPrice = promoPrice && promoPrice > 0 ? promoPrice : normalPrice || 0
   const originalPrice = normalPrice && normalPrice > finalPrice ? normalPrice : null
 
   let discountPercent: number | null = null
@@ -343,8 +368,13 @@ function mapCsvRowToProduct(
   }
 
   const category =
-    row['Sub category Name'] || row['Category Name'] || row['Main Category Name'] || row['category'] || ''
-  const shopName = row['Brand'] || row['Merchant Name'] || row['shop_name'] || ''
+    row['sub_category'] ||
+    row['Sub category Name'] ||
+    row['Category Name'] ||
+    row['category'] ||
+    row['Main Category Name'] ||
+    ''
+  const shopName = row['Brand'] || row['brand'] || row['Merchant Name'] || row['shop_name'] || ''
   const itemSold = parseNumeric(row['item_sold']) || 0
   const itemRating = parseNumeric(row['item_rating'])
 
@@ -352,9 +382,9 @@ function mapCsvRowToProduct(
 
   return {
     source: 'accesstrade',
-    merchant,
-    campaign_id: campaignId,
-    external_product_id: extId || null,
+    merchant: merchant || 'accesstrade',
+    campaign_id: campaignId || 'direct_csv',
+    external_product_id: extId,
     name: cleanedName,
     slug: generateSlug(cleanedName, extId),
     description: cleanedDesc || null,
