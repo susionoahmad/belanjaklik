@@ -412,6 +412,44 @@ Deno.serve(async (req) => {
   if (isDebug) {
     try {
       const jwt = await signJwt(userUid, secretKey)
+      const customUrl = requestBody.customUrl || urlObj.searchParams.get('customUrl')
+
+      if (customUrl) {
+        console.log(`[DebugMode] Probing customUrl: ${customUrl}`)
+        const probeRes = await fetch(customUrl, {
+          headers: {
+            'Authorization': `Bearer ${jwt}`,
+            'X-Accesstrade-User-Type': 'publisher',
+            'x-accesstrade-user-type': 'publisher',
+            'X-User-Type': 'publisher',
+            'x-user-type': 'publisher',
+            'User-Type': 'publisher',
+          },
+        })
+        const probeText = await probeRes.text()
+        let probeData: any = null
+        try {
+          probeData = JSON.parse(probeText)
+        } catch {
+          probeData = probeText
+        }
+
+        return new Response(
+          JSON.stringify(
+            {
+              debug: true,
+              mode: 'customUrl_probe',
+              customUrl,
+              rawStatus: probeRes.status,
+              rawResponseBody: probeData,
+            },
+            null,
+            2
+          ),
+          { headers: { 'Content-Type': 'application/json' } }
+        )
+      }
+
       const targetCampaignId = requestBody.campaignId || urlObj.searchParams.get('campaignId') || (campaigns[0]?.campaignId ?? '966')
       const debugInfo = await getProductFeedUrls(jwt, siteId, targetCampaignId)
 
@@ -429,6 +467,7 @@ Deno.serve(async (req) => {
             rawStatus: debugInfo.rawStatus,
             rawResponseBody: debugInfo.rawData,
             extractedFeedUrls: debugInfo.feedUrls,
+            testedEndpoints: debugInfo.testedEndpoints,
           },
           null,
           2
