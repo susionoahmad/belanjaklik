@@ -277,8 +277,15 @@ const loadProducts = async (resetPage = false) => {
       if (error) console.error('[AffiliateView] error:', error);
       products.value = data || [];
       hasNoMore.value = (data || []).length < PAGE_SIZE;
+    } else if (sortBy.value === 'discount' || sortBy.value === 'sold') {
+      // Shopee-only for discount/sold sort — Tokopedia has no discount_percent or item_sold data
+      const offset = (currentPage.value - 1) * PAGE_SIZE;
+      const { data, error } = await buildQuery('shopee', PAGE_SIZE, offset);
+      if (error) console.error('[AffiliateView] Shopee error:', error);
+      products.value = data || [];
+      hasNoMore.value = (data || []).length < PAGE_SIZE;
     } else {
-      // Both merchants: 50/50 interleave
+      // Both merchants: 50/50 interleave (for latest, price_low, price_high)
       const halfLimit = Math.ceil(PAGE_SIZE / 2);
       const offset = (currentPage.value - 1) * halfLimit;
 
