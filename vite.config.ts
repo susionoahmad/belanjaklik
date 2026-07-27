@@ -133,6 +133,7 @@ export default defineConfig(({ mode }) => {
             .from('affiliate_products')
             .select('slug')
             .eq('is_active', true)
+            .limit(30)
 
           if (error) {
             console.error('[SSG] Supabase Error Detail:', JSON.stringify(error, null, 2))
@@ -145,12 +146,11 @@ export default defineConfig(({ mode }) => {
           }
 
           const productRoutes = data
-            .filter((item) => Boolean(item.slug) && item.slug.length <= 100)
+            .filter((item) => item.slug && item.slug.length <= 80 && !/[?%*:"<>|\\\/]/.test(item.slug))
             .map((item) => `/produk/${item.slug}`)
 
           const finalRoutes = [...staticPaths, ...productRoutes]
-          console.log(`[SSG] Hasil Query: Berhasil mengambil ${data.length} baris, ${productRoutes.length} slug unik valid untuk di-render statis.`)
-          console.log('[SSG] Full Array includedRoutes:', JSON.stringify(finalRoutes, null, 2))
+          console.log(`[SSG] Berhasil menyusun ${finalRoutes.length} rute statis (${productRoutes.length} produk top).`)
           return finalRoutes
         } catch (e) {
           console.error('[SSG] Exception Error saat mengambil rute SSG:', e)
