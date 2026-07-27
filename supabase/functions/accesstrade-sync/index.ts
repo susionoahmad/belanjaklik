@@ -616,11 +616,16 @@ Deno.serve(async (req) => {
   const csvUrlsFromEnv = Deno.env.get('ACCESSTRADE_CSV_URLS')
   let directCsvUrls: string[] = []
   if (csvUrlsFromEnv) {
+    let rawList: string[] = []
     try {
-      directCsvUrls = JSON.parse(csvUrlsFromEnv)
+      const parsed = JSON.parse(csvUrlsFromEnv)
+      rawList = Array.isArray(parsed) ? parsed : [csvUrlsFromEnv]
     } catch {
-      directCsvUrls = csvUrlsFromEnv.split(',').map((s) => s.trim()).filter(Boolean)
+      rawList = csvUrlsFromEnv.split(',').map((s) => s.trim())
     }
+    directCsvUrls = rawList
+      .map((url) => String(url).replace(/^[\["'\s]+|[\]"'\s]+$/g, '').trim())
+      .filter((url) => url.startsWith('http://') || url.startsWith('https://'))
   }
 
   if (directCsvUrls.length > 0) {
