@@ -22,6 +22,7 @@ export async function getActiveAffiliateProducts(options?: {
   limit?: number;
   category?: string;
   merchant?: string;
+  mixMerchants?: boolean;
 }): Promise<AffiliateProduct[]> {
   if (!isSupabaseConfigured) {
     let list = getOfflineProducts().filter(p => p.is_active);
@@ -32,10 +33,48 @@ export async function getActiveAffiliateProducts(options?: {
   }
 
   try {
+    const fetchLimit = options?.limit || 40;
+
+    if (options?.mixMerchants || !options?.merchant) {
+      // Fetch top Shopee & Tokopedia products separately to guarantee a balanced mix & top discounts
+      const halfLimit = Math.ceil(fetchLimit / 2);
+      const [shopeeRes, tokoRes] = await Promise.all([
+        supabase
+          .from('affiliate_products')
+          .select('*')
+          .eq('is_active', true)
+          .eq('merchant', 'shopee')
+          .order('discount_percent', { ascending: false, nullsFirst: false })
+          .limit(halfLimit),
+        supabase
+          .from('affiliate_products')
+          .select('*')
+          .eq('is_active', true)
+          .eq('merchant', 'tokopedia')
+          .order('discount_percent', { ascending: false, nullsFirst: false })
+          .limit(halfLimit)
+      ]);
+
+      const shopeeList = shopeeRes.data || [];
+      const tokoList = tokoRes.data || [];
+      const combined: AffiliateProduct[] = [];
+      const maxLen = Math.max(shopeeList.length, tokoList.length);
+
+      for (let i = 0; i < maxLen; i++) {
+        if (i < shopeeList.length) combined.push(shopeeList[i]);
+        if (i < tokoList.length) combined.push(tokoList[i]);
+      }
+
+      if (combined.length > 0) {
+        return combined.slice(0, fetchLimit);
+      }
+    }
+
     let query = supabase
       .from('affiliate_products')
       .select('*')
       .eq('is_active', true)
+      .order('discount_percent', { ascending: false, nullsFirst: false })
       .order('last_synced_at', { ascending: false });
 
     if (options?.merchant) {
