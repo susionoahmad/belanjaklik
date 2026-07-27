@@ -255,16 +255,23 @@ def main():
 
     df = load_dataframe(INPUT_FILE)
 
-    # Pastikan kolom penting ada
-    required_cols = ["Merchant Product Name", "item_sold", "Sub category Name"]
-    missing = [c for c in required_cols if c not in df.columns]
-    if missing:
-        print(f"PERINGATAN: kolom berikut tidak ditemukan di file: {missing}")
+    # Pastikan kolom penting nama produk ada
+    if "Merchant Product Name" not in df.columns:
+        print(f"PERINGATAN: Kolom 'Merchant Product Name' tidak ditemukan di file!")
         print(f"Kolom yang tersedia: {list(df.columns)}")
         return
 
-    # Bersihkan kolom numerik
-    df["item_sold"] = clean_numeric(df["item_sold"])
+    sub_cat_col = "Sub category Name" if "Sub category Name" in df.columns else ("Category Name" if "Category Name" in df.columns else None)
+    if not sub_cat_col:
+        print("PERINGATAN: Kolom kategori atau sub-kategori tidak ditemukan!")
+        return
+
+    has_item_sold = "item_sold" in df.columns
+    if has_item_sold:
+        df["item_sold"] = clean_numeric(df["item_sold"])
+    else:
+        df["item_sold"] = 0
+
     if "item_rating" in df.columns:
         df["item_rating"] = clean_numeric(df["item_rating"])
 
@@ -274,8 +281,9 @@ def main():
     if "Available" in df.columns:
         df = df[df["Available"].astype(str).str.lower().isin(["true", "1", "yes", "ya"])]
 
-    # Filter: minimum item_sold
-    df = df[df["item_sold"] >= MIN_ITEM_SOLD]
+    # Filter: minimum item_sold (hanya jika file memiliki kolom item_sold)
+    if has_item_sold and MIN_ITEM_SOLD > 0:
+        df = df[df["item_sold"] >= MIN_ITEM_SOLD]
 
     # Filter: minimum rating (opsional)
     if MIN_RATING is not None and "item_rating" in df.columns:
@@ -283,24 +291,26 @@ def main():
 
     # Filter: hanya sub kategori tertentu (opsional)
     if FILTER_SUBKATEGORI:
-        df = df[df["Sub category Name"].isin(FILTER_SUBKATEGORI)]
+        df = df[df[sub_cat_col].isin(FILTER_SUBKATEGORI)]
 
-    print(f"Setelah filter dasar (available, min item_sold, dst): {len(df):,} baris "
-          f"(dari {before:,} baris awal)")
+    print(f"Setelah filter dasar: {len(df):,} baris (dari {before:,} baris awal)")
 
     if len(df) == 0:
         print("Tidak ada baris tersisa setelah filter. Coba turunkan MIN_ITEM_SOLD "
               "atau cek nama kolom/kategori yang kamu isi di konfigurasi.")
         return
 
-    # Ambil top-N per sub kategori, urutkan dari item_sold tertinggi lalu rating
-    sort_cols = ["item_sold"]
-    if "item_rating" in df.columns:
-        sort_cols.append("item_rating")
+    # Ambil top-N per sub kategori
+    if has_item_sold:
+        sort_cols = ["item_sold"]
+        if "item_rating" in df.columns:
+            sort_cols.append("item_rating")
+        df_sorted = df.sort_values(by=sort_cols, ascending=False)
+    else:
+        df_sorted = df
 
-    df_sorted = df.sort_values(by=sort_cols, ascending=False)
     df_top = (
-        df_sorted.groupby("Sub category Name", group_keys=False)
+        df_sorted.groupby(sub_cat_col, group_keys=False)
         .head(TOP_N_PER_SUBKATEGORI)
     )
 
@@ -309,7 +319,7 @@ def main():
 
     # Ringkasan per sub kategori
     print("\nRingkasan jumlah produk per sub kategori (10 teratas):")
-    print(df_top["Sub category Name"].value_counts().head(10).to_string())
+    print(df_top[sub_cat_col].value_counts().head(10).to_string())
 
     # Sederhanakan kolom untuk output
     available_mapping = {k: v for k, v in COLUMN_MAPPING.items() if k in df_top.columns}
