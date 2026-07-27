@@ -416,18 +416,11 @@ Deno.serve(async (req) => {
       const isListCampaigns = urlObj.searchParams.get('listCampaigns') === 'true' || requestBody.listCampaigns === true
 
       if (isListCampaigns) {
-        const campaignEndpoints = [
-          `${ACCESSTRADE_BASE}/v1/publishers/me/sites/${siteId}/campaigns`,
-          `${ACCESSTRADE_BASE}/v1/publishers/me/sites/${siteId}/campaigns?status=APPROVED`,
-          `${ACCESSTRADE_BASE}/v1/publishers/me/sites/${siteId}/campaigns/joined`,
-          `${ACCESSTRADE_BASE}/v1/publishers/me/sites/${siteId}/campaigns/approved`,
-          `${ACCESSTRADE_BASE}/v1/publishers/me/sites/${siteId}/creatives`,
-          `${ACCESSTRADE_BASE}/v1/publishers/me/sites/${siteId}/productfeeds`,
-          `${ACCESSTRADE_BASE}/v1/campaigns`,
-        ]
+        const campaignsList: any[] = []
+        const totalPagesToScan = 5
 
-        const probeResults: any[] = []
-        for (const epUrl of campaignEndpoints) {
+        for (let page = 1; page <= totalPagesToScan; page++) {
+          const epUrl = `${ACCESSTRADE_BASE}/v1/campaigns?siteId=${siteId}&limit=50&page=${page}`
           try {
             const probeRes = await fetch(epUrl, {
               headers: {
@@ -439,25 +432,27 @@ Deno.serve(async (req) => {
                 'User-Type': 'publisher',
               },
             })
-            const probeText = await probeRes.text()
-            let probeData: any = null
-            try {
-              probeData = JSON.parse(probeText)
-            } catch {
-              probeData = probeText
+            if (!probeRes.ok) break
+            const resData = await probeRes.json()
+            const items = resData.data || (Array.isArray(resData) ? resData : [])
+            if (items.length === 0) break
+
+            for (const c of items) {
+              campaignsList.push({
+                campaignId: c.id,
+                name: c.name,
+                status: c.affiliationStatus,
+                productFeedAvailable: c.productFeedAvailable,
+              })
             }
-            probeResults.push({
-              url: epUrl,
-              status: probeRes.status,
-              response: probeData,
-            })
-          } catch (e) {
-            probeResults.push({
-              url: epUrl,
-              error: e instanceof Error ? e.message : String(e),
-            })
+          } catch {
+            break
           }
         }
+
+        const approvedOrJoined = campaignsList.filter(
+          (c) => c.status === 'ACCEPTED' || c.status === 'JOINED' || c.status === 'APPROVED' || c.productFeedAvailable
+        )
 
         return new Response(
           JSON.stringify(
@@ -465,7 +460,10 @@ Deno.serve(async (req) => {
               debug: true,
               mode: 'campaign_finder',
               siteId,
-              probeResults,
+              totalScanned: campaignsList.length,
+              joinedOrApprovedCount: approvedOrJoined.length,
+              recommendedCampaigns: approvedOrJoined,
+              allCampaignsSample: campaignsList.slice(0, 30),
             },
             null,
             2
