@@ -573,11 +573,13 @@ Deno.serve(async (req) => {
 
   const MIN_ITEM_SOLD = Number(Deno.env.get('ACCESSTRADE_MIN_ITEM_SOLD') || '10')
   const MAX_PRODUCTS_PER_SYNC = Number(Deno.env.get('ACCESSTRADE_MAX_PRODUCTS_PER_SYNC') || '5000')
+  const TOP_N_PER_CATEGORY = Number(Deno.env.get('ACCESSTRADE_TOP_N_PER_CATEGORY') || '50')
   const BATCH_SIZE = 500
 
   const jwt = await signJwt(userUid, secretKey)
   const results: Record<string, unknown>[] = []
   let totalSynced = 0
+  const categoryCounts: Record<string, number> = {}
 
   // Check jika ada direct CSV Feed URLs di ENV
   const csvUrlsFromEnv = Deno.env.get('ACCESSTRADE_CSV_URLS')
@@ -625,6 +627,12 @@ Deno.serve(async (req) => {
           const productObj = mapCsvRowToProduct(row, merchant, campaignId)
           if (!productObj.affiliate_url) continue
 
+          // Filter Top N Per Sub Kategori
+          const catKey = (productObj.category || 'Lainnya').toLowerCase().trim()
+          const currentCount = categoryCounts[catKey] || 0
+          if (currentCount >= TOP_N_PER_CATEGORY) continue
+
+          categoryCounts[catKey] = currentCount + 1
           validProducts.push(productObj)
         }
 
