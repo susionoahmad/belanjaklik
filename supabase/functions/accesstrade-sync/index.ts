@@ -574,6 +574,7 @@ Deno.serve(async (req) => {
   const MIN_ITEM_SOLD = Number(Deno.env.get('ACCESSTRADE_MIN_ITEM_SOLD') || '10')
   const MAX_PRODUCTS_PER_SYNC = Number(Deno.env.get('ACCESSTRADE_MAX_PRODUCTS_PER_SYNC') || '5000')
   const TOP_N_PER_CATEGORY = Number(Deno.env.get('ACCESSTRADE_TOP_N_PER_CATEGORY') || '50')
+  const MIN_RATING = Number(Deno.env.get('ACCESSTRADE_MIN_RATING') || '0')
   const BATCH_SIZE = 500
 
   const jwt = await signJwt(userUid, secretKey)
@@ -620,6 +621,12 @@ Deno.serve(async (req) => {
 
           const itemSold = parseNumeric(row['item_sold']) || 0
           if (itemSold < MIN_ITEM_SOLD) continue
+
+          // Filter Rating jika ACCESSTRADE_MIN_RATING diset > 0
+          if (MIN_RATING > 0) {
+            const itemRating = parseNumeric(row['item_rating'])
+            if (itemRating !== null && itemRating > 0 && itemRating < MIN_RATING) continue
+          }
 
           const productName = cleanProductName(row['Merchant Product Name'] || row['name'] || '')
           if (!productName) continue
