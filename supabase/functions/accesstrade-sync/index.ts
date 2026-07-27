@@ -434,16 +434,31 @@ Deno.serve(async (req) => {
             })
             if (!probeRes.ok) break
             const resData = await probeRes.json()
-            const items = resData.data || (Array.isArray(resData) ? resData : [])
-            if (items.length === 0) break
+            let items: any[] = []
+            if (Array.isArray(resData)) {
+              items = resData
+            } else if (resData && Array.isArray(resData.data)) {
+              items = resData.data
+            } else if (resData && typeof resData === 'object') {
+              for (const k of Object.keys(resData)) {
+                if (Array.isArray(resData[k])) {
+                  items = resData[k]
+                  break
+                }
+              }
+            }
+
+            if (!items || items.length === 0) break
 
             for (const c of items) {
-              campaignsList.push({
-                campaignId: c.id,
-                name: c.name,
-                status: c.affiliationStatus,
-                productFeedAvailable: c.productFeedAvailable,
-              })
+              if (c && c.id) {
+                campaignsList.push({
+                  campaignId: c.id,
+                  name: c.name,
+                  status: c.affiliationStatus,
+                  productFeedAvailable: c.productFeedAvailable,
+                })
+              }
             }
           } catch {
             break
