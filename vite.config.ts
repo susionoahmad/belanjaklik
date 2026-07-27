@@ -114,48 +114,9 @@ export default defineConfig(({ mode }) => {
         return renderedHTML
       },
       async includedRoutes(paths: string[], _routes: any[]) {
-        const staticPaths = paths.filter((p: string) => !p.includes(':'))
-        const url = env.VITE_SUPABASE_URL || process.env.VITE_SUPABASE_URL
-        const key = env.VITE_SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY
-
-        console.log('[SSG] VITE_SUPABASE_URL:', url ? 'OK' : 'KOSONG')
-        console.log('[SSG] VITE_SUPABASE_ANON_KEY:', key ? 'OK' : 'KOSONG')
-
-        if (!url || !key || url.includes('placeholder')) {
-          console.warn('[SSG] Supabase URL/Key belum diset atau bernilai placeholder. Hanya merender rute statis.')
-          return staticPaths
-        }
-
-        try {
-          const { createClient } = await import('@supabase/supabase-js')
-          const supabase = createClient(url, key)
-          const { data, error } = await supabase
-            .from('affiliate_products')
-            .select('slug')
-            .eq('is_active', true)
-            .limit(30)
-
-          if (error) {
-            console.error('[SSG] Supabase Error Detail:', JSON.stringify(error, null, 2))
-            return staticPaths
-          }
-
-          if (!data) {
-            console.warn('[SSG] Supabase query mengembalikan data null/undefined.')
-            return staticPaths
-          }
-
-          const productRoutes = data
-            .filter((item) => item.slug && item.slug.length <= 80 && !/[?%*:"<>|\\\/]/.test(item.slug))
-            .map((item) => `/produk/${item.slug}`)
-
-          const finalRoutes = [...staticPaths, ...productRoutes]
-          console.log(`[SSG] Berhasil menyusun ${finalRoutes.length} rute statis (${productRoutes.length} produk top).`)
-          return finalRoutes
-        } catch (e) {
-          console.error('[SSG] Exception Error saat mengambil rute SSG:', e)
-          return staticPaths
-        }
+        // Only pre-render core static pages to ensure super-fast, error-free builds on Vercel.
+        // Dynamic product detail routes (/produk/:slug) are handled dynamically by Vue Router.
+        return paths.filter((p: string) => !p.includes(':'))
       }
     }
 
