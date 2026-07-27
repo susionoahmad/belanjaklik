@@ -191,6 +191,7 @@ const activeAffiliateCategory = ref('all');
 
 const affiliateCategoryTabs = [
   { id: 'all', name: 'Semua Promo', icon: '🔥' },
+  { id: 'gadget', name: 'Gadget & Elektronik', icon: '📱', filterKeywords: ['gadget', 'electronic', 'phone', 'headphone', 'headset', 'earphone', 'camera', 'appliance', 'charger', 'cable', 'audio', 'kipas', 'vacuum', 'blender', 'rice cooker', 'speaker', 'lampu', 'lighting', 'tv'] },
   { id: 'baby', name: 'Ibu & Bayi', icon: '👶', filterKeywords: ['baby', 'diaper', 'bayi', 'anak', 'feeding', 'diapering', 'potty', 'toy', 'girl clothes', 'boy', 'kid'] },
   { id: 'beauty', name: 'Kecantikan', icon: '💄', filterKeywords: ['skincare', 'makeup', 'beauty', 'face', 'sunscreen', 'oral', 'tooth', 'body care', 'personal care', 'fragrance', 'perfume', 'lipstick', 'mouthwash', 'moisturizer', 'cream', 'cleanser', 'bath', 'shower'] },
   { id: 'kitchen', name: 'Dapur & Kuliner', icon: '🍳', filterKeywords: ['kitchen', 'cooking', 'masak', 'dapur', 'food', 'snack', 'beverage', 'drink', 'dairy', 'egg', 'cereal', 'sauce', 'crisp', 'spread', 'staple', 'ready-to-eat', 'lunch box', 'dinnerware', 'kitchenware'] },

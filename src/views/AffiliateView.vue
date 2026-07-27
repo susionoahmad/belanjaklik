@@ -160,6 +160,7 @@ let searchDebounceTimer: any = null;
 
 const categoryTabs = [
   { id: 'all', name: 'Semua Kategori', icon: '🔥' },
+  { id: 'gadget', name: 'Gadget & Elektronik', icon: '📱', kw: ['gadget', 'electronic', 'phone', 'headphone', 'headset', 'earphone', 'camera', 'appliance', 'charger', 'cable', 'audio', 'kipas', 'vacuum', 'blender', 'rice cooker', 'speaker', 'lampu', 'lighting', 'tv'] },
   { id: 'baby', name: 'Ibu & Bayi', icon: '👶', kw: ['baby', 'diaper', 'bayi', 'anak', 'feeding', 'diapering', 'potty', 'toy', 'girl clothes', 'boy', 'kid'] },
   { id: 'beauty', name: 'Kecantikan & Skincare', icon: '💄', kw: ['skincare', 'makeup', 'beauty', 'face', 'sunscreen', 'oral', 'tooth', 'body care', 'personal care', 'fragrance', 'perfume', 'lipstick', 'mouthwash', 'moisturizer', 'cream', 'cleanser', 'bath', 'shower'] },
   { id: 'kitchen', name: 'Dapur & Kuliner', icon: '🍳', kw: ['kitchen', 'cooking', 'masak', 'dapur', 'food', 'snack', 'beverage', 'drink', 'dairy', 'egg', 'cereal', 'sauce', 'crisp', 'spread', 'staple', 'ready-to-eat', 'lunch box', 'dinnerware', 'kitchenware'] },
@@ -174,6 +175,46 @@ const loadProducts = async (resetPage = false) => {
   isLoading.value = true;
 
   try {
+    // When viewing 'all' category without search query, fetch balanced mix from Shopee & Tokopedia
+    if (selectedCategory.value === 'all' && !searchQuery.value.trim() && sortBy.value === 'sold') {
+      const halfLimit = Math.ceil(PAGE_SIZE / 2);
+      const offset = (currentPage.value - 1) * halfLimit;
+
+      const [shopeeRes, tokoRes] = await Promise.all([
+        supabase
+          .from('affiliate_products')
+          .select('*')
+          .eq('is_active', true)
+          .eq('merchant', 'shopee')
+          .order('discount_percent', { ascending: false, nullsFirst: false })
+          .range(offset, offset + halfLimit - 1),
+        supabase
+          .from('affiliate_products')
+          .select('*')
+          .eq('is_active', true)
+          .eq('merchant', 'tokopedia')
+          .order('last_synced_at', { ascending: false })
+          .range(offset, offset + halfLimit - 1)
+      ]);
+
+      const shopeeList = shopeeRes.data || [];
+      const tokoList = tokoRes.data || [];
+      const combined: AffiliateProduct[] = [];
+      const maxLen = Math.max(shopeeList.length, tokoList.length);
+
+      for (let i = 0; i < maxLen; i++) {
+        if (i < shopeeList.length) combined.push(shopeeList[i]);
+        if (i < tokoList.length) combined.push(tokoList[i]);
+      }
+
+      if (combined.length > 0) {
+        products.value = combined;
+        hasNoMore.value = combined.length < PAGE_SIZE;
+        isLoading.value = false;
+        return;
+      }
+    }
+
     let query = supabase
       .from('affiliate_products')
       .select('*')
