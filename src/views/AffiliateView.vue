@@ -159,14 +159,89 @@ const hasNoMore = ref(false);
 let searchDebounceTimer: any = null;
 
 const categoryTabs = [
-  { id: 'all', name: 'Semua Kategori', icon: '🔥' },
-  { id: 'gadget', name: 'Gadget & Elektronik', icon: '📱', kw: ['gadget', 'electronic', 'phone', 'headphone', 'headset', 'earphone', 'camera', 'appliance', 'charger', 'cable', 'audio', 'kipas', 'vacuum', 'blender', 'rice cooker', 'speaker', 'lampu', 'lighting', 'tv'] },
-  { id: 'baby', name: 'Ibu & Bayi', icon: '👶', kw: ['baby', 'diaper', 'bayi', 'anak', 'feeding', 'diapering', 'potty', 'toy', 'girl clothes', 'boy', 'kid'] },
-  { id: 'beauty', name: 'Kecantikan & Skincare', icon: '💄', kw: ['skincare', 'makeup', 'beauty', 'face', 'sunscreen', 'oral', 'tooth', 'body care', 'personal care', 'fragrance', 'perfume', 'lipstick', 'mouthwash', 'moisturizer', 'cream', 'cleanser', 'bath', 'shower'] },
-  { id: 'kitchen', name: 'Dapur & Kuliner', icon: '🍳', kw: ['kitchen', 'cooking', 'masak', 'dapur', 'food', 'snack', 'beverage', 'drink', 'dairy', 'egg', 'cereal', 'sauce', 'crisp', 'spread', 'staple', 'ready-to-eat', 'lunch box', 'dinnerware', 'kitchenware'] },
-  { id: 'home', name: 'Rumah Tangga', icon: '🏠', kw: ['home', 'clean', 'supplies', 'toilet', 'sabun', 'tissue', 'paper', 'notebook', 'office', 'school', 'tool', 'lighting', 'cleaner', 'hanger', 'curtain'] },
-  { id: 'fashion', name: 'Fashion & Hijab', icon: '👗', kw: ['fashion', 'wear', 'clothes', 'muslim', 'baju', 'hijab', 'dress', 'shirt', 'pant', 'scarf', 'shawl', 'pashmina', 'wallet', 'bag', 'bracelet', 'jewelry', 'underwear', 'bra', 'short'] },
+  { id: 'all', name: 'Semua Kategori', icon: '🔥', kw: [] },
+  {
+    id: 'gadget', name: 'Gadget & Elektronik', icon: '📱',
+    kw: [
+      // Shopee
+      'camera', 'earphone', 'headphone', 'headset', 'speaker', 'audio', 'lighting', 'amplifier',
+      'electrical', 'data storage', 'remote control', 'large household', 'small household',
+      // Tokopedia
+      'bulbs', 'tubes', 'strips', 'powerline', 'vacuum sealer', 'hair styling tools',
+      'facial beauty device', 'dry cell', 'steamer',
+    ]
+  },
+  {
+    id: 'baby', name: 'Ibu & Bayi', icon: '👶',
+    kw: [
+      // Shopee
+      'baby', 'diapering', 'potty', 'feeding', 'milk formula', 'nursery', 'pacifier',
+      'boy clothes', 'boy shoes', 'girl clothes', 'kid muslim', 'toys', 'slime', 'squishy',
+      // Tokopedia
+      'growth milk', 'baby vitamins', 'grooming wipes', 'action & toy', 'maternity',
+    ]
+  },
+  {
+    id: 'beauty', name: 'Kecantikan & Skincare', icon: '💄',
+    kw: [
+      // Shopee
+      'skincare', 'makeup', 'beauty', 'face sunscreen', 'oral care', 'hair care', 'hair accessories',
+      'bath & body', 'personal care', 'perfume', 'fragrance', 'medical gloves', 'eyewear',
+      // Tokopedia
+      'bb & cc', 'concealer', 'foundation', 'eyeliner', 'lipliner', 'lipstick', 'lip gloss',
+      'lip treatment', 'eyebrow', 'face masks', 'face scrubs', 'facial cleanser', 'facial sunscreen',
+      'serums', 'toner', 'moisturizer', 'body moisturizer', 'deodorant', 'intimate wash',
+      'mouthwash', 'oral spray', 'toothpaste', 'shampoo', 'hair oil', 'hair removal',
+      'beauty supplement', 'men\'s fragrance', 'women\'s fragrance', 'unisex fragrance', 'fragrance set',
+    ]
+  },
+  {
+    id: 'kitchen', name: 'Dapur & Kuliner', icon: '🍳',
+    kw: [
+      // Shopee
+      'cooking essential', 'kitchenware', 'dinnerware', 'food staple', 'snack', 'beverage',
+      'dairy & eggs', 'breakfast cereal', 'convenience', 'ready-to-eat', 'fresh & frozen',
+      // Tokopedia
+      'chocolate', 'crisps', 'puffed snacks', 'cooking sauce', 'instant noodles', 'instant hotpot',
+      'herbs, spice', 'seasoning', 'dressing', 'spread', 'coffee', 'tea', 'vinegar', 'eggs',
+      'non-dairy milk', 'frozen food', 'baking tin', 'measuring utensil', 'lunch box',
+      'drinkware', 'disposable tableware', 'preserving container',
+    ]
+  },
+  {
+    id: 'home', name: 'Rumah Tangga', icon: '🏠',
+    kw: [
+      // Shopee
+      'home care', 'home organizer', 'school & office', 'writing & correction', 'notebook',
+      'letters & envelope', 'tools & home', 'bedding', 'furniture', 'decoration', 'gardening',
+      'party supplie', 'souvenirs', 'gift',
+      // Tokopedia
+      'tissues & napkins', 'sponges', 'scouring', 'broom', 'hanger', 'hooks & rails',
+      'storage boxes', 'bins', 'curtain', 'blind', 'door hardware', 'roofing', 'flooring',
+      'tape', 'adhesive', 'cards & card stock', 'labels', 'textbook', 'writing & correction tools',
+      'table', 'desk', 'stool', 'bench', 'tapestry', 'sheets', 'pillowcase', 'water treatment',
+    ]
+  },
+  {
+    id: 'fashion', name: 'Fashion & Hijab', icon: '👗',
+    kw: [
+      // Shopee
+      'women muslim wear', 'scarves & shawl', 'lingerie', 'underwear', 'pants & legging',
+      'jeans', 'shorts', 'tops', 'tote bag', 'crossbody', 'shoulder bag', 'wallet',
+      'bracelet', 'necklace', 'earring', 'women watches', 'eyewear', 'flat sandal',
+      // Tokopedia
+      'instant hijab', 'square hijab', 'pashmina', 'casual dress', 'formal dress',
+      'shirts & blouses', 'polo shirt', 't-shirts', 'women\'s t-shirt', 'jacket', 'coat',
+      'bras', 'shorts', 'socks', 'clothing set', 'sleepwear', 'pants',
+      'women\'s handbag', 'women\'s wallet', 'women\'s clutch', 'make-up bag', 'keychains',
+      'travel organizer', 'frames & glasses',
+    ]
+  },
 ];
+
+// Helper: build OR filter string from keywords
+const buildOrFilter = (kw: string[]) =>
+  kw.map(k => `category.ilike.%${k}%,name.ilike.%${k}%`).join(',');
 
 const loadProducts = async (resetPage = false) => {
   if (resetPage) {
@@ -175,94 +250,65 @@ const loadProducts = async (resetPage = false) => {
   isLoading.value = true;
 
   try {
-    // Always fetch balanced 50/50 mix when viewing 'all' category without text search
-    if (selectedCategory.value === 'all' && !searchQuery.value.trim()) {
-      const halfLimit = Math.ceil(PAGE_SIZE / 2);
-      const offset = (currentPage.value - 1) * halfLimit;
+    const halfLimit = Math.ceil(PAGE_SIZE / 2);
+    const offset = (currentPage.value - 1) * halfLimit;
 
-      const shoepeSort = sortBy.value === 'discount' ? 'discount_percent' : sortBy.value === 'price_low' || sortBy.value === 'price_high' ? 'price' : 'discount_percent';
-      const tokoSort = sortBy.value === 'discount' ? 'discount_percent' : sortBy.value === 'price_low' || sortBy.value === 'price_high' ? 'price' : 'last_synced_at';
-      const isAsc = sortBy.value === 'price_low';
+    const tab = categoryTabs.find(t => t.id === selectedCategory.value);
+    const kw = tab?.kw ?? [];
 
-      const [shopeeRes, tokoRes] = await Promise.all([
-        supabase
-          .from('affiliate_products')
-          .select('*')
-          .eq('is_active', true)
-          .eq('merchant', 'shopee')
-          .order(shoepeSort, { ascending: isAsc, nullsFirst: false })
-          .range(offset, offset + halfLimit - 1),
-        supabase
-          .from('affiliate_products')
-          .select('*')
-          .eq('is_active', true)
-          .eq('merchant', 'tokopedia')
-          .order(tokoSort, { ascending: isAsc, nullsFirst: false })
-          .range(offset, offset + halfLimit - 1)
-      ]);
+    // Determine sort column
+    const sortCol = sortBy.value === 'discount' ? 'discount_percent'
+      : sortBy.value === 'price_low' || sortBy.value === 'price_high' ? 'price'
+      : 'discount_percent';
+    const isAsc = sortBy.value === 'price_low';
 
-      const shopeeList = shopeeRes.data || [];
-      const tokoList = tokoRes.data || [];
-      const combined: AffiliateProduct[] = [];
-      const maxLen = Math.max(shopeeList.length, tokoList.length);
+    // Always do 50/50 balanced query: separate Shopee + Tokopedia
+    const buildQuery = (merchant: string) => {
+      let q = supabase
+        .from('affiliate_products')
+        .select('*')
+        .eq('is_active', true)
+        .eq('merchant', merchant);
 
-      for (let i = 0; i < maxLen; i++) {
-        if (i < shopeeList.length) combined.push(shopeeList[i]);
-        if (i < tokoList.length) combined.push(tokoList[i]);
+      // Category keyword filter (skip if 'all')
+      if (selectedCategory.value !== 'all' && kw.length > 0) {
+        q = q.or(buildOrFilter(kw));
       }
 
-      products.value = combined;
-      hasNoMore.value = combined.length < PAGE_SIZE;
-      isLoading.value = false;
-      return;
-    }
-
-    let query = supabase
-      .from('affiliate_products')
-      .select('*')
-      .eq('is_active', true);
-
-    // Apply category keyword filter if selected
-    if (selectedCategory.value !== 'all') {
-      const tab = categoryTabs.find(t => t.id === selectedCategory.value);
-      if (tab && tab.kw) {
-        const orConditions = tab.kw.map(k => `category.ilike.%${k}%,name.ilike.%${k}%`).join(',');
-        query = query.or(orConditions);
+      // Text search
+      if (searchQuery.value.trim()) {
+        const s = searchQuery.value.trim();
+        q = q.or(`name.ilike.%${s}%,category.ilike.%${s}%,shop_name.ilike.%${s}%`);
       }
+
+      // Sort: Tokopedia use last_synced_at as default (no item_sold col)
+      const col = merchant === 'tokopedia' && sortCol === 'discount_percent' ? 'last_synced_at' : sortCol;
+      q = q.order(col, { ascending: isAsc, nullsFirst: false });
+
+      return q.range(offset, offset + halfLimit - 1);
+    };
+
+    const [shopeeRes, tokoRes] = await Promise.all([
+      buildQuery('shopee'),
+      buildQuery('tokopedia'),
+    ]);
+
+    const shopeeList = shopeeRes.data || [];
+    const tokoList = tokoRes.data || [];
+
+    if (shopeeRes.error) console.error('[AffiliateView] Shopee error:', shopeeRes.error);
+    if (tokoRes.error) console.error('[AffiliateView] Toko error:', tokoRes.error);
+
+    // Interleave: Shopee[0], Toko[0], Shopee[1], Toko[1], ...
+    const combined: AffiliateProduct[] = [];
+    const maxLen = Math.max(shopeeList.length, tokoList.length);
+    for (let i = 0; i < maxLen; i++) {
+      if (i < shopeeList.length) combined.push(shopeeList[i]);
+      if (i < tokoList.length) combined.push(tokoList[i]);
     }
 
-    // Apply text search if query typed
-    if (searchQuery.value.trim()) {
-      const q = searchQuery.value.trim();
-      query = query.or(`name.ilike.%${q}%,category.ilike.%${q}%,shop_name.ilike.%${q}%`);
-    }
-
-    // Apply sorting
-    if (sortBy.value === 'sold') {
-      query = query.order('discount_percent', { ascending: false, nullsFirst: false });
-    } else if (sortBy.value === 'discount') {
-      query = query.order('discount_percent', { ascending: false, nullsFirst: false });
-    } else if (sortBy.value === 'price_low') {
-      query = query.order('price', { ascending: true });
-    } else if (sortBy.value === 'price_high') {
-      query = query.order('price', { ascending: false });
-    } else {
-      query = query.order('created_at', { ascending: false });
-    }
-
-    // Apply pagination
-    const offset = (currentPage.value - 1) * PAGE_SIZE;
-    query = query.range(offset, offset + PAGE_SIZE - 1);
-
-    const { data, error } = await query;
-
-    if (error) {
-      console.error('[AffiliateView] Error fetching products:', error);
-      products.value = [];
-    } else {
-      products.value = data || [];
-      hasNoMore.value = (data || []).length < PAGE_SIZE;
-    }
+    products.value = combined;
+    hasNoMore.value = combined.length < PAGE_SIZE;
   } catch (err) {
     console.error('[AffiliateView] Exception:', err);
     products.value = [];
