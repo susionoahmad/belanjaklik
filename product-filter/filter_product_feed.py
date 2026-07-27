@@ -418,9 +418,20 @@ def upload_to_supabase(df: pd.DataFrame, supabase_url: str, supabase_key: str):
 
         img_url = str(row.get("image_url", "")).strip()
 
+        # Otomatis deteksi Marketplace (shopee / tokopedia / lazada) dari product_url
+        url_lower = product_url.lower()
+        if "shopee" in url_lower:
+            detected_merchant = "shopee"
+        elif "tokopedia" in url_lower or "tokope" in url_lower:
+            detected_merchant = "tokopedia"
+        elif "lazada" in url_lower:
+            detected_merchant = "lazada"
+        else:
+            detected_merchant = "accesstrade"
+
         record = {
             "source": "accesstrade",
-            "merchant": "accesstrade",
+            "merchant": detected_merchant,
             "campaign_id": "direct_csv",
             "external_product_id": ext_id,
             "name": name,

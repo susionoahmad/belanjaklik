@@ -378,11 +378,21 @@ function mapCsvRowToProduct(
   const itemSold = parseNumeric(row['item_sold']) || 0
   const itemRating = parseNumeric(row['item_rating'])
 
-  const now = new Date().toISOString()
+  let detectedMerchant = merchant || 'accesstrade'
+  if (!merchant || merchant === 'accesstrade') {
+    const urlLower = (productUrl || '').toLowerCase()
+    if (urlLower.includes('shopee')) {
+      detectedMerchant = 'shopee'
+    } else if (urlLower.includes('tokopedia') || urlLower.includes('tokope')) {
+      detectedMerchant = 'tokopedia'
+    } else if (urlLower.includes('lazada')) {
+      detectedMerchant = 'lazada'
+    }
+  }
 
   return {
     source: 'accesstrade',
-    merchant: merchant || 'accesstrade',
+    merchant: detectedMerchant,
     campaign_id: campaignId || 'direct_csv',
     external_product_id: extId,
     name: cleanedName,
