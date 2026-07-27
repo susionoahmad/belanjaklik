@@ -52,10 +52,10 @@ load_env_file()
 
 # Path file mentah hasil download dari ACCESSTRADE.
 # Bisa .csv atau .xlsx -- script ini otomatis mendeteksi dari ekstensi.
-INPUT_FILE = "product_list_966_20260727.csv"
+INPUT_FILE = "all_category_tokopedia.csv"
 
 # Nama file hasil filter (akan dibuat / ditimpa).
-OUTPUT_FILE = "product_list_966_20260727_FILTERED.csv"
+OUTPUT_FILE = "all_category_tokopedia.csv_FILTERED.csv"
 
 # Set True jika ingin hasil saringan LANGSUNG diupload ke Supabase!
 AUTO_UPLOAD_TO_SUPABASE = True
@@ -474,11 +474,12 @@ def upload_to_supabase(df: pd.DataFrame, supabase_url: str, supabase_key: str):
         img_url = str(row.get("image_url", "")).strip()
 
         url_lower = product_url.lower()
-        if "shopee" in url_lower:
-            detected_merchant = "shopee"
-        elif "tokopedia" in url_lower or "tokope" in url_lower:
+        file_lower = str(INPUT_FILE).lower()
+        if "tokopedia" in url_lower or "tokope" in url_lower or "tokopedia" in file_lower or "tokope" in file_lower:
             detected_merchant = "tokopedia"
-        elif "lazada" in url_lower:
+        elif "shopee" in url_lower or "shopee" in file_lower:
+            detected_merchant = "shopee"
+        elif "lazada" in url_lower or "lazada" in file_lower:
             detected_merchant = "lazada"
         else:
             detected_merchant = "accesstrade"
