@@ -71,7 +71,7 @@
               {{ product.description }}
             </p>
             <div class="font-black text-xs text-brand-red">{{ formatRupiah(product.promo_price || product.price) }}</div>
-            <div class="text-[10px] text-gray-400 line-through">{{ formatRupiah(product.price) }}</div>
+            <div v-if="product.promo_price && product.price > product.promo_price" class="text-[10px] text-gray-400 line-through">{{ formatRupiah(product.price) }}</div>
           </div>
         </div>
 
@@ -154,12 +154,18 @@ onUnmounted(() => {
 });
 
 const flashSaleProducts = computed(() => {
-  const explicitFlash = catalogStore.products.filter(p => p.promo_type === 'FLASHSALE' || p.promo_badge?.toUpperCase().includes('FLASH'));
-  if (explicitFlash.length > 0) return explicitFlash;
-  
   return catalogStore.products.filter(p => {
-    if (!p.is_promo && !p.promo_price) return false;
-    if (p.promo_type === 'JSM' || p.promo_badge?.toUpperCase().includes('JSM')) return false;
+    // 1. Must be active promo with promo_price strictly lower than normal price
+    if (!p.is_promo) return false;
+    if (!p.promo_price || p.promo_price >= p.price) return false;
+
+    // 2. Exclude JSM promos
+    if (p.promo_type === 'JSM' || 
+        String(p.promo_badge || '').toUpperCase().includes('JSM') || 
+        String(p.promo_title || '').toUpperCase().includes('JSM')) {
+      return false;
+    }
+
     return true;
   });
 });

@@ -74,7 +74,7 @@
         <span class="font-extrabold text-sm sm:text-base text-brand-red">
           {{ formatRupiah(product.promo_price || product.price) }}
         </span>
-        <span v-if="product.promo_price" class="text-xs text-gray-400 line-through">
+        <span v-if="product.is_promo && product.promo_price && product.price > product.promo_price" class="text-xs text-gray-400 line-through">
           {{ formatRupiah(product.price) }}
         </span>
       </div>

@@ -47,7 +47,7 @@
       <div class="space-y-2">
         <div class="flex items-baseline gap-2">
           <span class="font-black text-xl text-brand-red">{{ formatRupiah(product.promo_price || product.price) }}</span>
-          <span v-if="product.promo_price" class="text-xs text-gray-400 line-through">{{ formatRupiah(product.price) }}</span>
+          <span v-if="product.is_promo && product.promo_price && product.price > product.promo_price" class="text-xs text-gray-400 line-through">{{ formatRupiah(product.price) }}</span>
         </div>
 
         <div class="space-y-1">

@@ -580,6 +580,9 @@ export const dataService = {
             p.promo_title = 'Diskon Spesial';
           }
         }
+      } else {
+        p.is_promo = false;
+        p.promo_price = undefined;
       }
     });
 
