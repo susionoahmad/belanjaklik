@@ -241,15 +241,14 @@ const loadProducts = async (resetPage = false) => {
         .eq('is_active', true)
         .eq('merchant', merchant);
 
-      // Category keyword filter (skip if 'all')
-      if (selectedCategory.value !== 'all' && kw.length > 0) {
-        q = q.or(buildOrFilter(kw));
-      }
-
-      // Text search
+      // Text search takes priority — skip category keywords when searching
+      // so results like "samsung" show up regardless of which category tab is active
       if (searchQuery.value.trim()) {
         const s = searchQuery.value.trim();
         q = q.or(`name.ilike.%${s}%,category.ilike.%${s}%,shop_name.ilike.%${s}%`);
+      } else if (selectedCategory.value !== 'all' && kw.length > 0) {
+        // Category keyword filter only when NOT searching
+        q = q.or(buildOrFilter(kw));
       }
 
       // Sort: Tokopedia use last_synced_at as default
