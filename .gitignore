@@ -43,3 +43,6 @@ supabase/.env.secrets
 supabase/.temp/
 *.tsbuildinfo
 
+# Data / CSV files
+*.csv
+*.CSV

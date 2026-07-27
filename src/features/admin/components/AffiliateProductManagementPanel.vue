@@ -1,0 +1,479 @@
+<template>
+  <div class="space-y-5">
+    <!-- Top Toolbar Header -->
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <div>
+        <h2 class="font-extrabold text-lg sm:text-xl text-gray-900 dark:text-white flex items-center gap-2">
+          <Share2 class="w-6 h-6 text-emerald-500" />
+          <span>Kelola Produk Afiliasi Manual</span>
+        </h2>
+        <p class="text-xs text-gray-500 mt-0.5">
+          Manajemen katalog produk rekomendasi belanja dari Shopee, Tokopedia, Lazada & TikTok Shop via ACCESSTRADE
+        </p>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <button 
+          @click="isBulkImportOpen = true" 
+          class="bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs px-4 py-2.5 rounded-xl flex items-center gap-1.5 shadow-md cursor-pointer transition-all"
+        >
+          <UploadCloud class="w-4 h-4" />
+          <span>Import Feed (CSV/Excel)</span>
+        </button>
+
+        <button 
+          @click="openAddModal" 
+          class="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs px-4 py-2.5 rounded-xl flex items-center gap-1.5 shadow-md cursor-pointer transition-all"
+        >
+          <Plus class="w-4 h-4" />
+          <span>Tambah Produk Afiliasi</span>
+        </button>
+
+        <button 
+          @click="loadProducts" 
+          :disabled="isLoading" 
+          title="Refresh Data"
+          class="p-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-600 dark:text-gray-300 hover:text-emerald-600 shadow-soft cursor-pointer disabled:opacity-50"
+        >
+          <RefreshCw :class="{ 'animate-spin': isLoading }" class="w-4 h-4" />
+        </button>
+      </div>
+    </div>
+
+    <!-- Summary Metrics Cards -->
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <!-- Card 1: Total Produk -->
+      <div class="bg-white dark:bg-gray-800 p-4 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-soft flex items-center gap-3">
+        <div class="p-3 bg-emerald-50 dark:bg-emerald-950/60 rounded-2xl text-emerald-600 dark:text-emerald-400">
+          <Package class="w-6 h-6" />
+        </div>
+        <div>
+          <div class="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Total Produk Afiliasi</div>
+          <div class="font-extrabold text-xl text-gray-900 dark:text-white">{{ products.length }}</div>
+        </div>
+      </div>
+
+      <!-- Card 2: Produk Aktif -->
+      <div class="bg-white dark:bg-gray-800 p-4 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-soft flex items-center gap-3">
+        <div class="p-3 bg-blue-50 dark:bg-blue-950/60 rounded-2xl text-blue-600 dark:text-blue-400">
+          <CheckCircle2 class="w-6 h-6" />
+        </div>
+        <div>
+          <div class="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Produk Aktif Tampil</div>
+          <div class="font-extrabold text-xl text-emerald-600 dark:text-emerald-400">{{ activeProductsCount }}</div>
+        </div>
+      </div>
+
+      <!-- Card 3: Rata-rata Komisi -->
+      <div class="bg-white dark:bg-gray-800 p-4 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-soft flex items-center gap-3">
+        <div class="p-3 bg-amber-50 dark:bg-amber-950/60 rounded-2xl text-amber-600 dark:text-amber-400">
+          <Percent class="w-6 h-6" />
+        </div>
+        <div>
+          <div class="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Rata-Rata Komisi</div>
+          <div class="font-extrabold text-xl text-amber-600 dark:text-amber-400">{{ averageCommission }}%</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Search & Filter Controls -->
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 bg-white dark:bg-gray-800 p-3.5 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-soft">
+      <!-- Search Input -->
+      <div class="relative">
+        <Search class="w-4 h-4 absolute left-3 top-2.5 text-gray-400" />
+        <input 
+          v-model="searchQuery" 
+          type="text" 
+          placeholder="Cari nama produk, toko, atau kategori..." 
+          class="w-full pl-9 pr-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700 text-xs font-semibold focus:ring-2 focus:ring-emerald-500 outline-none" 
+        />
+      </div>
+
+      <!-- Merchant Filter -->
+      <div>
+        <select 
+          v-model="selectedMerchantFilter" 
+          class="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700 text-xs font-semibold focus:ring-2 focus:ring-emerald-500 outline-none"
+        >
+          <option value="">Semua Merchant / Platform</option>
+          <option value="shopee">Shopee</option>
+          <option value="tokopedia">Tokopedia</option>
+          <option value="lazada">Lazada</option>
+          <option value="tiktok_shop">TikTok Shop</option>
+          <option value="other">Lainnya</option>
+        </select>
+      </div>
+
+      <!-- Status Filter -->
+      <div>
+        <select 
+          v-model="selectedStatusFilter" 
+          class="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700 text-xs font-semibold focus:ring-2 focus:ring-emerald-500 outline-none"
+        >
+          <option value="">Semua Status</option>
+          <option value="active">Aktif (Tampil di App)</option>
+          <option value="inactive">Non-Aktif (Disembunyikan)</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Affiliate Products Data Table -->
+    <div class="bg-white dark:bg-gray-800 rounded-3xl border border-gray-100 dark:border-gray-700 overflow-hidden shadow-soft">
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-xs">
+          <thead class="bg-gray-50 dark:bg-gray-700/50 text-gray-500 font-bold uppercase tracking-wider border-b border-gray-100 dark:border-gray-700">
+            <tr>
+              <th class="p-3.5">Produk Afiliasi</th>
+              <th class="p-3.5">Merchant</th>
+              <th class="p-3.5">Harga</th>
+              <th class="p-3.5">Komisi (%)</th>
+              <th class="p-3.5">Status</th>
+              <th class="p-3.5 text-right min-w-[150px]">Aksi Management</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
+            <tr v-if="isLoading && products.length === 0">
+              <td colspan="6" class="p-8 text-center text-gray-400 font-semibold">
+                Memuat data produk afiliasi...
+              </td>
+            </tr>
+            <tr v-else-if="filteredProducts.length === 0">
+              <td colspan="6" class="p-8 text-center text-gray-400 font-semibold">
+                Tidak ada produk afiliasi yang cocok dengan kriteria filter.
+              </td>
+            </tr>
+            <tr 
+              v-for="p in filteredProducts" 
+              :key="p.id" 
+              class="hover:bg-gray-50/50 dark:hover:bg-gray-700/30 transition-colors"
+            >
+              <!-- Info Produk & Gambar -->
+              <td class="p-3.5 flex items-center gap-3">
+                <img 
+                  :src="proxyImageUrl(p.image_url || '')" 
+                  :alt="p.name" 
+                  class="w-10 h-10 object-cover rounded-xl shrink-0 border border-gray-100 dark:border-gray-700" 
+                  @error="($event.target as HTMLImageElement).src='https://images.unsplash.com/photo-1542838132-92c53300491e?w=150'" 
+                />
+                <div class="min-w-0 max-w-xs sm:max-w-md">
+                  <div class="font-bold text-gray-900 dark:text-white line-clamp-1" :title="p.name">
+                    {{ p.name }}
+                  </div>
+                  <div class="flex items-center gap-2 text-[10px] text-gray-400 mt-0.5">
+                    <span v-if="p.shop_name" class="font-medium text-gray-500 dark:text-gray-400">
+                      🛒 {{ p.shop_name }}
+                    </span>
+                    <span v-if="p.category" class="px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-700 font-mono">
+                      {{ p.category }}
+                    </span>
+                    <span class="text-emerald-600 dark:text-emerald-400 font-mono">
+                      Tag: {{ p.source || 'manual_link' }}
+                    </span>
+                  </div>
+                </div>
+              </td>
+
+              <!-- Merchant Badge -->
+              <td class="p-3.5 whitespace-nowrap">
+                <span 
+                  :class="getMerchantBadgeClass(p.merchant)" 
+                  class="px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider flex items-center gap-1 w-fit shadow-xs"
+                >
+                  <span>{{ getMerchantName(p.merchant) }}</span>
+                </span>
+              </td>
+
+              <!-- Harga & Harga Coret -->
+              <td class="p-3.5 whitespace-nowrap">
+                <div class="font-bold text-emerald-600 dark:text-emerald-400">
+                  {{ p.price ? formatRupiah(p.price) : '-' }}
+                </div>
+                <div v-if="p.original_price && p.price && p.original_price > p.price" class="text-[10px] text-gray-400 line-through">
+                  {{ formatRupiah(p.original_price) }}
+                  <span class="text-red-500 font-bold ml-0.5">-{{ p.discount_percent }}%</span>
+                </div>
+              </td>
+
+              <!-- Komisi (%) -->
+              <td class="p-3.5 whitespace-nowrap">
+                <span v-if="p.commission_rate !== undefined && p.commission_rate !== null" class="font-extrabold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 px-2 py-0.5 rounded-lg border border-amber-200 dark:border-amber-900">
+                  {{ p.commission_rate }}%
+                </span>
+                <span v-else class="text-gray-400 font-mono">-</span>
+              </td>
+
+              <!-- Status Toggle Direct -->
+              <td class="p-3.5 whitespace-nowrap">
+                <button 
+                  @click="handleToggleActive(p)" 
+                  :title="p.is_active ? 'Klik untuk Non-Aktifkan' : 'Klik untuk Aktifkan'"
+                  class="px-2.5 py-1 rounded-full text-[10px] font-extrabold flex items-center gap-1 cursor-pointer transition-colors border"
+                  :class="p.is_active ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-400 dark:border-emerald-900 hover:bg-emerald-100' : 'bg-gray-100 text-gray-500 border-gray-200 dark:bg-gray-700 dark:text-gray-400 dark:border-gray-600 hover:bg-gray-200'"
+                >
+                  <span class="w-1.5 h-1.5 rounded-full" :class="p.is_active ? 'bg-emerald-500 animate-pulse' : 'bg-gray-400'"></span>
+                  <span>{{ p.is_active ? 'Aktif (Tampil)' : 'Non-Aktif' }}</span>
+                </button>
+              </td>
+
+              <!-- Aksi Edit & Hapus -->
+              <td class="p-3.5 text-right whitespace-nowrap">
+                <div class="flex items-center justify-end gap-1.5">
+                  <!-- External Link Test -->
+                  <a 
+                    :href="p.affiliate_url" 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    title="Buka Link Affiliate" 
+                    class="p-1.5 text-gray-500 hover:text-emerald-600 bg-gray-50 dark:bg-gray-700 hover:bg-emerald-50 rounded-lg border border-gray-200 dark:border-gray-600 transition-colors"
+                  >
+                    <ExternalLink class="w-3.5 h-3.5" />
+                  </a>
+
+                  <!-- Edit -->
+                  <button 
+                    @click="openEditModal(p)" 
+                    title="Edit Produk"
+                    class="px-2.5 py-1 text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/50 hover:bg-blue-100 rounded-lg transition-colors border border-blue-200 dark:border-blue-900 text-[10px] font-extrabold flex items-center gap-1 cursor-pointer"
+                  >
+                    <Edit3 class="w-3.5 h-3.5" />
+                    <span>Edit</span>
+                  </button>
+
+                  <!-- Hapus -->
+                  <button 
+                    @click="confirmDelete(p)" 
+                    title="Hapus Produk"
+                    class="px-2.5 py-1 text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/50 hover:bg-red-100 rounded-lg transition-colors border border-red-200 dark:border-red-900 text-[10px] font-extrabold flex items-center gap-1 cursor-pointer"
+                  >
+                    <Trash2 class="w-3.5 h-3.5" />
+                    <span>Hapus</span>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Edit/Add Modal Component -->
+    <AffiliateProductModal 
+      :isOpen="isModalOpen" 
+      :product="selectedProduct" 
+      @close="isModalOpen = false" 
+      @save="handleSaveProduct" 
+    />
+
+    <!-- Modal Confirm Delete -->
+    <Modal :isOpen="isConfirmDeleteOpen" @close="isConfirmDeleteOpen = false">
+      <div v-if="productToDelete" class="space-y-4 text-center p-2">
+        <div class="w-12 h-12 rounded-2xl bg-red-100 dark:bg-red-950/60 text-red-600 dark:text-red-400 flex items-center justify-center mx-auto">
+          <AlertTriangle class="w-6 h-6" />
+        </div>
+        <div>
+          <h3 class="font-extrabold text-base text-gray-900 dark:text-white">Hapus Produk Afiliasi?</h3>
+          <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            Anda yakin ingin menghapus <strong>"{{ productToDelete.name }}"</strong> dari daftar rekomendasi afiliasi?
+          </p>
+        </div>
+        <div class="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-2xl border border-gray-100 dark:border-gray-700 text-left">
+          <img :src="proxyImageUrl(productToDelete.image_url || '')" class="w-12 h-12 object-cover rounded-xl shrink-0" />
+          <div class="min-w-0">
+            <div class="font-bold text-xs text-gray-900 dark:text-white line-clamp-1">{{ productToDelete.name }}</div>
+            <div class="text-[10px] text-gray-400 mt-0.5">Platform: {{ getMerchantName(productToDelete.merchant) }}</div>
+          </div>
+        </div>
+        <div class="flex gap-2 pt-2">
+          <button @click="isConfirmDeleteOpen = false" class="flex-1 py-2.5 rounded-xl text-xs font-bold border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer">
+            Batal
+          </button>
+          <button @click="executeDelete" class="flex-1 py-2.5 rounded-xl text-xs font-extrabold bg-red-600 text-white hover:bg-red-700 shadow-md cursor-pointer">
+            Ya, Hapus Sekarang
+          </button>
+        </div>
+      </div>
+    </Modal>
+
+    <!-- Bulk Import Modal Component -->
+    <AffiliateBulkImportModal 
+      :isOpen="isBulkImportOpen" 
+      @close="isBulkImportOpen = false" 
+      @imported="handleBulkImported" 
+    />
+
+    <!-- Toast Notification -->
+    <Transition enter-active-class="transition duration-300 ease-out" enter-from-class="transform translate-y-4 opacity-0" enter-to-class="transform translate-y-0 opacity-100" leave-active-class="transition duration-200 ease-in" leave-from-class="transform translate-y-0 opacity-100" leave-to-class="transform translate-y-4 opacity-0">
+      <div v-if="toastMessage" class="fixed bottom-6 right-6 z-50 bg-gray-900 text-white font-bold text-xs px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-2 border border-gray-700">
+        <CheckCircle class="w-4 h-4 text-emerald-400 shrink-0" />
+        <span>{{ toastMessage }}</span>
+      </div>
+    </Transition>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, onMounted } from 'vue';
+import { 
+  Share2, Plus, RefreshCw, Package, CheckCircle2, Percent, Search, 
+  ExternalLink, Edit3, Trash2, AlertTriangle, CheckCircle, UploadCloud 
+} from 'lucide-vue-next';
+import Modal from '@/features/shared/components/Modal.vue';
+import AffiliateProductModal from '@/features/affiliate/components/AffiliateProductModal.vue';
+import AffiliateBulkImportModal from '@/features/affiliate/components/AffiliateBulkImportModal.vue';
+import type { AffiliateProduct } from '@/features/affiliate/types';
+import { formatRupiah } from '@/features/shared/utils/formatters';
+import { proxyImageUrl } from '@/features/tokosaya-sync/services/ImageProxyService';
+import { 
+  getAllAffiliateProductsAdmin, 
+  saveAffiliateProduct, 
+  deleteAffiliateProduct, 
+  toggleAffiliateProductStatus 
+} from '@/features/affiliate/services/affiliateService';
+
+const products = ref<AffiliateProduct[]>([]);
+const isLoading = ref(false);
+const searchQuery = ref('');
+const selectedMerchantFilter = ref('');
+const selectedStatusFilter = ref('');
+
+const isModalOpen = ref(false);
+const isBulkImportOpen = ref(false);
+const selectedProduct = ref<AffiliateProduct | null>(null);
+
+const isConfirmDeleteOpen = ref(false);
+const productToDelete = ref<AffiliateProduct | null>(null);
+
+const toastMessage = ref('');
+
+const showToast = (msg: string) => {
+  toastMessage.value = msg;
+  setTimeout(() => {
+    toastMessage.value = '';
+  }, 3500);
+};
+
+const loadProducts = async () => {
+  isLoading.value = true;
+  try {
+    products.value = await getAllAffiliateProductsAdmin();
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+onMounted(() => {
+  loadProducts();
+});
+
+const activeProductsCount = computed(() => {
+  return products.value.filter(p => p.is_active).length;
+});
+
+const averageCommission = computed(() => {
+  const withComm = products.value.filter(p => p.commission_rate !== undefined && p.commission_rate !== null && p.commission_rate > 0);
+  if (withComm.length === 0) return '0';
+  const total = withComm.reduce((acc, p) => acc + (p.commission_rate || 0), 0);
+  return (total / withComm.length).toFixed(1);
+});
+
+const filteredProducts = computed(() => {
+  let list = products.value;
+
+  if (searchQuery.value.trim()) {
+    const q = searchQuery.value.toLowerCase().trim();
+    list = list.filter(p => 
+      p.name.toLowerCase().includes(q) || 
+      (p.shop_name && p.shop_name.toLowerCase().includes(q)) || 
+      (p.category && p.category.toLowerCase().includes(q))
+    );
+  }
+
+  if (selectedMerchantFilter.value) {
+    list = list.filter(p => p.merchant === selectedMerchantFilter.value);
+  }
+
+  if (selectedStatusFilter.value === 'active') {
+    list = list.filter(p => p.is_active);
+  } else if (selectedStatusFilter.value === 'inactive') {
+    list = list.filter(p => !p.is_active);
+  }
+
+  return list;
+});
+
+const getMerchantName = (merchant: string): string => {
+  switch (merchant?.toLowerCase()) {
+    case 'shopee': return 'Shopee';
+    case 'tokopedia': return 'Tokopedia';
+    case 'lazada': return 'Lazada';
+    case 'tiktok_shop': return 'TikTok Shop';
+    default: return 'Merchant Lain';
+  }
+};
+
+const getMerchantBadgeClass = (merchant: string): string => {
+  switch (merchant?.toLowerCase()) {
+    case 'shopee': 
+      return 'bg-orange-100 text-orange-800 border border-orange-200 dark:bg-orange-950 dark:text-orange-300 dark:border-orange-900';
+    case 'tokopedia': 
+      return 'bg-emerald-100 text-emerald-800 border border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-900';
+    case 'lazada': 
+      return 'bg-blue-100 text-blue-800 border border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-900';
+    case 'tiktok_shop': 
+      return 'bg-purple-100 text-purple-800 border border-purple-200 dark:bg-purple-950 dark:text-purple-300 dark:border-purple-900';
+    default: 
+      return 'bg-gray-100 text-gray-700 border border-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600';
+  }
+};
+
+const openAddModal = () => {
+  selectedProduct.value = null;
+  isModalOpen.value = true;
+};
+
+const openEditModal = (p: AffiliateProduct) => {
+  selectedProduct.value = p;
+  isModalOpen.value = true;
+};
+
+const handleSaveProduct = async (payload: Partial<AffiliateProduct>) => {
+  isModalOpen.value = false;
+  const result = await saveAffiliateProduct(payload);
+  if (result) {
+    showToast(`Produk afiliasi "${result.name}" berhasil disimpan!`);
+    await loadProducts();
+  }
+};
+
+const handleToggleActive = async (p: AffiliateProduct) => {
+  const newStatus = !p.is_active;
+  p.is_active = newStatus; // Optimistic update
+  const ok = await toggleAffiliateProductStatus(p.id, newStatus);
+  if (ok) {
+    showToast(`Status "${p.name}" diubah menjadi ${newStatus ? 'Aktif' : 'Non-Aktif'}`);
+  } else {
+    await loadProducts();
+  }
+};
+
+const confirmDelete = (p: AffiliateProduct) => {
+  productToDelete.value = p;
+  isConfirmDeleteOpen.value = true;
+};
+
+const executeDelete = async () => {
+  if (!productToDelete.value) return;
+  const target = productToDelete.value;
+  isConfirmDeleteOpen.value = false;
+  const ok = await deleteAffiliateProduct(target.id);
+  if (ok) {
+    showToast(`Produk "${target.name}" telah dihapus!`);
+    await loadProducts();
+  }
+};
+
+const handleBulkImported = async () => {
+  showToast('Import massal produk feed berhasil!');
+  await loadProducts();
+};
+</script>

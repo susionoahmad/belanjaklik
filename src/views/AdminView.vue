@@ -351,6 +351,11 @@
         <TokoSayaSyncPanel />
       </div>
 
+      <!-- Tab 4.5: Affiliate Product Management Panel -->
+      <div v-else-if="activeTab === 'affiliate-products'">
+        <AffiliateProductManagementPanel />
+      </div>
+
       <!-- Tab 4: Store Profile Settings -->
       <div v-else-if="activeTab === 'settings'" class="bg-white dark:bg-gray-800 p-6 rounded-3xl border border-gray-100 dark:border-gray-700 space-y-4 max-w-xl shadow-soft">
         <div class="flex items-center justify-between border-b border-gray-100 dark:border-gray-700 pb-3">
@@ -556,7 +561,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
-import { Lock, LogOut, BarChart2, Package, Store, Settings, Plus, Upload, Edit3, Save, RefreshCw, ScanLine, BrainCircuit, Copy, Trash2, Power, Search, Eye, CheckCircle, AlertTriangle, Megaphone, PackageCheck, PackagePlus, ChevronLeft, ChevronRight } from 'lucide-vue-next';
+import { Lock, LogOut, BarChart2, Package, Store, Settings, Plus, Upload, Edit3, Save, RefreshCw, ScanLine, BrainCircuit, Copy, Trash2, Power, Search, Eye, CheckCircle, AlertTriangle, Megaphone, PackageCheck, PackagePlus, ChevronLeft, ChevronRight, Share2 } from 'lucide-vue-next';
 import Modal from '../features/shared/components/Modal.vue';
 import type { Product, FulfillmentChannel } from '../features/shared/types';
 import { formatRupiah } from '../features/shared/utils/formatters';
@@ -571,6 +576,7 @@ import FlyerCampaignUploader from '../features/promotions/components/FlyerCampai
 import CampaignReviewPanel from '../features/promotions/components/CampaignReviewPanel.vue';
 import EnterprisePromotionDashboard from '../features/promotions/components/EnterprisePromotionDashboard.vue';
 import PackageManagementPanel from '../features/admin/components/PackageManagementPanel.vue';
+import AffiliateProductManagementPanel from '../features/admin/components/AffiliateProductManagementPanel.vue';
 import { PromotionCampaignEngine } from '../features/promotions/engine/PromotionCampaignEngine';
 import type { CampaignParsedData } from '../features/promotions/types/campaignTypes';
 import { parseProductFile } from '../features/admin/services/csvImportService';
@@ -691,6 +697,7 @@ const tabs = [
   { id: 'analytics', name: 'Analisis & Stat', icon: BarChart2 },
   { id: 'campaign-engine', name: 'Kampanye & Flyer AI', icon: Megaphone },
   { id: 'import-engine', name: 'Product Import Engine (Scanner)', icon: ScanLine },
+  { id: 'affiliate-products', name: 'Produk Afiliasi Manual', icon: Share2 },
   { id: 'knowledge-engine', name: 'Product Knowledge AI', icon: BrainCircuit },
   { id: 'packages', name: 'Paket Belanja Hemat', icon: PackageCheck },
   { id: 'products', name: 'Kelola Produk', icon: Package },
