@@ -145,7 +145,7 @@ export default defineConfig(({ mode }) => {
           }
 
           const productRoutes = data
-            .filter((item) => Boolean(item.slug))
+            .filter((item) => Boolean(item.slug) && item.slug.length <= 100)
             .map((item) => `/produk/${item.slug}`)
 
           const finalRoutes = [...staticPaths, ...productRoutes]

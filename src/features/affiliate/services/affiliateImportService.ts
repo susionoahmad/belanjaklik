@@ -326,6 +326,8 @@ export async function bulkUpsertAffiliateFeed(
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/^-+|-+$/g, '');
+      if (slug.length > 80) slug = slug.substring(0, 80).replace(/-+$/, '');
+
       if (item.external_product_id) {
         slug += '-' + item.external_product_id.toLowerCase().replace(/[^a-z0-9]+/g, '-');
       } else {

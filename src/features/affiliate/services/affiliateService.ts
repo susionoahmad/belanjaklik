@@ -175,10 +175,12 @@ export async function saveAffiliateProduct(payload: Partial<AffiliateProduct>): 
   // Generate slug if not set
   let slug = payload.slug?.trim();
   if (!slug && payload.name) {
-    slug = payload.name
+    let base = payload.name
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '') + '-' + Date.now().toString(36);
+      .replace(/^-+|-+$/g, '');
+    if (base.length > 80) base = base.substring(0, 80).replace(/-+$/, '');
+    slug = base + '-' + Date.now().toString(36);
   }
 
   const cleanData: Partial<AffiliateProduct> = {
