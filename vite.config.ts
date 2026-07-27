@@ -114,9 +114,20 @@ export default defineConfig(({ mode }) => {
         return renderedHTML
       },
       async includedRoutes(paths: string[], _routes: any[]) {
-        // Only pre-render core static pages to ensure super-fast, error-free builds on Vercel.
-        // Dynamic product detail routes (/produk/:slug) are handled dynamically by Vue Router.
-        return paths.filter((p: string) => !p.includes(':'))
+        const allowedStaticRoutes = [
+          '/',
+          '/catalog',
+          '/packages',
+          '/promos',
+          '/favorites',
+          '/orders',
+          '/admin',
+          '/privacy',
+          '/terms',
+          '/affiliate-disclosure',
+          '/about'
+        ];
+        return paths.filter((p: string) => allowedStaticRoutes.includes(p));
       }
     }
 
