@@ -359,6 +359,37 @@ def generate_slug(name: str, ext_id: str, merchant: str = "shopee") -> str:
     return f"{s[:45]}-{merch_tag}-{clean_id}"
 
 
+def fetch_existing_products_map(supabase_url: str, supabase_key: str):
+    """Mengambil peta ID produk yang sudah ada di Supabase berdasarkan product_url & external_product_id."""
+    existing_map = {}
+    headers = {
+        "apikey": supabase_key,
+        "Authorization": f"Bearer {supabase_key}"
+    }
+
+    try:
+        page = 0
+        while True:
+            endpoint = f"{supabase_url.rstrip('/')}/rest/v1/affiliate_products?select=id,product_url,external_product_id,merchant,slug&limit=1000&offset={page*1000}"
+            req = urllib.request.Request(endpoint, headers=headers, method='GET')
+            with urllib.request.urlopen(req) as resp:
+                rows = json.loads(resp.read().decode('utf-8'))
+                if not rows:
+                    break
+                for r in rows:
+                    p_url = str(r.get("product_url") or "").strip().lower()
+                    ext_id = str(r.get("external_product_id") or "").replace('\ufeff', '').strip().lower()
+                    if p_url:
+                        existing_map[p_url] = r
+                    if ext_id and ext_id != "null" and ext_id != "nan":
+                        existing_map[ext_id] = r
+                page += 1
+    except Exception as e:
+        print(f"  ℹ Membaca data eksisting Supabase: {e}")
+
+    return existing_map
+
+
 def upload_to_supabase(df: pd.DataFrame, supabase_url: str, supabase_key: str):
     """Mengunggah data hasil saringan langsung ke tabel affiliate_products di Supabase."""
     if not supabase_url or not supabase_key:
@@ -370,7 +401,12 @@ def upload_to_supabase(df: pd.DataFrame, supabase_url: str, supabase_key: str):
     print(f"Mengunggah {len(df):,} produk ke Supabase ({supabase_url})...")
     print(f"============================================================")
 
-    endpoint = f"{supabase_url.rstrip('/')}/rest/v1/affiliate_products?on_conflict=merchant,campaign_id,external_product_id"
+    # Ambil pemetaan data eksisting dari Supabase agar produk dengan product_url yang sama ter-UPDATE di tempat
+    print("Membaca data produk eksisting di Supabase untuk pencocokan URL...")
+    existing_map = fetch_existing_products_map(supabase_url, supabase_key)
+    print(f"Ditemukan {len(existing_map):,} URL/ID produk eksisting di Supabase.")
+
+    endpoint = f"{supabase_url.rstrip('/')}/rest/v1/affiliate_products?on_conflict=id"
     headers = {
         "apikey": supabase_key,
         "Authorization": f"Bearer {supabase_key}",
@@ -380,6 +416,8 @@ def upload_to_supabase(df: pd.DataFrame, supabase_url: str, supabase_key: str):
 
     raw_records = []
     now_iso = datetime.now(timezone.utc).isoformat()
+    updated_count = 0
+    new_count = 0
 
     for idx, row in df.iterrows():
         raw_name = str(row.get("name", "")).strip()
@@ -456,6 +494,20 @@ def upload_to_supabase(df: pd.DataFrame, supabase_url: str, supabase_key: str):
             },
             "last_synced_at": now_iso
         }
+
+        # Pencocokan Produk Eksisting Berdasarkan product_url & external_product_id
+        url_key = product_url.strip().lower()
+        ext_key = ext_id.replace('\ufeff', '').strip().lower()
+        matched = existing_map.get(url_key) or existing_map.get(ext_key)
+
+        if matched:
+            record["id"] = matched["id"]
+            if matched.get("slug"):
+                record["slug"] = matched["slug"]
+            updated_count += 1
+        else:
+            new_count += 1
+
         raw_records.append(record)
 
     # Deduplikasi record berdasarkan (merchant, campaign_id, external_product_id) & slug unik
