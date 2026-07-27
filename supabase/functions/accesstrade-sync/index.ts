@@ -374,7 +374,7 @@ function mapCsvRowToProduct(
     row['category'] ||
     row['Main Category Name'] ||
     ''
-  const shopName = row['Brand'] || row['brand'] || row['Merchant Name'] || row['shop_name'] || ''
+  const shopName = row['Saller Name'] || row['Seller Name'] || row['Brand'] || row['brand'] || row['Merchant Name'] || row['shop_name'] || ''
   const itemSold = parseNumeric(row['item_sold']) || 0
   const itemRating = parseNumeric(row['item_rating'])
 
