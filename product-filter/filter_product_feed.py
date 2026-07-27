@@ -68,7 +68,7 @@ SUPABASE_KEY = os.getenv("VITE_SUPABASE_ANON_KEY") or os.getenv("SUPABASE_SERVIC
 # Kenapa per sub kategori (bukan top N dari total): supaya variasi produk
 # tetap luas -- misal "Skincare", "Haircare", "Personal Care" masing-masing
 # tetap kebagian slot, bukan didominasi 1 sub kategori yang paling ramai.
-TOP_N_PER_SUBKATEGORI = 10
+TOP_N_PER_SUBKATEGORI = 25
 
 # Minimum jumlah terjual supaya produk dianggap layak dipromosikan.
 # Naikkan angka ini kalau hasil akhir masih terlalu banyak.
