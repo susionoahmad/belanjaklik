@@ -187,7 +187,7 @@ const jsmProducts = computed(() => {
     }
 
     const title = String(p.promo_title || '').toUpperCase();
-    return title.includes('JSM') || title.includes('PROMO SPECIAL');
+    return title.includes('JSM');
   });
 });
 

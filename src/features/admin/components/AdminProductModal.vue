@@ -234,7 +234,7 @@ watch(() => props.product, (newP) => {
       : (newP.image_url ? [newP.image_url] : []);
 
     const isPromoProd = newP.is_promo ?? (!!newP.promo_price && newP.promo_price < newP.price);
-    const pType = newP.promo_type || (newP.promo_badge?.includes('JSM') || newP.category === 'Promo Merchant' || newP.category_id === 'c2222222-2222-2222-2222-222222222222' || isPromoProd ? 'JSM' : 'REGULAR');
+    const pType = newP.promo_type || (newP.promo_badge?.toUpperCase().includes('JSM') ? 'JSM' : (newP.promo_badge?.toUpperCase().includes('FLASH') ? 'FLASHSALE' : 'REGULAR'));
 
     const descClean = newP.description?.trim();
     const pBrand = newP.brand || 'Alfamind';
@@ -249,8 +249,8 @@ watch(() => props.product, (newP) => {
       promo_price: newP.promo_price,
       is_promo: isPromoProd,
       promo_type: pType,
-      promo_badge: newP.promo_badge || (pType === 'JSM' ? 'PROMO JSM (3 HARI)' : ''),
-      promo_title: newP.promo_title || (pType === 'JSM' ? 'Promo Jumat Sabtu Minggu' : ''),
+      promo_badge: newP.promo_badge || (pType === 'JSM' ? 'PROMO JSM (3 HARI)' : (pType === 'FLASHSALE' ? 'FLASHSALE' : (isPromoProd ? 'Diskon!' : ''))),
+      promo_title: newP.promo_title || (pType === 'JSM' ? 'Promo Jumat Sabtu Minggu' : (pType === 'FLASHSALE' ? 'Flash Sale Hari Ini' : (isPromoProd ? 'Diskon Spesial' : ''))),
       brand: newP.brand || '',
       description: descClean || autoDesc,
       category_id: newP.category_id || '',
@@ -360,9 +360,9 @@ const handleSubmit = async () => {
     images: form.value.images,
     slug: form.value.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
     is_promo: isPromo,
-    promo_type: isPromo ? (form.value.promo_type || 'JSM') : undefined,
-    promo_badge: isPromo ? (form.value.promo_badge || (form.value.promo_type === 'JSM' ? 'PROMO JSM (3 HARI)' : 'Diskon!')) : undefined,
-    promo_title: isPromo ? (form.value.promo_title || (form.value.promo_type === 'JSM' ? 'Promo Jumat Sabtu Minggu' : 'Diskon Spesial')) : undefined
+    promo_type: isPromo ? (form.value.promo_type || 'REGULAR') : undefined,
+    promo_badge: isPromo ? (form.value.promo_badge || (form.value.promo_type === 'JSM' ? 'PROMO JSM (3 HARI)' : (form.value.promo_type === 'FLASHSALE' ? 'FLASHSALE' : 'Diskon!'))) : undefined,
+    promo_title: isPromo ? (form.value.promo_title || (form.value.promo_type === 'JSM' ? 'Promo Jumat Sabtu Minggu' : (form.value.promo_type === 'FLASHSALE' ? 'Flash Sale Hari Ini' : 'Diskon Spesial'))) : undefined
   };
 
   await dataService.saveProduct(payload);

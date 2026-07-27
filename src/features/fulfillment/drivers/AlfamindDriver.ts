@@ -1,6 +1,5 @@
 import type { ChannelDriver } from './ChannelDriver';
 import type { Product, FulfillmentChannel } from '../../shared/types';
-import { AccesstradeService } from '../../affiliate/services/AccesstradeService';
 
 export class AlfamindDriver implements ChannelDriver {
   channelSlug = 'alfamind-official';
@@ -15,8 +14,7 @@ export class AlfamindDriver implements ChannelDriver {
       rawUrl = `${baseUrl.endsWith('/') ? baseUrl : baseUrl + '/'}${code}`;
     }
 
-    const finalCode = product.external_product_code || product.slug || product.id || undefined;
-    return AccesstradeService.convertToAffiliateUrl(rawUrl, finalCode);
+    return rawUrl;
   }
 
   openExternal(product: Product, channel?: FulfillmentChannel): void {

@@ -29,11 +29,12 @@ export class CatalogUpdateEngine {
         ? item.editedData.is_promo 
         : (norm?.is_promo || norm?.has_strikethrough_price || (!!originalPrice && originalPrice > currentPrice) || !!norm?.promo_type || !!norm?.promo_badge || true);
 
-      // Determine effective promo_type (default to JSM for flyer/Excel promo imports)
+      // Determine effective promo_type
       const promoType = item.editedData?.promo_type 
         || norm?.promo_type 
-        || (norm?.promo_badge?.toUpperCase().includes('FLASHSALE') ? 'FLASHSALE' : undefined)
-        || (isPromo ? 'JSM' : undefined);
+        || (norm?.promo_badge?.toUpperCase().includes('FLASH') ? 'FLASHSALE' : undefined)
+        || (norm?.promo_badge?.toUpperCase().includes('JSM') ? 'JSM' : undefined)
+        || (isPromo ? 'REGULAR' : undefined);
 
       const promoBadge = item.editedData?.promo_badge 
         || norm?.promo_badge 
