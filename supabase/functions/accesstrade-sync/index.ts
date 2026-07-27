@@ -2,25 +2,25 @@
 //
 // Sinkronisasi katalog produk affiliate dari Accesstrade ke tabel `affiliate_products`.
 //
-// Cara pakai:
-//   1. Set secrets (lihat README.md di folder ini)
-//   2. Deploy: supabase functions deploy accesstrade-sync
-//   3. Panggil manual: curl -X POST https://<project>.supabase.co/functions/v1/accesstrade-sync \
-//        -H "Authorization: Bearer <SERVICE_ROLE_KEY>"
-//   4. (Opsional) Jadwalkan lewat Supabase Cron / pg_cron supaya jalan otomatis tiap beberapa jam.
+// Fitur & Perbaikan Utama:
+//   1. Header `X-Accesstrade-User-Type: publisher` ditambahkan di semua request API Accesstrade.
+//   2. Domain base API dapat dikonfigurasi via env `ACCESSTRADE_BASE_URL` (default: https://gurkha.accesstrade.co.id).
+//   3. Mendukung response array maupun object tunggal pada endpoint `productfeed/url`.
+//   4. Mode Debug (?debug=true / Header X-Debug: true) untuk inspeksi response mentah API secara live.
+//   5. Parsing CSV otomatis & mapping kolom feed Accesstrade asli.
+//   6. Pembersihan judul (hapus tag bracket, keyword stuffing, potong max 90 karakter) & pembersihan deskripsi.
+//   7. Pengaman database: filter `Available == true`, threshold `item_sold` (ACCESSTRADE_MIN_ITEM_SOLD, default: 10),
+//      batch insert per 500 baris, & hard limit total produk per sync (ACCESSTRADE_MAX_PRODUCTS_PER_SYNC, default: 5000).
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-const ACCESSTRADE_BASE = 'https://gurkha.accesstrade.global'
+const ACCESSTRADE_BASE = Deno.env.get('ACCESSTRADE_BASE_URL') || 'https://gurkha.accesstrade.co.id'
 
 interface CampaignConfig {
   merchant: string // 'shopee' | 'tiktok_shop' | 'tokopedia' | dst
   campaignId: string
 }
 
-// Daftar campaign yang mau disync. Ambil campaignId dari dashboard Accesstrade
-// (Direktori Campaign > buka campaign yang sudah di-approve).
-// Bisa juga di-override lewat env ACCESSTRADE_CAMPAIGNS berisi JSON array.
 function getCampaigns(): CampaignConfig[] {
   const fromEnv = Deno.env.get('ACCESSTRADE_CAMPAIGNS')
   if (fromEnv) {
@@ -33,7 +33,7 @@ function getCampaigns(): CampaignConfig[] {
   return []
 }
 
-// ---- JWT (HS256) signing pakai Web Crypto, tanpa dependency tambahan ----
+// ---- JWT (HS256) signing via Web Crypto API ----
 function base64url(input: ArrayBuffer | string): string {
   const bytes =
     typeof input === 'string' ? new TextEncoder().encode(input) : new Uint8Array(input)
@@ -61,24 +61,98 @@ async function signJwt(userUid: string, secretKey: string): Promise<string> {
   return `${signingInput}.${base64url(signature)}`
 }
 
-// ---- Ambil URL feed dari Accesstrade untuk 1 campaign ----
-async function getProductFeedUrl(
+interface ProductFeedUrlItem {
+  creativeId?: number | string
+  baseUrl: string
+  name?: string
+  description?: string
+  updatedTime?: string
+}
+
+// ---- Ambil URL feed dari Accesstrade (Mendukung Array & Object tunggal) ----
+async function getProductFeedUrls(
   jwt: string,
   siteId: string,
   campaignId: string
-): Promise<string> {
-  const res = await fetch(
-    `${ACCESSTRADE_BASE}/v1/publishers/me/sites/${siteId}/campaigns/${campaignId}/productfeed/url?countryCode=ID`,
-    { headers: { Authorization: `Bearer ${jwt}` } }
-  )
-  if (!res.ok) {
-    throw new Error(`Gagal ambil feed URL untuk campaign ${campaignId}: ${res.status} ${await res.text()}`)
+): Promise<{ rawStatus: number; rawData: any; feedUrls: ProductFeedUrlItem[] }> {
+  const url = `${ACCESSTRADE_BASE}/v1/publishers/me/sites/${siteId}/campaigns/${campaignId}/productfeed/url?countryCode=ID`
+  const res = await fetch(url, {
+    headers: {
+      'Authorization': `Bearer ${jwt}`,
+      'X-Accesstrade-User-Type': 'publisher',
+    },
+  })
+  const rawStatus = res.status
+  const text = await res.text()
+  let rawData: any = null
+  try {
+    rawData = JSON.parse(text)
+  } catch {
+    rawData = text
   }
-  const data = await res.json()
-  return data.baseUrl
+
+  if (!res.ok) {
+    throw new Error(`Gagal ambil feed URL untuk campaign ${campaignId}: ${res.status} ${text}`)
+  }
+
+  const feedUrls: ProductFeedUrlItem[] = []
+  if (Array.isArray(rawData)) {
+    for (const item of rawData) {
+      if (item && item.baseUrl) feedUrls.push(item)
+    }
+  } else if (rawData && typeof rawData === 'object') {
+    if (Array.isArray(rawData.data)) {
+      for (const item of rawData.data) {
+        if (item && item.baseUrl) feedUrls.push(item)
+      }
+    } else if (rawData.baseUrl) {
+      feedUrls.push(rawData)
+    }
+  }
+
+  return { rawStatus, rawData, feedUrls }
 }
 
-// ---- Generator Slug Unik untuk URL /produk/[slug] ----
+// ---- Pembersihan & Pengolahan Teks ----
+function cleanProductName(title: string): string {
+  if (!title || typeof title !== 'string') return ''
+  let str = title.trim()
+  str = str.replace(/^(\[[^\]]+\]\s*)+/gi, '')
+  const parts = str.split('|').map((p) => p.trim()).filter(Boolean)
+  if (parts.length > 0) str = parts[0]
+  const slashParts = str.split(' / ').map((p) => p.trim()).filter(Boolean)
+  if (slashParts.length > 1 && slashParts[0].length >= 15) str = slashParts[0]
+  str = str.replace(/\s+/g, ' ').trim()
+  if (str.length > 90) {
+    str = str.substring(0, 90).replace(/\s+\S*$/, '').trim()
+  }
+  return str
+}
+
+function cleanProductDescription(text: string): string {
+  if (!text || typeof text !== 'string') return ''
+  let str = text
+  str = str.replace(/<br\s*\/?>|<\/p>|<\/div>/gi, '\n')
+  str = str.replace(/<[^>]+>/g, '')
+  str = str
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&#39;/g, "'")
+  const lines = str.split('\n')
+  const cleanedLines: string[] = []
+  for (const line of lines) {
+    const l = line.trim()
+    if (!l) continue
+    if (/#(?:[a-zA-Z0-9_]+)/.test(l)) continue
+    if (/(unboxing|reseller|order sekarang|buka toko|jam operasional|syarat & ketentuan|disclaimer|wajib video|garansi retur|pembelian grosir)/i.test(l)) continue
+    cleanedLines.push(l)
+  }
+  return cleanedLines.join('\n').replace(/\n{3,}/g, '\n\n').trim()
+}
+
 function slugify(text: string): string {
   return text
     .toLowerCase()
@@ -97,46 +171,188 @@ function generateSlug(name: string, externalId?: string | null): string {
   return slug.length > 90 ? slug.substring(0, 90).replace(/-+$/, '') : slug
 }
 
-// ---- Normalisasi 1 item dari feed Accesstrade ke bentuk affiliate_products ----
-// CATATAN: field di bawah ini adalah dugaan berdasarkan konvensi umum Accesstrade.
-// Setelah kamu lihat isi feed asli (fetch baseUrl-nya sekali secara manual),
-// SESUAIKAN mapping ini dengan nama field yang benar-benar dikembalikan.
-function mapFeedItem(item: any, merchant: string, campaignId: string) {
-  const extId = String(item.id ?? item.product_id ?? item.sku ?? '')
-  const productName = item.name ?? item.title ?? 'Produk tanpa nama'
+function parseNumeric(val: any): number | null {
+  if (val === undefined || val === null || val === '') return null
+  if (typeof val === 'number') return isNaN(val) ? null : val
+  let str = String(val).trim().replace(/Rp\s*|\$/gi, '')
+  if (str.includes('.') && str.includes(',')) {
+    if (str.lastIndexOf(',') > str.lastIndexOf('.')) {
+      str = str.replace(/\./g, '').replace(',', '.')
+    } else {
+      str = str.replace(/,/g, '')
+    }
+  } else if (str.includes('.') && !str.includes(',')) {
+    const parts = str.split('.')
+    if (parts.length > 2 || (parts.length === 2 && parts[1].length === 3)) {
+      str = str.replace(/\./g, '')
+    }
+  } else if (str.includes(',') && !str.includes('.')) {
+    str = str.replace(',', '.')
+  }
+  const num = parseFloat(str)
+  return isNaN(num) ? null : num
+}
+
+// ---- Parser CSV Sederhana & Andal ----
+function parseCsv(text: string): Record<string, string>[] {
+  const lines: string[] = []
+  let currentLine = ''
+  let inQuotes = false
+
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i]
+    if (char === '"') {
+      if (inQuotes && text[i + 1] === '"') {
+        currentLine += '"'
+        i++
+      } else {
+        inQuotes = !inQuotes
+      }
+    } else if ((char === '\n' || char === '\r') && !inQuotes) {
+      if (char === '\r' && text[i + 1] === '\n') i++
+      if (currentLine.trim()) lines.push(currentLine)
+      currentLine = ''
+    } else {
+      currentLine += char
+    }
+  }
+  if (currentLine.trim()) lines.push(currentLine)
+
+  if (lines.length < 2) return []
+
+  const parseRow = (line: string): string[] => {
+    const cells: string[] = []
+    let cell = ''
+    let inside = false
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i]
+      if (c === '"') {
+        if (inside && line[i + 1] === '"') {
+          cell += '"'
+          i++
+        } else {
+          inside = !inside
+        }
+      } else if (c === ',' && !inside) {
+        cells.push(cell.trim())
+        cell = ''
+      } else {
+        cell += c
+      }
+    }
+    cells.push(cell.trim())
+    return cells
+  }
+
+  const headers = parseRow(lines[0])
+  const rows: Record<string, string>[] = []
+
+  for (let i = 1; i < lines.length; i++) {
+    const values = parseRow(lines[i])
+    if (values.length === 0 || (values.length === 1 && !values[0])) continue
+    const rowObj: Record<string, string> = {}
+    for (let j = 0; j < headers.length; j++) {
+      rowObj[headers[j]] = values[j] !== undefined ? values[j] : ''
+    }
+    rows.push(rowObj)
+  }
+
+  return rows
+}
+
+// ---- Mapping Baris CSV ke Objek affiliate_products ----
+function mapCsvRowToProduct(
+  row: Record<string, string>,
+  merchant: string,
+  campaignId: string
+) {
+  const extId = String(
+    row['Merchant Product ID'] || row['Merchant_Product_ID'] || row['id'] || row['product_id'] || ''
+  ).trim()
+  const rawName = row['Merchant Product Name'] || row['name'] || row['title'] || 'Produk Afiliasi'
+  const cleanedName = cleanProductName(rawName)
+  const productUrl =
+    row['Product URL Web (encoded)'] ||
+    row['Product URL Mobile (encoded)'] ||
+    row['Product URL'] ||
+    row['product_url'] ||
+    ''
+  const affiliateUrl =
+    row['Product URL Web (encoded)'] ||
+    row['Product URL Mobile (encoded)'] ||
+    row['affiliate_url'] ||
+    productUrl
+  const imageUrl = row['Image URL'] || row['image_url'] || row['Image URL Additional'] || ''
+  const rawDesc = row['Description'] || row['description'] || ''
+  const cleanedDesc = cleanProductDescription(rawDesc)
+
+  const normalPrice = parseNumeric(row['Price'] || row['price'] || row['original_price'])
+  const promoPrice = parseNumeric(row['Discounted Price'] || row['discounted_price'] || row['sale_price'])
+
+  const finalPrice = promoPrice && promoPrice > 0 ? promoPrice : (normalPrice || 0)
+  const originalPrice = normalPrice && normalPrice > finalPrice ? normalPrice : null
+
+  let discountPercent: number | null = null
+  if (originalPrice && finalPrice && originalPrice > finalPrice) {
+    discountPercent = Math.round(((originalPrice - finalPrice) / originalPrice) * 100)
+  }
+
+  const category =
+    row['Sub category Name'] || row['Category Name'] || row['Main Category Name'] || row['category'] || ''
+  const shopName = row['Brand'] || row['Merchant Name'] || row['shop_name'] || ''
+  const itemSold = parseNumeric(row['item_sold']) || 0
+  const itemRating = parseNumeric(row['item_rating'])
+
+  const now = new Date().toISOString()
 
   return {
     source: 'accesstrade',
     merchant,
     campaign_id: campaignId,
-    external_product_id: extId,
-    name: productName,
-    slug: generateSlug(productName, extId),
-    description: item.description ?? null,
-    image_url: item.image ?? item.image_url ?? item.thumbnail ?? null,
-    product_url: item.url ?? item.product_url ?? null,
-    affiliate_url: item.aff_link ?? item.affiliate_url ?? item.url ?? '',
-    price: item.price ?? item.sale_price ?? null,
-    original_price: item.original_price ?? item.list_price ?? null,
-    discount_percent: item.discount ?? item.discount_percent ?? null,
-    commission_rate: item.commission ?? item.commission_rate ?? null,
-    shop_name: item.shop_name ?? item.merchant_name ?? null,
-    category: item.category ?? null,
+    external_product_id: extId || null,
+    name: cleanedName,
+    slug: generateSlug(cleanedName, extId),
+    description: cleanedDesc || null,
+    image_url: imageUrl || null,
+    product_url: productUrl || null,
+    affiliate_url: affiliateUrl,
+    price: finalPrice,
+    original_price: originalPrice,
+    discount_percent: discountPercent,
+    shop_name: shopName || null,
+    category: category || null,
     is_active: true,
-    raw_data: item,
-    last_synced_at: new Date().toISOString(),
+    raw_data: {
+      item_sold: itemSold,
+      item_rating: itemRating,
+      master_product_id: row['Master Product ID'] || null,
+      master_product_name: row['Master Product Name'] || null,
+    },
+    last_synced_at: now,
   }
 }
 
+// ---- Main Handler ----
 Deno.serve(async (req) => {
-  if (req.method !== 'POST') {
-    return new Response('Gunakan POST untuk memicu sync', { status: 405 })
+  if (req.method !== 'POST' && req.method !== 'GET') {
+    return new Response('Gunakan POST atau GET untuk memicu sync', { status: 405 })
   }
 
-  const supabase = createClient(
-    Deno.env.get('SUPABASE_URL')!,
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-  )
+  const urlObj = new URL(req.url)
+  let requestBody: any = {}
+  if (req.method === 'POST') {
+    try {
+      requestBody = await req.json()
+    } catch {
+      requestBody = {}
+    }
+  }
+
+  // Cek parameter mode Debug
+  const isDebug =
+    urlObj.searchParams.get('debug') === 'true' ||
+    req.headers.get('x-debug') === 'true' ||
+    requestBody.debug === true
 
   const userUid = Deno.env.get('ACCESSTRADE_USER_UID')!
   const secretKey = Deno.env.get('ACCESSTRADE_SECRET_KEY')!
@@ -149,6 +365,43 @@ Deno.serve(async (req) => {
       { status: 500, headers: { 'Content-Type': 'application/json' } }
     )
   }
+
+  // ---- MODE DEBUG: Inspeksi Response Mentah Accesstrade API ----
+  if (isDebug) {
+    try {
+      const jwt = await signJwt(userUid, secretKey)
+      const targetCampaignId = requestBody.campaignId || urlObj.searchParams.get('campaignId') || (campaigns[0]?.campaignId ?? '966')
+      const debugInfo = await getProductFeedUrls(jwt, siteId, targetCampaignId)
+
+      return new Response(
+        JSON.stringify(
+          {
+            debug: true,
+            message: 'Mode Debug Aktif. Menampilkan response mentah dari Accesstrade API.',
+            config: {
+              accesstrade_base_url: ACCESSTRADE_BASE,
+              userUid,
+              siteId,
+              targetCampaignId,
+            },
+            rawStatus: debugInfo.rawStatus,
+            rawResponseBody: debugInfo.rawData,
+            extractedFeedUrls: debugInfo.feedUrls,
+          },
+          null,
+          2
+        ),
+        { headers: { 'Content-Type': 'application/json' } }
+      )
+    } catch (debugErr) {
+      const msg = debugErr instanceof Error ? debugErr.message : String(debugErr)
+      return new Response(
+        JSON.stringify({ debug: true, error: msg }, null, 2),
+        { status: 500, headers: { 'Content-Type': 'application/json' } }
+      )
+    }
+  }
+
   if (campaigns.length === 0) {
     return new Response(
       JSON.stringify({ error: 'Belum ada campaign dikonfigurasi di ACCESSTRADE_CAMPAIGNS' }),
@@ -156,40 +409,97 @@ Deno.serve(async (req) => {
     )
   }
 
+  const supabase = createClient(
+    Deno.env.get('SUPABASE_URL')!,
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+  )
+
+  const MIN_ITEM_SOLD = Number(Deno.env.get('ACCESSTRADE_MIN_ITEM_SOLD') || '10')
+  const MAX_PRODUCTS_PER_SYNC = Number(Deno.env.get('ACCESSTRADE_MAX_PRODUCTS_PER_SYNC') || '5000')
+  const BATCH_SIZE = 500
+
   const jwt = await signJwt(userUid, secretKey)
   const results: Record<string, unknown>[] = []
   let totalSynced = 0
 
   for (const { merchant, campaignId } of campaigns) {
+    if (totalSynced >= MAX_PRODUCTS_PER_SYNC) {
+      console.log(`[AccesstradeSync] Batas maksimal sync tercapai (${totalSynced}/${MAX_PRODUCTS_PER_SYNC}). Berhenti.`)
+      break
+    }
+
     try {
-      const feedUrl = await getProductFeedUrl(jwt, siteId, campaignId)
-      const feedRes = await fetch(feedUrl)
-      if (!feedRes.ok) throw new Error(`Feed fetch gagal: ${feedRes.status}`)
+      const { feedUrls } = await getProductFeedUrls(jwt, siteId, campaignId)
+      if (feedUrls.length === 0) {
+        throw new Error(`Tidak ada feed URL ditemukan untuk campaign ${campaignId}`)
+      }
 
-      const feedData = await feedRes.json()
-      // Feed biasanya berupa array langsung, atau { data: [...] } / { products: [...] }
-      const items: any[] = Array.isArray(feedData)
-        ? feedData
-        : feedData.data ?? feedData.products ?? []
+      let campaignSyncedCount = 0
 
-      const rows = items.map((item) => mapFeedItem(item, merchant, campaignId))
+      for (const feedItem of feedUrls) {
+        if (totalSynced >= MAX_PRODUCTS_PER_SYNC) break
 
-      if (rows.length > 0) {
-        const { error } = await supabase
-          .from('affiliate_products')
-          .upsert(rows, { onConflict: 'merchant,campaign_id,external_product_id' })
-        if (error) throw error
+        console.log(`[AccesstradeSync] Fetching CSV dari baseUrl: ${feedItem.baseUrl}`)
+        const feedRes = await fetch(feedItem.baseUrl)
+        if (!feedRes.ok) {
+          console.warn(`Feed fetch gagal (${feedRes.status}) untuk ${feedItem.baseUrl}`)
+          continue
+        }
+
+        const csvText = await feedRes.text()
+        const rawRows = parseCsv(csvText)
+        console.log(`[AccesstradeSync] Terbaca ${rawRows.length} baris dari CSV feed.`)
+
+        const validProducts: any[] = []
+
+        for (const row of rawRows) {
+          if (totalSynced + validProducts.length >= MAX_PRODUCTS_PER_SYNC) {
+            break
+          }
+
+          // Filter 1: Available == true
+          const availRaw = String(row['Available'] || row['available'] || 'true').toLowerCase().trim()
+          const isAvailable = availRaw === 'true' || availRaw === '1' || availRaw === 'yes'
+          if (!isAvailable) continue
+
+          // Filter 2: Min Item Sold Threshold
+          const itemSold = parseNumeric(row['item_sold']) || 0
+          if (itemSold < MIN_ITEM_SOLD) continue
+
+          // Filter 3: Nama produk valid
+          const productName = cleanProductName(row['Merchant Product Name'] || row['name'] || '')
+          if (!productName) continue
+
+          const productObj = mapCsvRowToProduct(row, merchant, campaignId)
+          if (!productObj.affiliate_url) continue
+
+          validProducts.push(productObj)
+        }
+
+        // Batch Insert / Upsert ke Supabase
+        for (let b = 0; b < validProducts.length; b += BATCH_SIZE) {
+          const batch = validProducts.slice(b, b + BATCH_SIZE)
+          const { error } = await supabase
+            .from('affiliate_products')
+            .upsert(batch, { onConflict: 'merchant,campaign_id,external_product_id' })
+
+          if (error) {
+            console.error(`[AccesstradeSync] Supabase batch upsert error:`, error)
+          } else {
+            campaignSyncedCount += batch.length
+            totalSynced += batch.length
+          }
+        }
       }
 
       await supabase.from('affiliate_sync_logs').insert({
         merchant,
         campaign_id: campaignId,
         status: 'success',
-        products_synced: rows.length,
+        products_synced: campaignSyncedCount,
       })
 
-      totalSynced += rows.length
-      results.push({ merchant, campaignId, synced: rows.length })
+      results.push({ merchant, campaignId, synced: campaignSyncedCount })
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
       await supabase.from('affiliate_sync_logs').insert({
@@ -213,7 +523,7 @@ Deno.serve(async (req) => {
     }
   }
 
-  return new Response(JSON.stringify({ results, totalSynced }, null, 2), {
+  return new Response(JSON.stringify({ results, totalSynced, maxLimit: MAX_PRODUCTS_PER_SYNC }, null, 2), {
     headers: { 'Content-Type': 'application/json' },
   })
 })
