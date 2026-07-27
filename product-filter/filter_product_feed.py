@@ -61,8 +61,8 @@ OUTPUT_FILE = "product_list_966_20260727_FILTERED.csv"
 AUTO_UPLOAD_TO_SUPABASE = True
 
 # Supabase Credentials (otomatis dibaca dari file .env)
-SUPABASE_URL = os.getenv("VITE_SUPABASE_URL", "https://wijcneupieamacbdphmt.supabase.co")
-SUPABASE_KEY = os.getenv("VITE_SUPABASE_ANON_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndpamNuZXVwaWVhbWFjYmRwaG10Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ3MjQzNDYsImV4cCI6MjEwMDMwMDM0Nn0.7B_Qt-TNVEL0KupSZjG41E6Kd1t9ByN-i9TaocFdydA")
+SUPABASE_URL = os.getenv("VITE_SUPABASE_URL") or os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("VITE_SUPABASE_ANON_KEY") or os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_KEY")
 
 # Ambil berapa produk terbaik PER SUB KATEGORI.
 # Kenapa per sub kategori (bukan top N dari total): supaya variasi produk
@@ -305,6 +305,11 @@ def generate_slug(name: str, ext_id: str) -> str:
 
 def upload_to_supabase(df: pd.DataFrame, supabase_url: str, supabase_key: str):
     """Mengunggah data hasil saringan langsung ke tabel affiliate_products di Supabase."""
+    if not supabase_url or not supabase_key:
+        print("\n❌ [ERROR] Kredensial Supabase tidak ditemukan!")
+        print("   Pastikan file .env berisi VITE_SUPABASE_URL dan VITE_SUPABASE_ANON_KEY.")
+        return
+
     print(f"\n============================================================")
     print(f"Mengunggah {len(df):,} produk ke Supabase ({supabase_url})...")
     print(f"============================================================")
