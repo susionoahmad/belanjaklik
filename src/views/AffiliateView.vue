@@ -39,8 +39,8 @@
             class="w-full py-2.5 px-3 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl text-xs sm:text-sm focus:outline-none focus:border-brand-red dark:text-white"
           >
             <option value="latest">Terbaru</option>
-            <option value="sold">Terlaris (Item Sold)</option>
-            <option value="discount">Diskon Terbesar</option>
+            <option v-if="selectedMerchant !== 'tokopedia'" value="sold">Terlaris (Item Sold)</option>
+            <option v-if="selectedMerchant !== 'tokopedia'" value="discount">Diskon Terbesar</option>
             <option value="price_low">Harga Terendah</option>
             <option value="price_high">Harga Tertinggi</option>
           </select>
@@ -85,6 +85,18 @@
           <span>{{ cat.name }}</span>
         </button>
       </div>
+    </div>
+
+    <!-- Tokopedia data info note -->
+    <div
+      v-if="selectedMerchant === 'tokopedia'"
+      class="flex items-start gap-2.5 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/50 rounded-2xl px-4 py-3 text-xs text-amber-800 dark:text-amber-300"
+    >
+      <span class="text-base shrink-0">ℹ️</span>
+      <span>
+        <strong>Produk Tokopedia</strong> dari feed Accesstrade tidak menyertakan data item terjual & harga asli.
+        Filter diskon tidak tersedia. Gunakan <strong>Harga Terendah / Tertinggi</strong> atau <strong>Terbaru</strong> untuk mengurutkan.
+      </span>
     </div>
 
     <!-- Product Grid State -->
@@ -314,6 +326,10 @@ const selectCategory = (catId: string) => {
 
 const selectMerchant = (merchantId: string) => {
   selectedMerchant.value = merchantId;
+  // Reset sort options not available for Tokopedia-only view
+  if (merchantId === 'tokopedia' && (sortBy.value === 'sold' || sortBy.value === 'discount')) {
+    sortBy.value = 'latest';
+  }
   loadProducts(true);
 };
 
