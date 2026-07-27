@@ -83,11 +83,14 @@ async function getProductFeedUrls(
 ): Promise<{ rawStatus: number; rawData: any; feedUrls: ProductFeedUrlItem[]; testedEndpoints?: any[] }> {
   const candidateUrls = [
     `${ACCESSTRADE_BASE}/v1/publishers/me/sites/${siteId}/campaigns/${campaignId}/productfeed/url?countryCode=ID`,
+    `${ACCESSTRADE_BASE}/v1/publishers/me/sites/${siteId}/campaigns/${campaignId}/productfeed/url?countryCode=id`,
     `${ACCESSTRADE_BASE}/v1/publishers/me/sites/${siteId}/campaigns/${campaignId}/productfeed/url`,
     `${ACCESSTRADE_BASE}/v1/publishers/me/sites/${siteId}/campaigns/${campaignId}/productfeed`,
-    `${ACCESSTRADE_BASE}/v1/publishers/me/sites/${siteId}/productfeed/url`,
+    `${ACCESSTRADE_BASE}/v1/publishers/me/sites/${siteId}/campaigns/${campaignId}/productfeeds`,
+    `${ACCESSTRADE_BASE}/v1/publishers/me/sites/${siteId}/campaigns/${campaignId}/datafeed`,
+    `${ACCESSTRADE_BASE}/v1/campaigns/${campaignId}/productfeed/url?siteId=${siteId}`,
+    `${ACCESSTRADE_BASE}/v1/campaigns/${campaignId}/productfeed?siteId=${siteId}`,
     `https://gurkha.accesstrade.global/v1/publishers/me/sites/${siteId}/campaigns/${campaignId}/productfeed/url?countryCode=ID`,
-    `https://gurkha.accesstrade.global/v1/publishers/me/sites/${siteId}/campaigns/${campaignId}/productfeed/url`,
   ]
 
   const testedEndpoints: any[] = []
