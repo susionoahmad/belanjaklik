@@ -579,6 +579,90 @@ Deno.serve(async (req) => {
   const results: Record<string, unknown>[] = []
   let totalSynced = 0
 
+  // Check jika ada direct CSV Feed URLs di ENV
+  const csvUrlsFromEnv = Deno.env.get('ACCESSTRADE_CSV_URLS')
+  let directCsvUrls: string[] = []
+  if (csvUrlsFromEnv) {
+    try {
+      directCsvUrls = JSON.parse(csvUrlsFromEnv)
+    } catch {
+      directCsvUrls = csvUrlsFromEnv.split(',').map((s) => s.trim()).filter(Boolean)
+    }
+  }
+
+  if (directCsvUrls.length > 0) {
+    console.log(`[AccesstradeSync] Menggunakan ${directCsvUrls.length} URL CSV langsung dari ACCESSTRADE_CSV_URLS`)
+    const merchant = 'accesstrade'
+    const campaignId = 'direct_csv'
+
+    for (const feedUrl of directCsvUrls) {
+      if (totalSynced >= MAX_PRODUCTS_PER_SYNC) break
+      console.log(`[AccesstradeSync] Fetching CSV dari: ${feedUrl}`)
+      try {
+        const feedRes = await fetch(feedUrl)
+        if (!feedRes.ok) {
+          console.warn(`Fetch gagal (${feedRes.status}) untuk ${feedUrl}`)
+          continue
+        }
+        const csvText = await feedRes.text()
+        const rawRows = parseCsv(csvText)
+        console.log(`[AccesstradeSync] Terbaca ${rawRows.length} baris dari CSV.`)
+
+        const validProducts: any[] = []
+        for (const row of rawRows) {
+          if (totalSynced + validProducts.length >= MAX_PRODUCTS_PER_SYNC) break
+
+          const availRaw = String(row['Available'] || row['available'] || 'true').toLowerCase().trim()
+          const isAvailable = availRaw === 'true' || availRaw === '1' || availRaw === 'yes'
+          if (!isAvailable) continue
+
+          const itemSold = parseNumeric(row['item_sold']) || 0
+          if (itemSold < MIN_ITEM_SOLD) continue
+
+          const productName = cleanProductName(row['Merchant Product Name'] || row['name'] || '')
+          if (!productName) continue
+
+          const productObj = mapCsvRowToProduct(row, merchant, campaignId)
+          if (!productObj.affiliate_url) continue
+
+          validProducts.push(productObj)
+        }
+
+        let syncedForThisUrl = 0
+        for (let b = 0; b < validProducts.length; b += BATCH_SIZE) {
+          const batch = validProducts.slice(b, b + BATCH_SIZE)
+          const { error } = await supabase
+            .from('affiliate_products')
+            .upsert(batch, { onConflict: 'merchant,campaign_id,external_product_id' })
+          if (!error) {
+            syncedForThisUrl += batch.length
+            totalSynced += batch.length
+          } else {
+            console.error('[AccesstradeSync] Supabase batch upsert error:', error)
+          }
+        }
+        results.push({ feedUrl, synced: syncedForThisUrl })
+      } catch (err) {
+        console.error(`Gagal sync dari CSV URL ${feedUrl}:`, err)
+        results.push({ feedUrl, error: String(err) })
+      }
+    }
+
+    const deployHookUrl = Deno.env.get('VERCEL_DEPLOY_HOOK_URL')
+    if (deployHookUrl && totalSynced > 0) {
+      try {
+        await fetch(deployHookUrl, { method: 'POST' })
+      } catch (deployErr) {
+        console.error('Gagal memicu Vercel deploy hook:', deployErr)
+      }
+    }
+
+    return new Response(
+      JSON.stringify({ directCsvSync: true, results, totalSynced, maxLimit: MAX_PRODUCTS_PER_SYNC }, null, 2),
+      { headers: { 'Content-Type': 'application/json' } }
+    )
+  }
+
   for (const { merchant, campaignId } of campaigns) {
     if (totalSynced >= MAX_PRODUCTS_PER_SYNC) {
       console.log(`[AccesstradeSync] Batas maksimal sync tercapai (${totalSynced}/${MAX_PRODUCTS_PER_SYNC}). Berhenti.`)
