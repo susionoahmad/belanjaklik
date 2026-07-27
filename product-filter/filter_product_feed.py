@@ -508,6 +508,7 @@ def upload_to_supabase(df: pd.DataFrame, supabase_url: str, supabase_key: str):
                 record["slug"] = matched["slug"]
             updated_count += 1
         else:
+            record["id"] = None
             new_count += 1
 
         raw_records.append(record)
@@ -534,29 +535,67 @@ def upload_to_supabase(df: pd.DataFrame, supabase_url: str, supabase_key: str):
         seen_slugs.add(rec["slug"])
         records.append(rec)
 
+    records_to_update = [dict(r) for r in records if r.get("id")]
+    records_to_insert = [dict(r) for r in records if not r.get("id")]
+
+    # Hapus key 'id' dari records_to_insert agar PostgreSQL gen_random_uuid() bekerja sempurna
+    for r in records_to_insert:
+        r.pop("id", None)
+
     batch_size = 500
     total_uploaded = 0
 
-    for i in range(0, len(records), batch_size):
-        batch = records[i:i + batch_size]
-        data_json = json.dumps(batch).encode('utf-8')
+    # 1. Upload/Update Batch untuk Produk Eksisting (on_conflict=id)
+    if records_to_update:
+        print(f"\n[1/2] Meng-update {len(records_to_update):,} produk eksisting di Supabase...")
+        endpoint_update = f"{supabase_url.rstrip('/')}/rest/v1/affiliate_products?on_conflict=id"
+        headers_update = {
+            "apikey": supabase_key,
+            "Authorization": f"Bearer {supabase_key}",
+            "Content-Type": "application/json",
+            "Prefer": "resolution=merge-duplicates"
+        }
+        for i in range(0, len(records_to_update), batch_size):
+            batch = records_to_update[i:i + batch_size]
+            data_json = json.dumps(batch).encode('utf-8')
+            req = urllib.request.Request(endpoint_update, data=data_json, headers=headers_update, method='POST')
+            try:
+                with urllib.request.urlopen(req) as resp:
+                    if resp.status in (200, 201, 204):
+                        total_uploaded += len(batch)
+                        print(f"  [OK] Update Batch {i // batch_size + 1} ({len(batch)} produk) berhasil...")
+            except urllib.error.HTTPError as e:
+                err_body = e.read().decode('utf-8', errors='ignore')
+                print(f"  [FAIL] HTTP Error Update {e.code}: {err_body}")
+            except Exception as e:
+                print(f"  [FAIL] Error update batch: {e}")
 
-        req = urllib.request.Request(endpoint, data=data_json, headers=headers, method='POST')
-        try:
-            with urllib.request.urlopen(req) as resp:
-                if resp.status in (200, 201, 204):
-                    total_uploaded += len(batch)
-                    print(f"  [OK] Batch {i // batch_size + 1} ({len(batch)} produk) berhasil di-upsert...")
-                else:
-                    print(f"  [FAIL] Batch {i // batch_size + 1} Gagal dengan status HTTP {resp.status}")
-        except urllib.error.HTTPError as e:
-            err_body = e.read().decode('utf-8', errors='ignore')
-            print(f"  [FAIL] HTTP Error {e.code}: {e.reason}")
-            print(f"    Detail Error dari Supabase: {err_body}")
-        except Exception as e:
-            print(f"  [FAIL] Error mengunggah batch {i // batch_size + 1}: {e}")
+    # 2. Upload/Insert Batch untuk Produk Baru (on_conflict=merchant,campaign_id,external_product_id)
+    if records_to_insert:
+        print(f"\n[2/2] Meng-insert {len(records_to_insert):,} produk baru ke Supabase...")
+        endpoint_insert = f"{supabase_url.rstrip('/')}/rest/v1/affiliate_products?on_conflict=merchant,campaign_id,external_product_id"
+        headers_insert = {
+            "apikey": supabase_key,
+            "Authorization": f"Bearer {supabase_key}",
+            "Content-Type": "application/json",
+            "Prefer": "resolution=merge-duplicates"
+        }
+        for i in range(0, len(records_to_insert), batch_size):
+            batch = records_to_insert[i:i + batch_size]
+            data_json = json.dumps(batch).encode('utf-8')
+            req = urllib.request.Request(endpoint_insert, data=data_json, headers=headers_insert, method='POST')
+            try:
+                with urllib.request.urlopen(req) as resp:
+                    if resp.status in (200, 201, 204):
+                        total_uploaded += len(batch)
+                        print(f"  [OK] Insert Batch {i // batch_size + 1} ({len(batch)} produk) berhasil...")
+            except urllib.error.HTTPError as e:
+                err_body = e.read().decode('utf-8', errors='ignore')
+                print(f"  [FAIL] HTTP Error Insert {e.code}: {err_body}")
+            except Exception as e:
+                print(f"  [FAIL] Error insert batch: {e}")
 
-    print(f"\nSelesai! Total {total_uploaded:,} produk berhasil terisi ke Supabase.")
+    print(f"\nSelesai! Total {total_uploaded:,} produk berhasil diproses ke Supabase.")
 
 
 if __name__ == "__main__":
