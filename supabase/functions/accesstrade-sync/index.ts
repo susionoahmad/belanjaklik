@@ -14,7 +14,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-const ACCESSTRADE_BASE = Deno.env.get('ACCESSTRADE_BASE_URL') || 'https://gurkha.accesstrade.co.id'
+const ACCESSTRADE_BASE = Deno.env.get('ACCESSTRADE_BASE_URL') || 'https://gurkha.accesstrade.global'
 
 interface CampaignConfig {
   merchant: string // 'shopee' | 'tiktok_shop' | 'tokopedia' | dst
@@ -46,9 +46,6 @@ async function signJwt(userUid: string, secretKey: string): Promise<string> {
   const header = { alg: 'HS256', typ: 'JWT' }
   const payload = { 
     sub: userUid, 
-    user_type: 'publisher',
-    userType: 'publisher',
-    role: 'publisher',
     iat: Math.floor(Date.now() / 1000) 
   }
 
