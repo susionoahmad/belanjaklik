@@ -80,47 +80,79 @@ async function getProductFeedUrls(
   jwt: string,
   siteId: string,
   campaignId: string
-): Promise<{ rawStatus: number; rawData: any; feedUrls: ProductFeedUrlItem[] }> {
-  const url = `${ACCESSTRADE_BASE}/v1/publishers/me/sites/${siteId}/campaigns/${campaignId}/productfeed/url?countryCode=ID`
-  const res = await fetch(url, {
-    headers: {
-      'Authorization': `Bearer ${jwt}`,
-      'X-Accesstrade-User-Type': 'publisher',
-      'x-accesstrade-user-type': 'publisher',
-      'X-User-Type': 'publisher',
-      'x-user-type': 'publisher',
-      'User-Type': 'publisher',
-    },
-  })
-  const rawStatus = res.status
-  const text = await res.text()
-  let rawData: any = null
-  try {
-    rawData = JSON.parse(text)
-  } catch {
-    rawData = text
-  }
+): Promise<{ rawStatus: number; rawData: any; feedUrls: ProductFeedUrlItem[]; testedEndpoints?: any[] }> {
+  const candidateUrls = [
+    `${ACCESSTRADE_BASE}/v1/publishers/me/sites/${siteId}/campaigns/${campaignId}/productfeed/url?countryCode=ID`,
+    `${ACCESSTRADE_BASE}/v1/publishers/me/sites/${siteId}/campaigns/${campaignId}/productfeed/url`,
+    `${ACCESSTRADE_BASE}/v1/publishers/me/sites/${siteId}/campaigns/${campaignId}/productfeed`,
+    `${ACCESSTRADE_BASE}/v1/publishers/me/sites/${siteId}/productfeed/url`,
+    `https://gurkha.accesstrade.global/v1/publishers/me/sites/${siteId}/campaigns/${campaignId}/productfeed/url?countryCode=ID`,
+    `https://gurkha.accesstrade.global/v1/publishers/me/sites/${siteId}/campaigns/${campaignId}/productfeed/url`,
+  ]
 
-  if (!res.ok) {
-    throw new Error(`Gagal ambil feed URL untuk campaign ${campaignId}: ${res.status} ${text}`)
-  }
+  const testedEndpoints: any[] = []
 
-  const feedUrls: ProductFeedUrlItem[] = []
-  if (Array.isArray(rawData)) {
-    for (const item of rawData) {
-      if (item && item.baseUrl) feedUrls.push(item)
-    }
-  } else if (rawData && typeof rawData === 'object') {
-    if (Array.isArray(rawData.data)) {
-      for (const item of rawData.data) {
-        if (item && item.baseUrl) feedUrls.push(item)
+  for (const url of candidateUrls) {
+    try {
+      const res = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${jwt}`,
+          'X-Accesstrade-User-Type': 'publisher',
+          'x-accesstrade-user-type': 'publisher',
+          'X-User-Type': 'publisher',
+          'x-user-type': 'publisher',
+          'User-Type': 'publisher',
+        },
+      })
+      const text = await res.text()
+      let parsedData: any = null
+      try {
+        parsedData = JSON.parse(text)
+      } catch {
+        parsedData = text
       }
-    } else if (rawData.baseUrl) {
-      feedUrls.push(rawData)
+
+      testedEndpoints.push({
+        url,
+        status: res.status,
+        response: parsedData,
+      })
+
+      if (res.ok) {
+        const feedUrls: ProductFeedUrlItem[] = []
+        if (Array.isArray(parsedData)) {
+          for (const item of parsedData) {
+            if (item && item.baseUrl) feedUrls.push(item)
+          }
+        } else if (parsedData && typeof parsedData === 'object') {
+          if (Array.isArray(parsedData.data)) {
+            for (const item of parsedData.data) {
+              if (item && item.baseUrl) feedUrls.push(item)
+            }
+          } else if (parsedData.baseUrl) {
+            feedUrls.push(parsedData)
+          }
+        }
+
+        if (feedUrls.length > 0) {
+          return { rawStatus: res.status, rawData: parsedData, feedUrls, testedEndpoints }
+        }
+      }
+    } catch (err) {
+      testedEndpoints.push({
+        url,
+        error: err instanceof Error ? err.message : String(err),
+      })
     }
   }
 
-  return { rawStatus, rawData, feedUrls }
+  const lastTest = testedEndpoints[0] || {}
+  return {
+    rawStatus: lastTest.status || 404,
+    rawData: lastTest.response || 'Tiga endpoint kandidat mengembalikan 404',
+    feedUrls: [],
+    testedEndpoints,
+  }
 }
 
 // ---- Pembersihan & Pengolahan Teks ----
