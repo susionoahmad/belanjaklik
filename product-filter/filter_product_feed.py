@@ -52,17 +52,17 @@ load_env_file()
 
 # Path file mentah hasil download dari ACCESSTRADE.
 # Bisa .csv atau .xlsx -- script ini otomatis mendeteksi dari ekstensi.
-INPUT_FILE = "all_category_tokopedia.csv"
+INPUT_FILE = "product_list_966_20260727.csv"
 
 # Nama file hasil filter (akan dibuat / ditimpa).
-OUTPUT_FILE = "all_category_tokopedia.csv_FILTERED.csv"
+OUTPUT_FILE = "product_list_966_20260727_FILTERED.csv"
 
 # Set True jika ingin hasil saringan LANGSUNG diupload ke Supabase!
 AUTO_UPLOAD_TO_SUPABASE = True
 
 # Supabase Credentials (otomatis dibaca dari file .env)
 SUPABASE_URL = os.getenv("VITE_SUPABASE_URL") or os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("VITE_SUPABASE_ANON_KEY") or os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_KEY")
+SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("VITE_SUPABASE_ANON_KEY") or os.getenv("SUPABASE_KEY")
 
 # Ambil berapa produk terbaik PER SUB KATEGORI.
 # Kenapa per sub kategori (bukan top N dari total): supaya variasi produk
@@ -498,6 +498,8 @@ def upload_to_supabase(df: pd.DataFrame, supabase_url: str, supabase_key: str):
             "price": final_price,
             "original_price": orig_price,
             "discount_percent": disc_percent,
+            "item_sold": item_sold,
+            "item_rating": round(item_rating, 2) if item_rating and item_rating > 0 else None,
             "shop_name": brand if brand and brand.lower() != "nan" else None,
             "category": cat if cat and cat.lower() != "nan" else None,
             "is_active": True,
@@ -511,7 +513,7 @@ def upload_to_supabase(df: pd.DataFrame, supabase_url: str, supabase_key: str):
         # Pencocokan Produk Eksisting Berdasarkan product_url & external_product_id
         url_key = product_url.strip().lower()
         ext_key = ext_id.replace('\ufeff', '').strip().lower()
-        matched = existing_map.get(url_key) or existing_map.get(ext_key)
+        matched = existing_map.get(ext_key) or existing_map.get(url_key)
 
         if matched:
             record["id"] = matched["id"]

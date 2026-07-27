@@ -242,7 +242,7 @@ const loadProducts = async (resetPage = false) => {
 
     // Determine sort column
     const sortCol = sortBy.value === 'discount' ? 'discount_percent'
-      : sortBy.value === 'sold' ? 'raw_data->>item_sold'
+      : sortBy.value === 'sold' ? 'item_sold'
       : sortBy.value === 'price_low' || sortBy.value === 'price_high' ? 'price'
       : 'created_at';
     const isAsc = sortBy.value === 'price_low';
@@ -265,7 +265,7 @@ const loadProducts = async (resetPage = false) => {
       }
 
       // Sort: Tokopedia use last_synced_at as default (since it has no discount or item_sold)
-      const col = merchant === 'tokopedia' && (sortCol === 'discount_percent' || sortCol === 'raw_data->>item_sold') ? 'last_synced_at' : sortCol;
+      const col = merchant === 'tokopedia' && (sortCol === 'discount_percent' || sortCol === 'item_sold') ? 'last_synced_at' : sortCol;
       q = q.order(col, { ascending: isAsc, nullsFirst: false });
 
       return q.range(offset, offset + limit - 1);

@@ -63,9 +63,20 @@
           </span>
         </div>
 
-        <!-- Commission / Info Tag (Opsional UI Touch) -->
+        <!-- Rating & Sales Count Badge -->
+        <div v-if="productRating > 0 || productSold > 0" class="mt-1 flex items-center gap-1.5 text-[10px] font-bold text-gray-500 dark:text-gray-400 flex-wrap">
+          <div v-if="productRating > 0" class="flex items-center gap-0.5 text-amber-500 bg-amber-50 dark:bg-amber-900/30 px-1.5 py-0.5 rounded-md border border-amber-200/60 dark:border-amber-700/40">
+            <Star class="w-3 h-3 fill-amber-400 text-amber-400 shrink-0" />
+            <span>{{ productRating.toFixed(1) }}</span>
+          </div>
+          <span v-if="productSold > 0" class="text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700/60 px-1.5 py-0.5 rounded-md">
+            {{ formatSold(productSold) }} terjual
+          </span>
+        </div>
+
+        <!-- Shop Name / Info Tag -->
         <div v-if="product.shop_name" class="mt-1 flex items-center gap-1 text-[10px] text-gray-500 dark:text-gray-400 font-medium">
-          <Store class="w-3 h-3 text-gray-400" />
+          <Store class="w-3 h-3 text-gray-400 shrink-0" />
           <span class="truncate">{{ product.shop_name }}</span>
         </div>
       </div>
@@ -85,7 +96,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import { ShoppingBag, ArrowRight, Store, ExternalLink } from 'lucide-vue-next';
+import { ShoppingBag, ArrowRight, Store, ExternalLink, Star } from 'lucide-vue-next';
 import type { AffiliateProduct } from '../types';
 import { formatRupiah } from '@/features/shared/utils/formatters';
 import { proxyImageUrl } from '@/features/tokosaya-sync/services/ImageProxyService';
@@ -111,6 +122,36 @@ const handleImageError = (event: Event) => {
 const formatPrice = (val?: number | null) => {
   if (!val || val <= 0) return 'Lihat Harga';
   return formatRupiah(val);
+};
+
+const productSold = computed(() => {
+  if (props.product.item_sold && props.product.item_sold > 0) {
+    return props.product.item_sold;
+  }
+  const rawSold = props.product.raw_data?.item_sold;
+  if (rawSold) {
+    const parsed = parseInt(String(rawSold), 10);
+    return isNaN(parsed) ? 0 : parsed;
+  }
+  return 0;
+});
+
+const productRating = computed(() => {
+  if (props.product.item_rating && props.product.item_rating > 0) {
+    return Number(props.product.item_rating);
+  }
+  const rawRating = props.product.raw_data?.item_rating;
+  if (rawRating) {
+    const parsed = parseFloat(String(rawRating));
+    return isNaN(parsed) ? 0 : parsed;
+  }
+  return 0;
+});
+
+const formatSold = (num: number) => {
+  if (num >= 10000) return `${Math.floor(num / 1000)}rb+`;
+  if (num >= 1000) return `${(num / 1000).toFixed(1).replace('.0', '')}rb+`;
+  return String(num);
 };
 
 const hasDiscount = computed(() => {

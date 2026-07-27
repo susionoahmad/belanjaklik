@@ -17,6 +17,8 @@ export interface AffiliateProduct {
   shop_name?: string | null;
   category?: string | null;
   is_active: boolean;
+  item_sold?: number | null;
+  item_rating?: number | null;
   raw_data?: any;
   last_synced_at?: string;
   created_at?: string;
