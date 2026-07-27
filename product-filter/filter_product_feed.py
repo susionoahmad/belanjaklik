@@ -345,13 +345,18 @@ def main():
         upload_to_supabase(df_output, SUPABASE_URL, SUPABASE_KEY)
 
 
-def generate_slug(name: str, ext_id: str) -> str:
+import hashlib
+
+def generate_slug(name: str, ext_id: str, merchant: str = "shopee") -> str:
     s = re.sub(r'[^a-zA-Z0-9\s-]', '', name.lower())
     s = re.sub(r'\s+', '-', s).strip('-')
     if not s:
         s = 'produk-afiliasi'
-    clean_id = re.sub(r'[^a-zA-Z0-9]', '', str(ext_id))[:12]
-    return f"{s[:60]}-{clean_id}"
+    clean_id = re.sub(r'[^a-zA-Z0-9]', '', str(ext_id)).strip()
+    if len(clean_id) > 12:
+        clean_id = clean_id[-12:]
+    merch_tag = (merchant[:2] if merchant else "sp").lower()
+    return f"{s[:45]}-{merch_tag}-{clean_id}"
 
 
 def upload_to_supabase(df: pd.DataFrame, supabase_url: str, supabase_key: str):
@@ -373,10 +378,10 @@ def upload_to_supabase(df: pd.DataFrame, supabase_url: str, supabase_key: str):
         "Prefer": "resolution=merge-duplicates"
     }
 
-    records = []
+    raw_records = []
     now_iso = datetime.now(timezone.utc).isoformat()
 
-    for _, row in df.iterrows():
+    for idx, row in df.iterrows():
         raw_name = str(row.get("name", "")).strip()
         name = clean_name(raw_name)
         if not name:
@@ -387,10 +392,11 @@ def upload_to_supabase(df: pd.DataFrame, supabase_url: str, supabase_key: str):
 
         if not ext_id or ext_id.lower() == "nan":
             if product_url and product_url.lower() != "nan":
-                h = abs(hash(product_url)) % 10000000
-                ext_id = f"url_{h}_{re.sub(r'[^a-zA-Z0-9]', '', product_url)[-10:]}"
+                h = hashlib.md5(product_url.encode('utf-8')).hexdigest()[:12]
+                ext_id = f"url_{h}"
             else:
-                ext_id = f"name_{re.sub(r'[^a-zA-Z0-9]', '', name)[:20]}"
+                h = hashlib.md5(f"{name}_{idx}".encode('utf-8')).hexdigest()[:12]
+                ext_id = f"prod_{h}"
 
         def parse_num(v):
             try:
@@ -415,10 +421,8 @@ def upload_to_supabase(df: pd.DataFrame, supabase_url: str, supabase_key: str):
         desc = clean_description(str(row.get("description", "")))
         cat = str(row.get("sub_category") or row.get("category") or "").strip()
         brand = str(row.get("brand", "")).strip()
-
         img_url = str(row.get("image_url", "")).strip()
 
-        # Otomatis deteksi Marketplace (shopee / tokopedia / lazada) dari product_url
         url_lower = product_url.lower()
         if "shopee" in url_lower:
             detected_merchant = "shopee"
@@ -435,7 +439,7 @@ def upload_to_supabase(df: pd.DataFrame, supabase_url: str, supabase_key: str):
             "campaign_id": "direct_csv",
             "external_product_id": ext_id,
             "name": name,
-            "slug": generate_slug(name, ext_id),
+            "slug": generate_slug(name, ext_id, detected_merchant),
             "description": desc if desc and desc.lower() != "nan" else None,
             "image_url": img_url if img_url and img_url.lower() != "nan" else None,
             "product_url": product_url if product_url and product_url.lower() != "nan" else None,
@@ -452,7 +456,30 @@ def upload_to_supabase(df: pd.DataFrame, supabase_url: str, supabase_key: str):
             },
             "last_synced_at": now_iso
         }
-        records.append(record)
+        raw_records.append(record)
+
+    # Deduplikasi record berdasarkan (merchant, campaign_id, external_product_id) & slug unik
+    seen_keys = set()
+    seen_slugs = set()
+    records = []
+
+    for rec in raw_records:
+        key = (rec["merchant"], rec["campaign_id"], rec["external_product_id"])
+        if key in seen_keys:
+            continue
+        
+        # Mencegah duplikasi slug yang memicu konflik unique constraint idx_affiliate_products_slug
+        base_slug = rec["slug"]
+        slug_candidate = base_slug
+        counter = 1
+        while slug_candidate in seen_slugs:
+            slug_candidate = f"{base_slug[:45]}-{counter}"
+            counter += 1
+
+        rec["slug"] = slug_candidate
+        seen_keys.add(key)
+        seen_slugs.add(rec["slug"])
+        records.append(rec)
 
     batch_size = 500
     total_uploaded = 0
@@ -466,11 +493,15 @@ def upload_to_supabase(df: pd.DataFrame, supabase_url: str, supabase_key: str):
             with urllib.request.urlopen(req) as resp:
                 if resp.status in (200, 201, 204):
                     total_uploaded += len(batch)
-                    print(f"  ✓ Batch {i // batch_size + 1} ({len(batch)} produk) berhasil di-upsert...")
+                    print(f"  [OK] Batch {i // batch_size + 1} ({len(batch)} produk) berhasil di-upsert...")
                 else:
-                    print(f"  ✗ Batch {i // batch_size + 1} Gagal dengan status HTTP {resp.status}")
+                    print(f"  [FAIL] Batch {i // batch_size + 1} Gagal dengan status HTTP {resp.status}")
+        except urllib.error.HTTPError as e:
+            err_body = e.read().decode('utf-8', errors='ignore')
+            print(f"  [FAIL] HTTP Error {e.code}: {e.reason}")
+            print(f"    Detail Error dari Supabase: {err_body}")
         except Exception as e:
-            print(f"  ✗ Error mengunggah batch {i // batch_size + 1}: {e}")
+            print(f"  [FAIL] Error mengunggah batch {i // batch_size + 1}: {e}")
 
     print(f"\nSelesai! Total {total_uploaded:,} produk berhasil terisi ke Supabase.")
 
