@@ -44,7 +44,13 @@ function base64url(input: ArrayBuffer | string): string {
 
 async function signJwt(userUid: string, secretKey: string): Promise<string> {
   const header = { alg: 'HS256', typ: 'JWT' }
-  const payload = { sub: userUid, iat: Math.floor(Date.now() / 1000) }
+  const payload = { 
+    sub: userUid, 
+    user_type: 'publisher',
+    userType: 'publisher',
+    role: 'publisher',
+    iat: Math.floor(Date.now() / 1000) 
+  }
 
   const encodedHeader = base64url(JSON.stringify(header))
   const encodedPayload = base64url(JSON.stringify(payload))
@@ -80,6 +86,10 @@ async function getProductFeedUrls(
     headers: {
       'Authorization': `Bearer ${jwt}`,
       'X-Accesstrade-User-Type': 'publisher',
+      'x-accesstrade-user-type': 'publisher',
+      'X-User-Type': 'publisher',
+      'x-user-type': 'publisher',
+      'User-Type': 'publisher',
     },
   })
   const rawStatus = res.status
