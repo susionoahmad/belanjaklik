@@ -14,12 +14,19 @@
         <span>{{ merchantStyle.label }}</span>
       </span>
 
-      <!-- Discount Badge -->
+      <!-- Discount / Bestseller Badge -->
       <span
         v-if="discountPercent > 0"
         class="bg-gradient-to-r from-red-600 to-rose-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow-2xs uppercase tracking-wider"
       >
         -{{ discountPercent }}%
+      </span>
+      <span
+        v-else
+        class="bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow-2xs uppercase tracking-wider flex items-center gap-0.5"
+      >
+        <span>⭐</span>
+        <span>BESTSELLER</span>
       </span>
     </div>
 
