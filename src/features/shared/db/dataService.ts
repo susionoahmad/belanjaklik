@@ -545,7 +545,7 @@ export const dataService = {
 
     // Auto-heal promo classification for products in Promo Merchant or promo items missing explicit promo_type
     sanitized.forEach(p => {
-      const isPromoProd = p.is_promo || (!!p.promo_price && p.promo_price < p.price) || p.category === 'Promo Merchant' || p.category_id === 'c2222222-2222-2222-2222-222222222222';
+      const isPromoProd = Boolean(p.is_promo) && Boolean(p.promo_price && p.promo_price < p.price);
       if (isPromoProd) {
         p.is_promo = true;
         const badgeUpper = String(p.promo_badge || '').toUpperCase();

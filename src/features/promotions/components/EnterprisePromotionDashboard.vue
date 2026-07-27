@@ -45,6 +45,100 @@
 
     <!-- Sub-Tab 2: Scheduler & Active Campaigns -->
     <div v-else-if="activeSubTab === 'scheduler'" class="space-y-4">
+      <!-- JSM Promo Settings & Expiry Control Card -->
+      <div class="bg-gradient-to-r from-amber-500/10 via-red-500/10 to-amber-500/10 dark:from-amber-950/40 dark:to-red-950/40 rounded-3xl p-5 border border-amber-300 dark:border-amber-700/60 space-y-4 shadow-soft">
+        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-amber-200 dark:border-amber-800/60 pb-3">
+          <div class="flex items-center gap-2.5">
+            <div class="w-9 h-9 rounded-2xl bg-amber-400 text-red-950 flex items-center justify-center shrink-0 shadow-xs font-black">
+              <Flame class="w-5 h-5 text-red-600 fill-red-600 animate-pulse" />
+            </div>
+            <div>
+              <h4 class="font-extrabold text-sm text-gray-900 dark:text-white flex items-center gap-2">
+                <span>Pengaturan Promo JSM (Jumat Sabtu Minggu)</span>
+              </h4>
+              <p class="text-[11px] text-gray-600 dark:text-gray-300">
+                Atur periode aktif promo JSM. Produk yang berakhir otomatis hilang dari section JSM & harganya kembali normal.
+              </p>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2 shrink-0">
+            <span 
+              class="px-3 py-1 rounded-full text-xs font-black uppercase shadow-xs flex items-center gap-1"
+              :class="isJsmCurrentlyExpired ? 'bg-red-100 text-red-700 border border-red-200' : 'bg-emerald-100 text-emerald-800 border border-emerald-300'"
+            >
+              <span>{{ isJsmCurrentlyExpired ? '🔴 PROMO BERAKHIR' : '🟢 PROMO AKTIF' }}</span>
+            </span>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div>
+            <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Tanggal Mulai JSM</label>
+            <input 
+              v-model="jsmForm.startDate" 
+              type="date" 
+              class="w-full px-3 py-2 rounded-xl border border-amber-300 dark:border-amber-700 bg-white dark:bg-gray-800 text-xs font-bold focus:ring-2 focus:ring-brand-red outline-none" 
+            />
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Tanggal Selesai JSM</label>
+            <input 
+              v-model="jsmForm.endDate" 
+              type="date" 
+              class="w-full px-3 py-2 rounded-xl border border-amber-300 dark:border-amber-700 bg-white dark:bg-gray-800 text-xs font-bold focus:ring-2 focus:ring-brand-red outline-none" 
+            />
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Status Kampanye JSM</label>
+            <select 
+              v-model="jsmForm.isActive" 
+              class="w-full px-3 py-2 rounded-xl border border-amber-300 dark:border-amber-700 bg-white dark:bg-gray-800 text-xs font-bold focus:ring-2 focus:ring-brand-red outline-none"
+            >
+              <option :value="true">✅ Aktifkan Promo JSM</option>
+              <option :value="false">🚫 Nonaktifkan / Akhiri Promo JSM</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="flex flex-wrap items-center justify-between gap-2.5 pt-1">
+          <div class="text-[11px] font-mono text-gray-600 dark:text-gray-400">
+            Periode Aktif Tampilan: <strong class="text-amber-700 dark:text-amber-300">{{ formattedJsmRange }}</strong>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-2">
+            <button 
+              @click="handleSaveJsmConfig" 
+              type="button" 
+              class="px-3.5 py-2 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-600 text-white shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
+            >
+              <Save class="w-3.5 h-3.5" />
+              <span>Simpan Tanggal JSM</span>
+            </button>
+
+            <button 
+              @click="handleQuickResetJsm" 
+              type="button" 
+              class="px-3.5 py-2 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
+            >
+              <RotateCcw class="w-3.5 h-3.5" />
+              <span>Set JSM Baru (+2 Hari)</span>
+            </button>
+
+            <button 
+              @click="handleForceExpireJsm" 
+              type="button" 
+              class="px-3.5 py-2 rounded-xl text-xs font-bold bg-red-600 hover:bg-red-700 text-white shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
+            >
+              <Trash2 class="w-3.5 h-3.5" />
+              <span>Akhiri JSM & Restore Harga</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
       <div class="bg-white dark:bg-gray-800 rounded-3xl p-5 border border-gray-100 dark:border-gray-700 shadow-soft space-y-3">
         <div class="flex items-center justify-between">
           <h4 class="font-extrabold text-sm text-gray-900 dark:text-white flex items-center gap-2">
@@ -225,16 +319,81 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
-import { BarChart3, Calendar, Sliders, Wand2, Sparkles } from 'lucide-vue-next';
+import { ref, computed, onMounted } from 'vue';
+import { BarChart3, Calendar, Sliders, Wand2, Sparkles, Flame, Save, RotateCcw, Trash2 } from 'lucide-vue-next';
 import { dataService } from '../../shared/db/dataService';
 import { CampaignAnalyticsEngine } from '../engine/CampaignAnalyticsEngine';
 import { AIBannerEnhancementEngine } from '../engine/AIBannerEnhancementEngine';
 import { CampaignTemplateLibrary } from '../engine/CampaignTemplateLibrary';
+import { JsmPromoService } from '../services/JsmPromoService';
+import { useCatalogStore } from '../../catalog/stores/catalogStore';
 import type { BannerVariant } from '../types/enterpriseTypes';
 
+const catalogStore = useCatalogStore();
 const activeSubTab = ref('analytics');
 const campaigns = ref<any[]>([]);
+
+const jsmConfig = ref(JsmPromoService.getJsmConfig());
+const jsmForm = ref({
+  startDate: jsmConfig.value.startDate,
+  endDate: jsmConfig.value.endDate,
+  isActive: jsmConfig.value.isActive
+});
+
+const isJsmCurrentlyExpired = computed(() => {
+  return JsmPromoService.isJsmExpired(jsmConfig.value);
+});
+
+const formattedJsmRange = computed(() => {
+  return JsmPromoService.formatJsmDateRange(jsmConfig.value.startDate, jsmConfig.value.endDate);
+});
+
+const handleSaveJsmConfig = async () => {
+  jsmConfig.value = JsmPromoService.saveJsmConfig({
+    startDate: jsmForm.value.startDate,
+    endDate: jsmForm.value.endDate,
+    isActive: Boolean(jsmForm.value.isActive)
+  });
+
+  await catalogStore.fetchCatalogData();
+  alert('✅ Pengaturan Promo JSM berhasil diperbarui!');
+};
+
+const handleQuickResetJsm = async () => {
+  const today = new Date();
+  const endDate = new Date(today);
+  endDate.setDate(today.getDate() + 2);
+
+  const startDateStr = today.toISOString().slice(0, 10);
+  const endDateStr = endDate.toISOString().slice(0, 10);
+
+  jsmForm.value = {
+    startDate: startDateStr,
+    endDate: endDateStr,
+    isActive: true
+  };
+
+  jsmConfig.value = JsmPromoService.saveJsmConfig({
+    startDate: startDateStr,
+    endDate: endDateStr,
+    isActive: true
+  });
+
+  await catalogStore.fetchCatalogData();
+  alert(`✅ Periode Promo JSM baru berhasil diaktifkan: ${JsmPromoService.formatJsmDateRange(startDateStr, endDateStr)}!`);
+};
+
+const handleForceExpireJsm = async () => {
+  if (!confirm('Apakah Anda yakin ingin mengakhiri Promo JSM sekarang? Seluruh produk JSM yang berakhir akan hilang dari section JSM dan harganya kembali ke harga normal semula.')) return;
+
+  const result = await JsmPromoService.forceExpireAllJsmPromos(catalogStore.products);
+  catalogStore.products = result.updatedProducts;
+  jsmConfig.value = JsmPromoService.getJsmConfig();
+  jsmForm.value.isActive = false;
+
+  await catalogStore.fetchCatalogData();
+  alert(`✅ Promo JSM telah diakhiri! ${result.expiredCount} produk JSM telah dikembalikan ke harga semula.`);
+};
 const analytics = ref<any>({
   impressions: 1240,
   banner_clicks: 186,

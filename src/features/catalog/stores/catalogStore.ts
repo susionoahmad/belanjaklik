@@ -3,6 +3,7 @@ import { ref, computed } from 'vue';
 import { useStorage } from '@vueuse/core';
 import type { Product, Category, FulfillmentChannel } from '../../shared/types';
 import { dataService } from '../../shared/db/dataService';
+import { JsmPromoService } from '../../promotions/services/JsmPromoService';
 
 export const useCatalogStore = defineStore('catalog', () => {
   const products = ref<Product[]>([]);
@@ -23,6 +24,11 @@ export const useCatalogStore = defineStore('catalog', () => {
       categories.value = await dataService.fetchCategories();
       channels.value = await dataService.fetchFulfillmentChannels();
       products.value = await dataService.fetchProducts();
+      // Auto-expire JSM promo products if period has ended and revert price to normal
+      const jsmResult = await JsmPromoService.processJsmExpirations(products.value);
+      if (jsmResult.expiredCount > 0) {
+        products.value = jsmResult.updatedProducts;
+      }
     } catch (e) {
       console.error('Failed to load catalog', e);
     } finally {

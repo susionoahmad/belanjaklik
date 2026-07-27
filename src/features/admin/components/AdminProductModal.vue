@@ -34,7 +34,7 @@
             <span class="text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-amber-200 text-amber-900">Config Promo</span>
           </div>
 
-          <div v-if="form.is_promo || form.promo_price" class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+          <div v-if="form.is_promo || form.promo_price" class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
             <div>
               <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Tipe Promo (Lokasi Tampilan)</label>
               <select v-model="form.promo_type" class="w-full px-3 py-2 rounded-xl border border-amber-300 dark:border-amber-700 bg-white dark:bg-gray-800 text-xs font-bold focus:ring-2 focus:ring-brand-red outline-none">
@@ -46,8 +46,13 @@
             </div>
 
             <div>
-              <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Teks Badge Promo (Tampilan Kartu)</label>
+              <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Teks Badge Promo (Kartu)</label>
               <input v-model="form.promo_badge" type="text" placeholder="Contoh: PROMO JSM (3 HARI)" class="w-full px-3 py-2 rounded-xl border border-amber-300 dark:border-amber-700 bg-white dark:bg-gray-800 text-xs font-bold focus:ring-2 focus:ring-brand-red outline-none" />
+            </div>
+
+            <div>
+              <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Tanggal Akhir Promo</label>
+              <input v-model="form.promo_end_date" type="date" class="w-full px-3 py-2 rounded-xl border border-amber-300 dark:border-amber-700 bg-white dark:bg-gray-800 text-xs font-bold focus:ring-2 focus:ring-brand-red outline-none" />
             </div>
           </div>
         </div>
@@ -197,6 +202,7 @@ const form = ref<{
   promo_type?: 'JSM' | 'FLASHSALE' | 'MEMBER' | 'SUPER_SAVER' | 'REGULAR';
   promo_badge?: string;
   promo_title?: string;
+  promo_end_date?: string;
   brand?: string;
   description?: string;
   category_id?: string;
@@ -215,6 +221,7 @@ const form = ref<{
   promo_type: 'REGULAR',
   promo_badge: '',
   promo_title: '',
+  promo_end_date: '',
   brand: '',
   description: '',
   category_id: '',
@@ -251,6 +258,7 @@ watch(() => props.product, (newP) => {
       promo_type: pType,
       promo_badge: newP.promo_badge || (pType === 'JSM' ? 'PROMO JSM (3 HARI)' : (pType === 'FLASHSALE' ? 'FLASHSALE' : (isPromoProd ? 'Diskon!' : ''))),
       promo_title: newP.promo_title || (pType === 'JSM' ? 'Promo Jumat Sabtu Minggu' : (pType === 'FLASHSALE' ? 'Flash Sale Hari Ini' : (isPromoProd ? 'Diskon Spesial' : ''))),
+      promo_end_date: newP.promo_end_date || '',
       brand: newP.brand || '',
       description: descClean || autoDesc,
       category_id: newP.category_id || '',
@@ -362,7 +370,8 @@ const handleSubmit = async () => {
     is_promo: isPromo,
     promo_type: isPromo ? (form.value.promo_type || 'REGULAR') : undefined,
     promo_badge: isPromo ? (form.value.promo_badge || (form.value.promo_type === 'JSM' ? 'PROMO JSM (3 HARI)' : (form.value.promo_type === 'FLASHSALE' ? 'FLASHSALE' : 'Diskon!'))) : undefined,
-    promo_title: isPromo ? (form.value.promo_title || (form.value.promo_type === 'JSM' ? 'Promo Jumat Sabtu Minggu' : (form.value.promo_type === 'FLASHSALE' ? 'Flash Sale Hari Ini' : 'Diskon Spesial'))) : undefined
+    promo_title: isPromo ? (form.value.promo_title || (form.value.promo_type === 'JSM' ? 'Promo Jumat Sabtu Minggu' : (form.value.promo_type === 'FLASHSALE' ? 'Flash Sale Hari Ini' : 'Diskon Spesial'))) : undefined,
+    promo_end_date: isPromo ? (form.value.promo_end_date || undefined) : undefined
   };
 
   await dataService.saveProduct(payload);

@@ -20,6 +20,8 @@ export type { CalculatedPromotionPrice } from './price-engine/PriceUpdateEngine'
 
 export { CampaignLifecycleService } from './services/CampaignLifecycleService';
 export { CampaignSchedulerService } from './services/CampaignSchedulerService';
+export { JsmPromoService } from './services/JsmPromoService';
+export type { JsmConfig } from './services/JsmPromoService';
 export { usePromotionStore } from './stores/promotionStore';
 
 export * from './types/campaignTypes';

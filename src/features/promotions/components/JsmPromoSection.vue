@@ -47,7 +47,7 @@
 
         <div class="hidden sm:flex items-center gap-2 bg-black/40 backdrop-blur-md px-3.5 py-2 rounded-2xl border border-white/20 text-xs font-mono font-extrabold text-yellow-300 shrink-0">
           <Calendar class="w-4 h-4 text-yellow-300" />
-          <span>24 - 26 Juli 2026</span>
+          <span>{{ jsmDateRange }}</span>
         </div>
       </div>
     </div>
@@ -116,6 +116,7 @@ import { formatRupiah } from '../../shared/utils/formatters';
 import { useCatalogStore } from '../../catalog/stores/catalogStore';
 import { PurchaseService } from '../../purchase/services/PurchaseService';
 import { proxyImageUrl } from '../../tokosaya-sync/services/ImageProxyService';
+import { JsmPromoService } from '../services/JsmPromoService';
 import type { Product } from '../../shared/types';
 
 defineEmits(['select']);
@@ -124,6 +125,12 @@ const catalogStore = useCatalogStore();
 const scrollContainerRef = ref<HTMLElement | null>(null);
 let autoScrollTimer: ReturnType<typeof setInterval> | null = null;
 let isPaused = false;
+
+const jsmConfig = computed(() => JsmPromoService.getJsmConfig());
+
+const jsmDateRange = computed(() => {
+  return JsmPromoService.formatJsmDateRange(jsmConfig.value.startDate, jsmConfig.value.endDate);
+});
 
 const iconMap: Record<string, any> = {
   Plus,
@@ -166,8 +173,15 @@ const resumeAutoScroll = () => {
   isPaused = false;
 };
 
-onMounted(() => {
+onMounted(async () => {
   startAutoScroll();
+  // Process any expired JSM products & restore base prices
+  if (catalogStore.products.length > 0) {
+    const result = await JsmPromoService.processJsmExpirations(catalogStore.products);
+    if (result.expiredCount > 0) {
+      catalogStore.products = result.updatedProducts;
+    }
+  }
 });
 
 onUnmounted(() => {
@@ -175,20 +189,7 @@ onUnmounted(() => {
 });
 
 const jsmProducts = computed(() => {
-  return catalogStore.products.filter(p => {
-    if (!p.is_promo && !p.promo_price) return false;
-
-    if (p.promo_type === 'JSM' || p.promo_badge?.toUpperCase().includes('JSM')) {
-      return true;
-    }
-
-    if (p.promo_type === 'FLASHSALE' || p.promo_badge?.toUpperCase().includes('FLASH')) {
-      return false;
-    }
-
-    const title = String(p.promo_title || '').toUpperCase();
-    return title.includes('JSM');
-  });
+  return JsmPromoService.filterActiveJsmProducts(catalogStore.products);
 });
 
 const getButtonConfig = (product: Product) => {
