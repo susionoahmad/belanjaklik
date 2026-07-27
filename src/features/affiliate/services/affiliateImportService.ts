@@ -333,6 +333,7 @@ export async function bulkUpsertAffiliateFeed(
       } else {
         slug += '-' + Math.random().toString(36).substring(2, 6);
       }
+      if (slug.length > 90) slug = slug.substring(0, 90).replace(/-+$/, '');
 
       return {
         merchant,

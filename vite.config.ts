@@ -114,20 +114,13 @@ export default defineConfig(({ mode }) => {
         return renderedHTML
       },
       async includedRoutes(paths: string[], _routes: any[]) {
-        const allowedStaticRoutes = [
-          '/',
-          '/catalog',
-          '/packages',
-          '/promos',
-          '/favorites',
-          '/orders',
-          '/admin',
-          '/privacy',
-          '/terms',
-          '/affiliate-disclosure',
-          '/about'
-        ];
-        return paths.filter((p: string) => allowedStaticRoutes.includes(p));
+        // Exclude all dynamic product routes from SSG pre-rendering
+        // Dynamic product detail pages are rendered client-side (SPA fallback) via Vue Router
+        return paths.filter((path: string) => 
+          !path.startsWith('/produk/') && 
+          !path.startsWith('/product/') && 
+          !path.includes(':')
+        );
       }
     }
 

@@ -89,10 +89,12 @@ function slugify(text: string): string {
 }
 
 function generateSlug(name: string, externalId?: string | null): string {
-  const base = slugify(name) || 'produk'
+  let base = slugify(name) || 'produk'
+  if (base.length > 70) base = base.substring(0, 70).replace(/-+$/, '')
   const cleanExtId = externalId ? slugify(String(externalId)).replace(/-/g, '').slice(-6) : ''
   const suffix = cleanExtId || Math.random().toString(36).substring(2, 8)
-  return `${base}-${suffix}`
+  const slug = `${base}-${suffix}`
+  return slug.length > 90 ? slug.substring(0, 90).replace(/-+$/, '') : slug
 }
 
 // ---- Normalisasi 1 item dari feed Accesstrade ke bentuk affiliate_products ----

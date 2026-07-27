@@ -131,6 +131,11 @@ def clean_name(title: str) -> str:
         
     # 4. Rapikan spasi
     title = re.sub(r'\s+', ' ', title).strip()
+
+    # 5. Potong judul jika masih lebih dari 90 karakter agar ringkas & ramah SEO
+    if len(title) > 90:
+        title = title[:90].rsplit(' ', 1)[0].strip()
+
     return title
 
 

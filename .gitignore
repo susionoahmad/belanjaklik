@@ -46,3 +46,4 @@ supabase/.temp/
 # Data / CSV files
 *.csv
 *.CSV
+.vite-ssg-temp

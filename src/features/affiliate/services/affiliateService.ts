@@ -172,14 +172,17 @@ export async function saveAffiliateProduct(payload: Partial<AffiliateProduct>): 
     discount_percent = Math.round(((payload.original_price - payload.price) / payload.original_price) * 100);
   }
 
-  // Generate slug if not set
+  // Generate & cap slug length (max 90 chars)
   let slug = payload.slug?.trim();
+  if (slug && slug.length > 90) {
+    slug = slug.substring(0, 90).replace(/-+$/, '');
+  }
   if (!slug && payload.name) {
     let base = payload.name
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-+|-+$/g, '');
-    if (base.length > 80) base = base.substring(0, 80).replace(/-+$/, '');
+    if (base.length > 70) base = base.substring(0, 70).replace(/-+$/, '');
     slug = base + '-' + Date.now().toString(36);
   }
 
