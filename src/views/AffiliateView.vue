@@ -162,80 +162,27 @@ const categoryTabs = [
   { id: 'all', name: 'Semua Kategori', icon: '🔥', kw: [] },
   {
     id: 'gadget', name: 'Gadget & Elektronik', icon: '📱',
-    kw: [
-      // Shopee
-      'camera', 'earphone', 'headphone', 'headset', 'speaker', 'audio', 'lighting', 'amplifier',
-      'electrical', 'data storage', 'remote control', 'large household', 'small household',
-      // Tokopedia
-      'bulbs', 'tubes', 'strips', 'powerline', 'vacuum sealer', 'hair styling tools',
-      'facial beauty device', 'dry cell', 'steamer',
-    ]
+    kw: ['camera', 'earphone', 'headphone', 'speaker', 'lighting', 'electrical', 'household appliance', 'bulbs', 'steamer', 'powerline'],
   },
   {
     id: 'baby', name: 'Ibu & Bayi', icon: '👶',
-    kw: [
-      // Shopee
-      'baby', 'diapering', 'potty', 'feeding', 'milk formula', 'nursery', 'pacifier',
-      'boy clothes', 'boy shoes', 'girl clothes', 'kid muslim', 'toys', 'slime', 'squishy',
-      // Tokopedia
-      'growth milk', 'baby vitamins', 'grooming wipes', 'action & toy', 'maternity',
-    ]
+    kw: ['baby', 'diapering', 'feeding', 'milk formula', 'nursery', 'toys', 'maternity', 'pacifier', 'potty'],
   },
   {
     id: 'beauty', name: 'Kecantikan & Skincare', icon: '💄',
-    kw: [
-      // Shopee
-      'skincare', 'makeup', 'beauty', 'face sunscreen', 'oral care', 'hair care', 'hair accessories',
-      'bath & body', 'personal care', 'perfume', 'fragrance', 'medical gloves', 'eyewear',
-      // Tokopedia
-      'bb & cc', 'concealer', 'foundation', 'eyeliner', 'lipliner', 'lipstick', 'lip gloss',
-      'lip treatment', 'eyebrow', 'face masks', 'face scrubs', 'facial cleanser', 'facial sunscreen',
-      'serums', 'toner', 'moisturizer', 'body moisturizer', 'deodorant', 'intimate wash',
-      'mouthwash', 'oral spray', 'toothpaste', 'shampoo', 'hair oil', 'hair removal',
-      'beauty supplement', 'men\'s fragrance', 'women\'s fragrance', 'unisex fragrance', 'fragrance set',
-    ]
+    kw: ['skincare', 'makeup', 'beauty', 'fragrance', 'oral care', 'hair care', 'personal care', 'lipstick', 'serum', 'toner'],
   },
   {
     id: 'kitchen', name: 'Dapur & Kuliner', icon: '🍳',
-    kw: [
-      // Shopee
-      'cooking essential', 'kitchenware', 'dinnerware', 'food staple', 'snack', 'beverage',
-      'dairy & eggs', 'breakfast cereal', 'convenience', 'ready-to-eat', 'fresh & frozen',
-      // Tokopedia
-      'chocolate', 'crisps', 'puffed snacks', 'cooking sauce', 'instant noodles', 'instant hotpot',
-      'herbs, spice', 'seasoning', 'dressing', 'spread', 'coffee', 'tea', 'vinegar', 'eggs',
-      'non-dairy milk', 'frozen food', 'baking tin', 'measuring utensil', 'lunch box',
-      'drinkware', 'disposable tableware', 'preserving container',
-    ]
+    kw: ['snack', 'food', 'cooking', 'beverage', 'dairy', 'chocolate', 'coffee', 'instant', 'cereal', 'sauce'],
   },
   {
     id: 'home', name: 'Rumah Tangga', icon: '🏠',
-    kw: [
-      // Shopee
-      'home care', 'home organizer', 'school & office', 'writing & correction', 'notebook',
-      'letters & envelope', 'tools & home', 'bedding', 'furniture', 'decoration', 'gardening',
-      'party supplie', 'souvenirs', 'gift',
-      // Tokopedia
-      'tissues & napkins', 'sponges', 'scouring', 'broom', 'hanger', 'hooks & rails',
-      'storage boxes', 'bins', 'curtain', 'blind', 'door hardware', 'roofing', 'flooring',
-      'tape', 'adhesive', 'cards & card stock', 'labels', 'textbook', 'writing & correction tools',
-      'table', 'desk', 'stool', 'bench', 'tapestry', 'sheets', 'pillowcase', 'water treatment',
-    ]
+    kw: ['home care', 'notebook', 'tissue', 'office', 'furniture', 'decoration', 'storage', 'curtain', 'bedding', 'tool'],
   },
   {
     id: 'fashion', name: 'Fashion & Hijab', icon: '👗',
-    kw: [
-      // Shopee
-      'women muslim wear', 'scarves & shawl', 'lingerie', 'underwear', 'pants & legging',
-      'jeans', 'shorts', 'tops', 'tote bag', 'crossbody', 'shoulder bag', 'wallet',
-      'bracelet', 'necklace', 'earring', 'women watches', 'eyewear', 'flat sandal',
-      // Tokopedia
-      'instant hijab', 'square hijab', 'pashmina', 'casual dress', 'formal dress',
-      'shirts & blouses', 'polo shirt', 't-shirts', 'women\'s t-shirt', 'jacket', 'coat',
-      'bras', 'shorts', 'socks', 'clothing set', 'sleepwear', 'pants',
-      'women\'s handbag', 'women\'s wallet', 'women\'s clutch', 'make-up bag', 'keychains',
-      'travel organizer', 'frames & glasses',
-    ]
+    kw: ['hijab', 'muslim wear', 'dress', 'shirt', 'pants', 'underwear', 'bag', 'wallet', 'scarves', 'pashmina'],
   },
 ];
 
