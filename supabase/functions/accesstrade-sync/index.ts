@@ -413,6 +413,66 @@ Deno.serve(async (req) => {
     try {
       const jwt = await signJwt(userUid, secretKey)
       const customUrl = requestBody.customUrl || urlObj.searchParams.get('customUrl')
+      const isListCampaigns = urlObj.searchParams.get('listCampaigns') === 'true' || requestBody.listCampaigns === true
+
+      if (isListCampaigns) {
+        const campaignEndpoints = [
+          `${ACCESSTRADE_BASE}/v1/publishers/me/sites/${siteId}/campaigns`,
+          `${ACCESSTRADE_BASE}/v1/publishers/me/sites/${siteId}/campaigns?status=APPROVED`,
+          `${ACCESSTRADE_BASE}/v1/publishers/me/sites/${siteId}/campaigns/joined`,
+          `${ACCESSTRADE_BASE}/v1/publishers/me/sites/${siteId}/campaigns/approved`,
+          `${ACCESSTRADE_BASE}/v1/publishers/me/sites/${siteId}/creatives`,
+          `${ACCESSTRADE_BASE}/v1/publishers/me/sites/${siteId}/productfeeds`,
+          `${ACCESSTRADE_BASE}/v1/campaigns`,
+        ]
+
+        const probeResults: any[] = []
+        for (const epUrl of campaignEndpoints) {
+          try {
+            const probeRes = await fetch(epUrl, {
+              headers: {
+                'Authorization': `Bearer ${jwt}`,
+                'X-Accesstrade-User-Type': 'publisher',
+                'x-accesstrade-user-type': 'publisher',
+                'X-User-Type': 'publisher',
+                'x-user-type': 'publisher',
+                'User-Type': 'publisher',
+              },
+            })
+            const probeText = await probeRes.text()
+            let probeData: any = null
+            try {
+              probeData = JSON.parse(probeText)
+            } catch {
+              probeData = probeText
+            }
+            probeResults.push({
+              url: epUrl,
+              status: probeRes.status,
+              response: probeData,
+            })
+          } catch (e) {
+            probeResults.push({
+              url: epUrl,
+              error: e instanceof Error ? e.message : String(e),
+            })
+          }
+        }
+
+        return new Response(
+          JSON.stringify(
+            {
+              debug: true,
+              mode: 'campaign_finder',
+              siteId,
+              probeResults,
+            },
+            null,
+            2
+          ),
+          { headers: { 'Content-Type': 'application/json' } }
+        )
+      }
 
       if (customUrl) {
         console.log(`[DebugMode] Probing customUrl: ${customUrl}`)
