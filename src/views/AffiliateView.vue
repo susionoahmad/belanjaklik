@@ -175,10 +175,14 @@ const loadProducts = async (resetPage = false) => {
   isLoading.value = true;
 
   try {
-    // When viewing 'all' category without search query, fetch balanced mix from Shopee & Tokopedia
-    if (selectedCategory.value === 'all' && !searchQuery.value.trim() && sortBy.value === 'sold') {
+    // Always fetch balanced 50/50 mix when viewing 'all' category without text search
+    if (selectedCategory.value === 'all' && !searchQuery.value.trim()) {
       const halfLimit = Math.ceil(PAGE_SIZE / 2);
       const offset = (currentPage.value - 1) * halfLimit;
+
+      const shoepeSort = sortBy.value === 'discount' ? 'discount_percent' : sortBy.value === 'price_low' || sortBy.value === 'price_high' ? 'price' : 'discount_percent';
+      const tokoSort = sortBy.value === 'discount' ? 'discount_percent' : sortBy.value === 'price_low' || sortBy.value === 'price_high' ? 'price' : 'last_synced_at';
+      const isAsc = sortBy.value === 'price_low';
 
       const [shopeeRes, tokoRes] = await Promise.all([
         supabase
@@ -186,14 +190,14 @@ const loadProducts = async (resetPage = false) => {
           .select('*')
           .eq('is_active', true)
           .eq('merchant', 'shopee')
-          .order('discount_percent', { ascending: false, nullsFirst: false })
+          .order(shoepeSort, { ascending: isAsc, nullsFirst: false })
           .range(offset, offset + halfLimit - 1),
         supabase
           .from('affiliate_products')
           .select('*')
           .eq('is_active', true)
           .eq('merchant', 'tokopedia')
-          .order('last_synced_at', { ascending: false })
+          .order(tokoSort, { ascending: isAsc, nullsFirst: false })
           .range(offset, offset + halfLimit - 1)
       ]);
 
@@ -207,12 +211,10 @@ const loadProducts = async (resetPage = false) => {
         if (i < tokoList.length) combined.push(tokoList[i]);
       }
 
-      if (combined.length > 0) {
-        products.value = combined;
-        hasNoMore.value = combined.length < PAGE_SIZE;
-        isLoading.value = false;
-        return;
-      }
+      products.value = combined;
+      hasNoMore.value = combined.length < PAGE_SIZE;
+      isLoading.value = false;
+      return;
     }
 
     let query = supabase
@@ -237,7 +239,7 @@ const loadProducts = async (resetPage = false) => {
 
     // Apply sorting
     if (sortBy.value === 'sold') {
-      query = query.order('last_synced_at', { ascending: false });
+      query = query.order('discount_percent', { ascending: false, nullsFirst: false });
     } else if (sortBy.value === 'discount') {
       query = query.order('discount_percent', { ascending: false, nullsFirst: false });
     } else if (sortBy.value === 'price_low') {
