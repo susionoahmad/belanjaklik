@@ -407,6 +407,184 @@ function mapCsvRowToProduct(
   }
 }
 
+// // ---- Memory-Efficient Streaming CSV Processor ----
+async function processCsvStreamResponse(
+  response: Response,
+  merchant: string,
+  campaignId: string,
+  supabase: any,
+  options: {
+    minItemSold: number
+    minRating: number
+    topNPerCategory: number
+    maxProductsPerSync: number
+    batchSize: number
+    getTotalSynced: () => number
+    addTotalSynced: (n: number) => void
+    categoryCounts: Record<string, number>
+  }
+): Promise<number> {
+  if (!response.body) return 0
+
+  const reader = response.body.getReader()
+  const decoder = new TextDecoder('utf-8')
+
+  let buffer = ''
+  let headers: string[] = []
+  let validBatch: any[] = []
+  let syncedInStream = 0
+  let isFirstChunk = true
+
+  const parseRowCells = (line: string): string[] => {
+    const cells: string[] = []
+    let cell = ''
+    let inside = false
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i]
+      if (c === '"') {
+        if (inside && line[i + 1] === '"') {
+          cell += '"'
+          i++
+        } else {
+          inside = !inside
+        }
+      } else if (c === ',' && !inside) {
+        cells.push(cell.trim())
+        cell = ''
+      } else {
+        cell += c
+      }
+    }
+    cells.push(cell.trim())
+    return cells
+  }
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) {
+        buffer += decoder.decode()
+        break
+      }
+
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split(/\r?\n/)
+      buffer = lines.pop() || ''
+
+      for (const line of lines) {
+        if (!line.trim()) continue
+        if (isFirstChunk && headers.length === 0) {
+          headers = parseRowCells(line)
+          isFirstChunk = false
+          continue
+        }
+
+        if (headers.length === 0) continue
+
+        const values = parseRowCells(line)
+        if (values.length === 0 || (values.length === 1 && !values[0])) continue
+
+        const rowObj: Record<string, string> = {}
+        for (let j = 0; j < headers.length; j++) {
+          rowObj[headers[j]] = values[j] !== undefined ? values[j] : ''
+        }
+
+        const availRaw = String(rowObj['Available'] || rowObj['available'] || 'true').toLowerCase().trim()
+        const isAvailable = availRaw === 'true' || availRaw === '1' || availRaw === 'yes'
+        if (!isAvailable) continue
+
+        const itemSold = parseNumeric(rowObj['item_sold']) || 0
+        if (itemSold < options.minItemSold) continue
+
+        if (options.minRating > 0) {
+          const itemRating = parseNumeric(rowObj['item_rating'])
+          if (itemRating !== null && itemRating > 0 && itemRating < options.minRating) continue
+        }
+
+        const productName = cleanProductName(rowObj['Merchant Product Name'] || rowObj['name'] || '')
+        if (!productName) continue
+
+        const productObj = mapCsvRowToProduct(rowObj, merchant, campaignId)
+        if (!productObj.affiliate_url) continue
+
+        const catKey = (productObj.category || 'Lainnya').toLowerCase().trim()
+        const currentCount = options.categoryCounts[catKey] || 0
+        if (currentCount >= options.topNPerCategory) continue
+
+        options.categoryCounts[catKey] = currentCount + 1
+        validBatch.push(productObj)
+
+        if (validBatch.length >= options.batchSize) {
+          const { error } = await supabase
+            .from('affiliate_products')
+            .upsert(validBatch, { onConflict: 'merchant,campaign_id,external_product_id' })
+          if (!error) {
+            syncedInStream += validBatch.length
+            options.addTotalSynced(validBatch.length)
+          } else {
+            console.error('[AccesstradeSync] Supabase batch upsert error:', error)
+          }
+          validBatch = []
+
+          if (options.getTotalSynced() >= options.maxProductsPerSync) {
+            try { await reader.cancel() } catch {}
+            return syncedInStream
+          }
+        }
+      }
+
+      if (options.getTotalSynced() >= options.maxProductsPerSync) {
+        try { await reader.cancel() } catch {}
+        return syncedInStream
+      }
+    }
+
+    if (buffer.trim() && headers.length > 0) {
+      const line = buffer.trim()
+      const values = parseRowCells(line)
+      if (values.length > 0 && (values.length > 1 || values[0])) {
+        const rowObj: Record<string, string> = {}
+        for (let j = 0; j < headers.length; j++) {
+          rowObj[headers[j]] = values[j] !== undefined ? values[j] : ''
+        }
+        const availRaw = String(rowObj['Available'] || rowObj['available'] || 'true').toLowerCase().trim()
+        const isAvailable = availRaw === 'true' || availRaw === '1' || availRaw === 'yes'
+        const itemSold = parseNumeric(rowObj['item_sold']) || 0
+        const productName = cleanProductName(rowObj['Merchant Product Name'] || rowObj['name'] || '')
+
+        if (isAvailable && itemSold >= options.minItemSold && productName) {
+          const productObj = mapCsvRowToProduct(rowObj, merchant, campaignId)
+          if (productObj.affiliate_url) {
+            const catKey = (productObj.category || 'Lainnya').toLowerCase().trim()
+            const currentCount = options.categoryCounts[catKey] || 0
+            if (currentCount < options.topNPerCategory) {
+              options.categoryCounts[catKey] = currentCount + 1
+              validBatch.push(productObj)
+            }
+          }
+        }
+      }
+    }
+
+    if (validBatch.length > 0) {
+      const { error } = await supabase
+        .from('affiliate_products')
+        .upsert(validBatch, { onConflict: 'merchant,campaign_id,external_product_id' })
+      if (!error) {
+        syncedInStream += validBatch.length
+        options.addTotalSynced(validBatch.length)
+      } else {
+        console.error('[AccesstradeSync] Supabase batch upsert error:', error)
+      }
+      validBatch = []
+    }
+  } catch (err) {
+    console.error('[AccesstradeSync] Stream processing error:', err)
+  }
+
+  return syncedInStream
+}
+
 // ---- Main Handler ----
 Deno.serve(async (req) => {
   if (req.method !== 'POST' && req.method !== 'GET') {
@@ -423,7 +601,6 @@ Deno.serve(async (req) => {
     }
   }
 
-  // Cek parameter mode Debug
   const isDebug =
     urlObj.searchParams.get('debug') === 'true' ||
     req.headers.get('x-debug') === 'true' ||
@@ -441,7 +618,7 @@ Deno.serve(async (req) => {
     )
   }
 
-  // ---- MODE DEBUG: Inspeksi Response Mentah Accesstrade API ----
+  // ---- MODE DEBUG ----
   if (isDebug) {
     try {
       const jwt = await signJwt(userUid, secretKey)
@@ -521,7 +698,6 @@ Deno.serve(async (req) => {
       }
 
       if (customUrl) {
-        console.log(`[DebugMode] Probing customUrl: ${customUrl}`)
         const probeRes = await fetch(customUrl, {
           headers: {
             'Authorization': `Bearer ${jwt}`,
@@ -589,7 +765,7 @@ Deno.serve(async (req) => {
     }
   }
 
-  if (campaigns.length === 0) {
+  if (campaigns.length === 0 && !Deno.env.get('ACCESSTRADE_CSV_URLS')) {
     return new Response(
       JSON.stringify({ error: 'Belum ada campaign dikonfigurasi di ACCESSTRADE_CAMPAIGNS' }),
       { status: 400, headers: { 'Content-Type': 'application/json' } }
@@ -612,7 +788,6 @@ Deno.serve(async (req) => {
   let totalSynced = 0
   const categoryCounts: Record<string, number> = {}
 
-  // Check jika ada direct CSV Feed URLs di ENV
   const csvUrlsFromEnv = Deno.env.get('ACCESSTRADE_CSV_URLS')
   let directCsvUrls: string[] = []
   if (csvUrlsFromEnv) {
@@ -628,6 +803,17 @@ Deno.serve(async (req) => {
       .filter((url) => url.startsWith('http://') || url.startsWith('https://'))
   }
 
+  const streamOptions = {
+    minItemSold: MIN_ITEM_SOLD,
+    minRating: MIN_RATING,
+    topNPerCategory: TOP_N_PER_CATEGORY,
+    maxProductsPerSync: MAX_PRODUCTS_PER_SYNC,
+    batchSize: BATCH_SIZE,
+    getTotalSynced: () => totalSynced,
+    addTotalSynced: (n: number) => { totalSynced += n },
+    categoryCounts,
+  }
+
   if (directCsvUrls.length > 0) {
     console.log(`[AccesstradeSync] Menggunakan ${directCsvUrls.length} URL CSV langsung dari ACCESSTRADE_CSV_URLS`)
     const merchant = 'accesstrade'
@@ -635,63 +821,23 @@ Deno.serve(async (req) => {
 
     for (const feedUrl of directCsvUrls) {
       if (totalSynced >= MAX_PRODUCTS_PER_SYNC) break
-      console.log(`[AccesstradeSync] Fetching CSV dari: ${feedUrl}`)
+      console.log(`[AccesstradeSync] Streaming CSV dari: ${feedUrl}`)
       try {
         const feedRes = await fetch(feedUrl)
         if (!feedRes.ok) {
           console.warn(`Fetch gagal (${feedRes.status}) untuk ${feedUrl}`)
           continue
         }
-        const csvText = await feedRes.text()
-        const rawRows = parseCsv(csvText)
-        console.log(`[AccesstradeSync] Terbaca ${rawRows.length} baris dari CSV.`)
 
-        const validProducts: any[] = []
-        for (const row of rawRows) {
-          if (totalSynced + validProducts.length >= MAX_PRODUCTS_PER_SYNC) break
+        const syncedCount = await processCsvStreamResponse(
+          feedRes,
+          merchant,
+          campaignId,
+          supabase,
+          streamOptions
+        )
 
-          const availRaw = String(row['Available'] || row['available'] || 'true').toLowerCase().trim()
-          const isAvailable = availRaw === 'true' || availRaw === '1' || availRaw === 'yes'
-          if (!isAvailable) continue
-
-          const itemSold = parseNumeric(row['item_sold']) || 0
-          if (itemSold < MIN_ITEM_SOLD) continue
-
-          // Filter Rating jika ACCESSTRADE_MIN_RATING diset > 0
-          if (MIN_RATING > 0) {
-            const itemRating = parseNumeric(row['item_rating'])
-            if (itemRating !== null && itemRating > 0 && itemRating < MIN_RATING) continue
-          }
-
-          const productName = cleanProductName(row['Merchant Product Name'] || row['name'] || '')
-          if (!productName) continue
-
-          const productObj = mapCsvRowToProduct(row, merchant, campaignId)
-          if (!productObj.affiliate_url) continue
-
-          // Filter Top N Per Sub Kategori
-          const catKey = (productObj.category || 'Lainnya').toLowerCase().trim()
-          const currentCount = categoryCounts[catKey] || 0
-          if (currentCount >= TOP_N_PER_CATEGORY) continue
-
-          categoryCounts[catKey] = currentCount + 1
-          validProducts.push(productObj)
-        }
-
-        let syncedForThisUrl = 0
-        for (let b = 0; b < validProducts.length; b += BATCH_SIZE) {
-          const batch = validProducts.slice(b, b + BATCH_SIZE)
-          const { error } = await supabase
-            .from('affiliate_products')
-            .upsert(batch, { onConflict: 'merchant,campaign_id,external_product_id' })
-          if (!error) {
-            syncedForThisUrl += batch.length
-            totalSynced += batch.length
-          } else {
-            console.error('[AccesstradeSync] Supabase batch upsert error:', error)
-          }
-        }
-        results.push({ feedUrl, synced: syncedForThisUrl })
+        results.push({ feedUrl, synced: syncedCount })
       } catch (err) {
         console.error(`Gagal sync dari CSV URL ${feedUrl}:`, err)
         results.push({ feedUrl, error: String(err) })
@@ -714,73 +860,29 @@ Deno.serve(async (req) => {
   }
 
   for (const { merchant, campaignId } of campaigns) {
-    if (totalSynced >= MAX_PRODUCTS_PER_SYNC) {
-      console.log(`[AccesstradeSync] Batas maksimal sync tercapai (${totalSynced}/${MAX_PRODUCTS_PER_SYNC}). Berhenti.`)
-      break
-    }
+    if (totalSynced >= MAX_PRODUCTS_PER_SYNC) break
 
     try {
       const { feedUrls } = await getProductFeedUrls(jwt, siteId, campaignId)
-      if (feedUrls.length === 0) {
-        throw new Error(`Tidak ada feed URL ditemukan untuk campaign ${campaignId}`)
-      }
+      if (feedUrls.length === 0) continue
 
       let campaignSyncedCount = 0
 
       for (const feedItem of feedUrls) {
         if (totalSynced >= MAX_PRODUCTS_PER_SYNC) break
 
-        console.log(`[AccesstradeSync] Fetching CSV dari baseUrl: ${feedItem.baseUrl}`)
         const feedRes = await fetch(feedItem.baseUrl)
-        if (!feedRes.ok) {
-          console.warn(`Feed fetch gagal (${feedRes.status}) untuk ${feedItem.baseUrl}`)
-          continue
-        }
+        if (!feedRes.ok) continue
 
-        const csvText = await feedRes.text()
-        const rawRows = parseCsv(csvText)
-        console.log(`[AccesstradeSync] Terbaca ${rawRows.length} baris dari CSV feed.`)
+        const syncedCount = await processCsvStreamResponse(
+          feedRes,
+          merchant,
+          campaignId,
+          supabase,
+          streamOptions
+        )
 
-        const validProducts: any[] = []
-
-        for (const row of rawRows) {
-          if (totalSynced + validProducts.length >= MAX_PRODUCTS_PER_SYNC) {
-            break
-          }
-
-          // Filter 1: Available == true
-          const availRaw = String(row['Available'] || row['available'] || 'true').toLowerCase().trim()
-          const isAvailable = availRaw === 'true' || availRaw === '1' || availRaw === 'yes'
-          if (!isAvailable) continue
-
-          // Filter 2: Min Item Sold Threshold
-          const itemSold = parseNumeric(row['item_sold']) || 0
-          if (itemSold < MIN_ITEM_SOLD) continue
-
-          // Filter 3: Nama produk valid
-          const productName = cleanProductName(row['Merchant Product Name'] || row['name'] || '')
-          if (!productName) continue
-
-          const productObj = mapCsvRowToProduct(row, merchant, campaignId)
-          if (!productObj.affiliate_url) continue
-
-          validProducts.push(productObj)
-        }
-
-        // Batch Insert / Upsert ke Supabase
-        for (let b = 0; b < validProducts.length; b += BATCH_SIZE) {
-          const batch = validProducts.slice(b, b + BATCH_SIZE)
-          const { error } = await supabase
-            .from('affiliate_products')
-            .upsert(batch, { onConflict: 'merchant,campaign_id,external_product_id' })
-
-          if (error) {
-            console.error(`[AccesstradeSync] Supabase batch upsert error:`, error)
-          } else {
-            campaignSyncedCount += batch.length
-            totalSynced += batch.length
-          }
-        }
+        campaignSyncedCount += syncedCount
       }
 
       await supabase.from('affiliate_sync_logs').insert({
@@ -803,12 +905,10 @@ Deno.serve(async (req) => {
     }
   }
 
-  // Trigger Vercel deploy hook jika ada produk baru/di-update
   const deployHookUrl = Deno.env.get('VERCEL_DEPLOY_HOOK_URL')
   if (deployHookUrl && totalSynced > 0) {
     try {
       await fetch(deployHookUrl, { method: 'POST' })
-      console.log(`Vercel deploy hook triggered (synced ${totalSynced} products)`)
     } catch (deployErr) {
       console.error('Gagal memicu Vercel deploy hook:', deployErr)
     }
