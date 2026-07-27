@@ -48,18 +48,18 @@
       </div>
 
       <!-- Marketplace Filter -->
-      <div class="flex items-center gap-2">
-        <span class="text-xs font-semibold text-gray-500 dark:text-gray-400 shrink-0">Marketplace:</span>
-        <div class="flex gap-1.5">
+      <div class="flex flex-col sm:flex-row sm:items-center gap-2">
+        <span class="text-xs font-bold text-gray-500 dark:text-gray-400 shrink-0">Marketplace:</span>
+        <div class="grid grid-cols-3 sm:flex gap-1.5 bg-gray-100/80 dark:bg-gray-700/50 p-1 sm:p-0 rounded-xl sm:rounded-none sm:bg-transparent sm:dark:bg-transparent">
           <button
             v-for="mp in merchantTabs"
             :key="mp.id"
             @click="selectMerchant(mp.id)"
             :class="[
-              'px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer border',
+              'px-2.5 py-2 sm:py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all flex items-center justify-center gap-1.5 cursor-pointer border text-center',
               selectedMerchant === mp.id
                 ? 'bg-brand-red text-white border-brand-red shadow-sm'
-                : 'bg-white dark:bg-gray-700/50 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-600 hover:border-brand-red hover:text-brand-red dark:hover:border-red-400'
+                : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-transparent sm:border-gray-200 sm:dark:border-gray-600 hover:border-brand-red hover:text-brand-red dark:hover:border-red-400'
             ]"
           >
             <span>{{ mp.icon }}</span>
