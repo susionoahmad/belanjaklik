@@ -378,11 +378,11 @@ def fetch_existing_products_map(supabase_url: str, supabase_key: str):
                     break
                 for r in rows:
                     p_url = str(r.get("product_url") or "").strip().lower()
-                    ext_id = str(r.get("external_product_id") or "").replace('\ufeff', '').strip().lower()
+                    raw_ext = str(r.get("external_product_id") or "").replace('\ufeff', '').strip().lower()
                     if p_url:
                         existing_map[p_url] = r
-                    if ext_id and ext_id != "null" and ext_id != "nan":
-                        existing_map[ext_id] = r
+                    if raw_ext and raw_ext != "null" and raw_ext != "nan":
+                        existing_map[raw_ext] = r
                 page += 1
     except Exception as e:
         print(f"  ℹ Membaca data eksisting Supabase: {e}")
@@ -401,8 +401,8 @@ def upload_to_supabase(df: pd.DataFrame, supabase_url: str, supabase_key: str):
     print(f"Mengunggah {len(df):,} produk ke Supabase ({supabase_url})...")
     print(f"============================================================")
 
-    # Ambil pemetaan data eksisting dari Supabase agar produk dengan product_url yang sama ter-UPDATE di tempat
-    print("Membaca data produk eksisting di Supabase untuk pencocokan URL...")
+    # Ambil pemetaan data eksisting dari Supabase agar produk dengan product_url/ID yang sama ter-UPDATE di tempat
+    print("Membaca data produk eksisting di Supabase untuk pencocokan URL & ID...")
     existing_map = fetch_existing_products_map(supabase_url, supabase_key)
     print(f"Ditemukan {len(existing_map):,} URL/ID produk eksisting di Supabase.")
 
@@ -426,15 +426,17 @@ def upload_to_supabase(df: pd.DataFrame, supabase_url: str, supabase_key: str):
             continue
 
         product_url = str(row.get("product_url", "")).strip()
-        ext_id = str(row.get("external_product_id", "")).strip()
+        raw_ext_id = str(row.get("external_product_id", "")).replace('\ufeff', '').strip()
 
-        if not ext_id or ext_id.lower() == "nan":
+        if not raw_ext_id or raw_ext_id.lower() == "nan":
             if product_url and product_url.lower() != "nan":
                 h = hashlib.md5(product_url.encode('utf-8')).hexdigest()[:12]
                 ext_id = f"url_{h}"
             else:
                 h = hashlib.md5(f"{name}_{idx}".encode('utf-8')).hexdigest()[:12]
                 ext_id = f"prod_{h}"
+        else:
+            ext_id = raw_ext_id
 
         def parse_num(v):
             try:
@@ -519,8 +521,7 @@ def upload_to_supabase(df: pd.DataFrame, supabase_url: str, supabase_key: str):
         key = (rec["merchant"], rec["campaign_id"], rec["external_product_id"])
         if key in seen_keys:
             continue
-        
-        # Mencegah duplikasi slug yang memicu konflik unique constraint idx_affiliate_products_slug
+
         base_slug = rec["slug"]
         slug_candidate = base_slug
         counter = 1
