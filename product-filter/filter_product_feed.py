@@ -107,24 +107,75 @@ COLUMN_MAPPING = {
 }
 
 
+# Urutan indeks kolom standar jika file CSV Accesstrade tidak memiliki baris header
+STANDARD_ACCESSTRADE_COLUMNS = [
+    "Merchant Product ID",          # 0
+    "Merchant Product Name",        # 1
+    "Image URL",                   # 2
+    "Image URL Additional",        # 3
+    "Product URL Web (encoded)",   # 4
+    "Product URL Mobile (encoded)", # 5
+    "Description",                 # 6
+    "Price",                       # 7
+    "Discounted Price",            # 8
+    "Available",                   # 9
+    "Master Product ID",           # 10
+    "Master Product Name",         # 11
+    "Master Image URL",            # 12
+    "Category Name",               # 13
+    "Sub category ID",             # 14
+    "Sub category Name",           # 15
+    "Category Detail ID",          # 16
+    "Category Detail Name",        # 17
+    "Currency",                    # 18
+    "Brand",                       # 19
+    "item_sold",                   # 20
+    "item_rating",                 # 21
+]
+
+
 def load_dataframe(path: str) -> pd.DataFrame:
-    """Baca file CSV atau XLSX. Untuk CSV, dibaca per-chunk supaya hemat RAM."""
+    """Baca file CSV atau XLSX. Otomatis mendeteksi CSV tanpa header & memetakan kolom."""
     ext = os.path.splitext(path)[1].lower()
 
     if ext == ".csv":
-        print(f"Membaca CSV per-chunk ({CHUNK_SIZE} baris per batch)...")
+        has_header = True
+        with open(path, "r", encoding="utf-8", errors="ignore") as f:
+            first_line = f.readline().lower()
+
+        # Deteksi jika baris pertama adalah data mentah (bukan nama kolom)
+        if not ("merchant product name" in first_line or "product_url" in first_line or "name" in first_line or "sub category name" in first_line):
+            has_header = False
+
+        mode_text = "[Header Terdeteksi]" if has_header else "[Tanpa Header - Auto Index Mapping]"
+        print(f"Membaca CSV per-chunk ({CHUNK_SIZE:,} baris per batch)... {mode_text}")
+
+        header_opt = 0 if has_header else None
         chunks = []
-        for i, chunk in enumerate(pd.read_csv(path, chunksize=CHUNK_SIZE, dtype=str)):
+
+        for i, chunk in enumerate(pd.read_csv(path, chunksize=CHUNK_SIZE, dtype=str, header=header_opt, encoding="utf-8-sig", on_bad_lines="skip")):
+            if not has_header:
+                # Petakan kolom berdasarkan nomor indeks standar Accesstrade Feed
+                col_rename = {}
+                for idx, col_name in enumerate(STANDARD_ACCESSTRADE_COLUMNS):
+                    if idx < len(chunk.columns):
+                        col_rename[chunk.columns[idx]] = col_name
+                chunk = chunk.rename(columns=col_rename)
+
             chunks.append(chunk)
-            print(f"  chunk {i + 1} dibaca ({len(chunk)} baris)")
+            print(f"  chunk {i + 1} dibaca ({len(chunk):,} baris)")
+
         df = pd.concat(chunks, ignore_index=True)
 
     elif ext in (".xlsx", ".xls"):
-        print("Membaca file Excel (read-only mode, ini bisa makan waktu untuk file besar)...")
+        print("Membaca file Excel (read-only mode)...")
         df = pd.read_excel(path, dtype=str, engine="openpyxl")
 
     else:
         raise ValueError(f"Ekstensi file tidak didukung: {ext}")
+
+    # Bersihkan nama kolom dari BOM (\ufeff) atau spasi liar
+    df.columns = [str(col).replace('\ufeff', '').strip() for col in df.columns]
 
     print(f"Total baris terbaca: {len(df):,}")
     return df
