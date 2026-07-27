@@ -47,6 +47,27 @@
         </div>
       </div>
 
+      <!-- Marketplace Filter -->
+      <div class="flex items-center gap-2">
+        <span class="text-xs font-semibold text-gray-500 dark:text-gray-400 shrink-0">Marketplace:</span>
+        <div class="flex gap-1.5">
+          <button
+            v-for="mp in merchantTabs"
+            :key="mp.id"
+            @click="selectMerchant(mp.id)"
+            :class="[
+              'px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer border',
+              selectedMerchant === mp.id
+                ? 'bg-brand-red text-white border-brand-red shadow-sm'
+                : 'bg-white dark:bg-gray-700/50 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-600 hover:border-brand-red hover:text-brand-red dark:hover:border-red-400'
+            ]"
+          >
+            <span>{{ mp.icon }}</span>
+            <span>{{ mp.name }}</span>
+          </button>
+        </div>
+      </div>
+
       <!-- Category Filter Pills -->
       <div class="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
         <button
@@ -151,10 +172,17 @@ const products = ref<AffiliateProduct[]>([]);
 const isLoading = ref(true);
 const searchQuery = ref('');
 const selectedCategory = ref('all');
+const selectedMerchant = ref('all');
 const sortBy = ref('sold');
 const currentPage = ref(1);
 const PAGE_SIZE = 24;
 const hasNoMore = ref(false);
+
+const merchantTabs = [
+  { id: 'all',       name: 'Semua',     icon: '🛒' },
+  { id: 'shopee',    name: 'Shopee',    icon: '🟠' },
+  { id: 'tokopedia', name: 'Tokopedia', icon: '🟢' },
+];
 
 let searchDebounceTimer: any = null;
 
@@ -197,9 +225,6 @@ const loadProducts = async (resetPage = false) => {
   isLoading.value = true;
 
   try {
-    const halfLimit = Math.ceil(PAGE_SIZE / 2);
-    const offset = (currentPage.value - 1) * halfLimit;
-
     const tab = categoryTabs.find(t => t.id === selectedCategory.value);
     const kw = tab?.kw ?? [];
 
@@ -209,8 +234,7 @@ const loadProducts = async (resetPage = false) => {
       : 'discount_percent';
     const isAsc = sortBy.value === 'price_low';
 
-    // Always do 50/50 balanced query: separate Shopee + Tokopedia
-    const buildQuery = (merchant: string) => {
+    const buildQuery = (merchant: string, limit: number, offset: number) => {
       let q = supabase
         .from('affiliate_products')
         .select('*')
@@ -228,34 +252,47 @@ const loadProducts = async (resetPage = false) => {
         q = q.or(`name.ilike.%${s}%,category.ilike.%${s}%,shop_name.ilike.%${s}%`);
       }
 
-      // Sort: Tokopedia use last_synced_at as default (no item_sold col)
+      // Sort: Tokopedia use last_synced_at as default
       const col = merchant === 'tokopedia' && sortCol === 'discount_percent' ? 'last_synced_at' : sortCol;
       q = q.order(col, { ascending: isAsc, nullsFirst: false });
 
-      return q.range(offset, offset + halfLimit - 1);
+      return q.range(offset, offset + limit - 1);
     };
 
-    const [shopeeRes, tokoRes] = await Promise.all([
-      buildQuery('shopee'),
-      buildQuery('tokopedia'),
-    ]);
+    if (selectedMerchant.value !== 'all') {
+      // Single merchant: use full PAGE_SIZE
+      const offset = (currentPage.value - 1) * PAGE_SIZE;
+      const { data, error } = await buildQuery(selectedMerchant.value, PAGE_SIZE, offset);
+      if (error) console.error('[AffiliateView] error:', error);
+      products.value = data || [];
+      hasNoMore.value = (data || []).length < PAGE_SIZE;
+    } else {
+      // Both merchants: 50/50 interleave
+      const halfLimit = Math.ceil(PAGE_SIZE / 2);
+      const offset = (currentPage.value - 1) * halfLimit;
 
-    const shopeeList = shopeeRes.data || [];
-    const tokoList = tokoRes.data || [];
+      const [shopeeRes, tokoRes] = await Promise.all([
+        buildQuery('shopee', halfLimit, offset),
+        buildQuery('tokopedia', halfLimit, offset),
+      ]);
 
-    if (shopeeRes.error) console.error('[AffiliateView] Shopee error:', shopeeRes.error);
-    if (tokoRes.error) console.error('[AffiliateView] Toko error:', tokoRes.error);
+      if (shopeeRes.error) console.error('[AffiliateView] Shopee error:', shopeeRes.error);
+      if (tokoRes.error) console.error('[AffiliateView] Toko error:', tokoRes.error);
 
-    // Interleave: Shopee[0], Toko[0], Shopee[1], Toko[1], ...
-    const combined: AffiliateProduct[] = [];
-    const maxLen = Math.max(shopeeList.length, tokoList.length);
-    for (let i = 0; i < maxLen; i++) {
-      if (i < shopeeList.length) combined.push(shopeeList[i]);
-      if (i < tokoList.length) combined.push(tokoList[i]);
+      const shopeeList = shopeeRes.data || [];
+      const tokoList = tokoRes.data || [];
+
+      // Interleave: Shopee[0], Toko[0], Shopee[1], Toko[1], ...
+      const combined: AffiliateProduct[] = [];
+      const maxLen = Math.max(shopeeList.length, tokoList.length);
+      for (let i = 0; i < maxLen; i++) {
+        if (i < shopeeList.length) combined.push(shopeeList[i]);
+        if (i < tokoList.length) combined.push(tokoList[i]);
+      }
+
+      products.value = combined;
+      hasNoMore.value = combined.length < PAGE_SIZE;
     }
-
-    products.value = combined;
-    hasNoMore.value = combined.length < PAGE_SIZE;
   } catch (err) {
     console.error('[AffiliateView] Exception:', err);
     products.value = [];
@@ -276,9 +313,15 @@ const selectCategory = (catId: string) => {
   loadProducts(true);
 };
 
+const selectMerchant = (merchantId: string) => {
+  selectedMerchant.value = merchantId;
+  loadProducts(true);
+};
+
 const resetFilters = () => {
   searchQuery.value = '';
   selectedCategory.value = 'all';
+  selectedMerchant.value = 'all';
   sortBy.value = 'sold';
   loadProducts(true);
 };
