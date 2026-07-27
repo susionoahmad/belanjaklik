@@ -242,8 +242,9 @@ const loadProducts = async (resetPage = false) => {
 
     // Determine sort column
     const sortCol = sortBy.value === 'discount' ? 'discount_percent'
+      : sortBy.value === 'sold' ? 'raw_data->>item_sold'
       : sortBy.value === 'price_low' || sortBy.value === 'price_high' ? 'price'
-      : 'discount_percent';
+      : 'created_at';
     const isAsc = sortBy.value === 'price_low';
 
     const buildQuery = (merchant: string, limit: number, offset: number) => {
@@ -263,8 +264,8 @@ const loadProducts = async (resetPage = false) => {
         q = q.or(buildOrFilter(kw));
       }
 
-      // Sort: Tokopedia use last_synced_at as default
-      const col = merchant === 'tokopedia' && sortCol === 'discount_percent' ? 'last_synced_at' : sortCol;
+      // Sort: Tokopedia use last_synced_at as default (since it has no discount or item_sold)
+      const col = merchant === 'tokopedia' && (sortCol === 'discount_percent' || sortCol === 'raw_data->>item_sold') ? 'last_synced_at' : sortCol;
       q = q.order(col, { ascending: isAsc, nullsFirst: false });
 
       return q.range(offset, offset + limit - 1);
