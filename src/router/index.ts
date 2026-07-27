@@ -54,6 +54,11 @@ export const routes = [
     component: () => import('../views/CampaignLandingView.vue')
   },
   {
+    path: '/affiliate',
+    name: 'affiliate-catalog',
+    component: () => import('../views/AffiliateView.vue')
+  },
+  {
     path: '/favorites',
     name: 'favorites',
     component: () => import('../views/FavoritesView.vue')
