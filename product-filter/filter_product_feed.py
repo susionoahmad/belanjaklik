@@ -365,7 +365,7 @@ def upload_to_supabase(df: pd.DataFrame, supabase_url: str, supabase_key: str):
     print(f"Mengunggah {len(df):,} produk ke Supabase ({supabase_url})...")
     print(f"============================================================")
 
-    endpoint = f"{supabase_url.rstrip('/')}/rest/v1/affiliate_products"
+    endpoint = f"{supabase_url.rstrip('/')}/rest/v1/affiliate_products?on_conflict=merchant,campaign_id,external_product_id"
     headers = {
         "apikey": supabase_key,
         "Authorization": f"Bearer {supabase_key}",
