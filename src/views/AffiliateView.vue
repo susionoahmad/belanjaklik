@@ -160,11 +160,11 @@ let searchDebounceTimer: any = null;
 
 const categoryTabs = [
   { id: 'all', name: 'Semua Kategori', icon: '🔥' },
-  { id: 'baby', name: 'Ibu & Bayi', icon: '👶', kw: ['baby', 'diaper', 'bayi', 'anak'] },
-  { id: 'beauty', name: 'Kecantikan & Skincare', icon: '💄', kw: ['skincare', 'makeup', 'beauty', 'face', 'sunscreen', 'oral'] },
-  { id: 'kitchen', name: 'Dapur & Kuliner', icon: '🍳', kw: ['kitchen', 'cooking', 'masak', 'dapur', 'food'] },
-  { id: 'home', name: 'Rumah Tangga', icon: '🏠', kw: ['home', 'clean', 'supplies', 'toilet', 'sabun'] },
-  { id: 'fashion', name: 'Fashion & Hijab', icon: '👗', kw: ['fashion', 'wear', 'clothes', 'muslim', 'baju'] },
+  { id: 'baby', name: 'Ibu & Bayi', icon: '👶', kw: ['baby', 'diaper', 'bayi', 'anak', 'feeding', 'diapering', 'potty', 'toy', 'girl clothes', 'boy', 'kid'] },
+  { id: 'beauty', name: 'Kecantikan & Skincare', icon: '💄', kw: ['skincare', 'makeup', 'beauty', 'face', 'sunscreen', 'oral', 'tooth', 'body care', 'personal care', 'fragrance', 'perfume', 'lipstick', 'mouthwash', 'moisturizer', 'cream', 'cleanser', 'bath', 'shower'] },
+  { id: 'kitchen', name: 'Dapur & Kuliner', icon: '🍳', kw: ['kitchen', 'cooking', 'masak', 'dapur', 'food', 'snack', 'beverage', 'drink', 'dairy', 'egg', 'cereal', 'sauce', 'crisp', 'spread', 'staple', 'ready-to-eat', 'lunch box', 'dinnerware', 'kitchenware'] },
+  { id: 'home', name: 'Rumah Tangga', icon: '🏠', kw: ['home', 'clean', 'supplies', 'toilet', 'sabun', 'tissue', 'paper', 'notebook', 'office', 'school', 'tool', 'lighting', 'cleaner', 'hanger', 'curtain'] },
+  { id: 'fashion', name: 'Fashion & Hijab', icon: '👗', kw: ['fashion', 'wear', 'clothes', 'muslim', 'baju', 'hijab', 'dress', 'shirt', 'pant', 'scarf', 'shawl', 'pashmina', 'wallet', 'bag', 'bracelet', 'jewelry', 'underwear', 'bra', 'short'] },
 ];
 
 const loadProducts = async (resetPage = false) => {

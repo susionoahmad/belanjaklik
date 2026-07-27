@@ -191,11 +191,11 @@ const activeAffiliateCategory = ref('all');
 
 const affiliateCategoryTabs = [
   { id: 'all', name: 'Semua Promo', icon: '🔥' },
-  { id: 'baby', name: 'Ibu & Bayi', icon: '👶', filterKeywords: ['baby', 'diaper', 'bayi', 'anak'] },
-  { id: 'beauty', name: 'Kecantikan', icon: '💄', filterKeywords: ['skincare', 'makeup', 'beauty', 'face', 'sunscreen', 'oral'] },
-  { id: 'kitchen', name: 'Dapur & Kuliner', icon: '🍳', filterKeywords: ['kitchen', 'cooking', 'masak', 'dapur', 'food'] },
-  { id: 'home', name: 'Rumah Tangga', icon: '🏠', filterKeywords: ['home', 'clean', 'supplies', 'toilet', 'sabun'] },
-  { id: 'fashion', name: 'Fashion & Hijab', icon: '👗', filterKeywords: ['fashion', 'wear', 'clothes', 'muslim', 'baju'] },
+  { id: 'baby', name: 'Ibu & Bayi', icon: '👶', filterKeywords: ['baby', 'diaper', 'bayi', 'anak', 'feeding', 'diapering', 'potty', 'toy', 'girl clothes', 'boy', 'kid'] },
+  { id: 'beauty', name: 'Kecantikan', icon: '💄', filterKeywords: ['skincare', 'makeup', 'beauty', 'face', 'sunscreen', 'oral', 'tooth', 'body care', 'personal care', 'fragrance', 'perfume', 'lipstick', 'mouthwash', 'moisturizer', 'cream', 'cleanser', 'bath', 'shower'] },
+  { id: 'kitchen', name: 'Dapur & Kuliner', icon: '🍳', filterKeywords: ['kitchen', 'cooking', 'masak', 'dapur', 'food', 'snack', 'beverage', 'drink', 'dairy', 'egg', 'cereal', 'sauce', 'crisp', 'spread', 'staple', 'ready-to-eat', 'lunch box', 'dinnerware', 'kitchenware'] },
+  { id: 'home', name: 'Rumah Tangga', icon: '🏠', filterKeywords: ['home', 'clean', 'supplies', 'toilet', 'sabun', 'tissue', 'paper', 'notebook', 'office', 'school', 'tool', 'lighting', 'cleaner', 'hanger', 'curtain'] },
+  { id: 'fashion', name: 'Fashion & Hijab', icon: '👗', filterKeywords: ['fashion', 'wear', 'clothes', 'muslim', 'baju', 'hijab', 'dress', 'shirt', 'pant', 'scarf', 'shawl', 'pashmina', 'wallet', 'bag', 'bracelet', 'jewelry', 'underwear', 'bra', 'short'] },
 ];
 
 const filteredAffiliateProducts = computed(() => {
@@ -219,7 +219,7 @@ const loadHomeData = async () => {
     catalogStore.fetchCatalogData(),
     shoppingStore.fetchShoppingData(),
     promotionStore.loadCampaignBanners(),
-    getActiveAffiliateProducts({ limit: 40 }).then(res => {
+    getActiveAffiliateProducts({ limit: 60, mixMerchants: true }).then(res => {
       affiliateProducts.value = res;
     })
   ]);
