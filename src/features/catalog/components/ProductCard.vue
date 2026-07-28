@@ -148,7 +148,7 @@ const isOutOfStock = computed(() => {
 });
 
 const isJsmPromo = computed(() => {
-  if (props.product.promo_type === 'JSM' || props.product.promo_badge?.includes('JSM')) return true;
+  if (props.product.promo_type === 'JSM' || props.product.promo_type === 'GANTUNG' || props.product.promo_badge?.includes('JSM') || props.product.promo_badge?.includes('GANTUNG') || props.product.promo_badge?.includes('GAJIAN')) return true;
   const name = String(props.product.name || '').toLowerCase();
   const brand = String(props.product.brand || '').toLowerCase();
   const jsmKeywords = ['fres & natural', 'fres&nat', 'lifebuoy', 'pepsodent', 'systema', 'emeron', 'close up', 'closeup'];

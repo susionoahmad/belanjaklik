@@ -66,7 +66,7 @@ export interface Product {
   promo_start_date?: string;
   promo_end_date?: string;
   promo_badge?: string;
-  promo_type?: 'JSM' | 'FLASHSALE' | 'MEMBER' | 'SUPER_SAVER' | 'REGULAR';
+  promo_type?: 'JSM' | 'GANTUNG' | 'FLASHSALE' | 'MEMBER' | 'SUPER_SAVER' | 'REGULAR';
   is_featured?: boolean;
   is_popular?: boolean;
   is_available?: boolean;

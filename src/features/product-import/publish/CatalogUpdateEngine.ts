@@ -180,7 +180,7 @@ export class CatalogUpdateEngine {
     promoStartDate?: string,
     promoEndDate?: string,
     promoBadge?: string,
-    promoType?: 'JSM' | 'FLASHSALE' | 'MEMBER' | 'SUPER_SAVER' | 'REGULAR',
+    promoType?: 'JSM' | 'GANTUNG' | 'FLASHSALE' | 'MEMBER' | 'SUPER_SAVER' | 'REGULAR',
     targetCategoryId?: string,
     targetCategoryName?: string
   ): Promise<Product> {

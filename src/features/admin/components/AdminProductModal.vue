@@ -38,6 +38,7 @@
             <div>
               <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Tipe Promo (Lokasi Tampilan)</label>
               <select v-model="form.promo_type" class="w-full px-3 py-2 rounded-xl border border-amber-300 dark:border-amber-700 bg-white dark:bg-gray-800 text-xs font-bold focus:ring-2 focus:ring-brand-red outline-none">
+                <option value="GANTUNG">🎁 PROMO GANTUNG (#GajianUntungAlfamart)</option>
                 <option value="JSM">🔥 PROMO JSM (Tampil di Banner JSM 3 Hari)</option>
                 <option value="FLASHSALE">⚡ FLASH SALE (Tampil di Banner Flash Sale)</option>
                 <option value="REGULAR">🏷️ Promo Regular (Diskon Katalog Biasa)</option>
@@ -199,7 +200,7 @@ const form = ref<{
   price: number;
   promo_price?: number;
   is_promo?: boolean;
-  promo_type?: 'JSM' | 'FLASHSALE' | 'MEMBER' | 'SUPER_SAVER' | 'REGULAR';
+  promo_type?: 'JSM' | 'GANTUNG' | 'FLASHSALE' | 'MEMBER' | 'SUPER_SAVER' | 'REGULAR';
   promo_badge?: string;
   promo_title?: string;
   promo_end_date?: string;
@@ -241,7 +242,7 @@ watch(() => props.product, (newP) => {
       : (newP.image_url ? [newP.image_url] : []);
 
     const isPromoProd = newP.is_promo ?? (!!newP.promo_price && newP.promo_price < newP.price);
-    const pType = newP.promo_type || (newP.promo_badge?.toUpperCase().includes('JSM') ? 'JSM' : (newP.promo_badge?.toUpperCase().includes('FLASH') ? 'FLASHSALE' : 'REGULAR'));
+    const pType = newP.promo_type || (newP.promo_badge?.toUpperCase().includes('GANTUNG') ? 'GANTUNG' : (newP.promo_badge?.toUpperCase().includes('JSM') ? 'JSM' : (newP.promo_badge?.toUpperCase().includes('FLASH') ? 'FLASHSALE' : 'REGULAR')));
 
     const descClean = newP.description?.trim();
     const pBrand = newP.brand || 'Alfamind';
@@ -256,8 +257,8 @@ watch(() => props.product, (newP) => {
       promo_price: newP.promo_price,
       is_promo: isPromoProd,
       promo_type: pType,
-      promo_badge: newP.promo_badge || (pType === 'JSM' ? 'PROMO JSM (3 HARI)' : (pType === 'FLASHSALE' ? 'FLASHSALE' : (isPromoProd ? 'Diskon!' : ''))),
-      promo_title: newP.promo_title || (pType === 'JSM' ? 'Promo Jumat Sabtu Minggu' : (pType === 'FLASHSALE' ? 'Flash Sale Hari Ini' : (isPromoProd ? 'Diskon Spesial' : ''))),
+      promo_badge: newP.promo_badge || (pType === 'GANTUNG' ? 'PROMO GANTUNG (GAJIAN)' : (pType === 'JSM' ? 'PROMO JSM (3 HARI)' : (pType === 'FLASHSALE' ? 'FLASHSALE' : (isPromoProd ? 'Diskon!' : '')))),
+      promo_title: newP.promo_title || (pType === 'GANTUNG' ? 'Promo Gantung Alfamart (#GajianUntungAlfamart)' : (pType === 'JSM' ? 'Promo Jumat Sabtu Minggu' : (pType === 'FLASHSALE' ? 'Flash Sale Hari Ini' : (isPromoProd ? 'Diskon Spesial' : '')))),
       promo_end_date: newP.promo_end_date || '',
       brand: newP.brand || '',
       description: descClean || autoDesc,
@@ -369,8 +370,8 @@ const handleSubmit = async () => {
     slug: form.value.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
     is_promo: isPromo,
     promo_type: isPromo ? (form.value.promo_type || 'REGULAR') : undefined,
-    promo_badge: isPromo ? (form.value.promo_badge || (form.value.promo_type === 'JSM' ? 'PROMO JSM (3 HARI)' : (form.value.promo_type === 'FLASHSALE' ? 'FLASHSALE' : 'Diskon!'))) : undefined,
-    promo_title: isPromo ? (form.value.promo_title || (form.value.promo_type === 'JSM' ? 'Promo Jumat Sabtu Minggu' : (form.value.promo_type === 'FLASHSALE' ? 'Flash Sale Hari Ini' : 'Diskon Spesial'))) : undefined,
+    promo_badge: isPromo ? (form.value.promo_badge || (form.value.promo_type === 'GANTUNG' ? 'PROMO GANTUNG (GAJIAN)' : (form.value.promo_type === 'JSM' ? 'PROMO JSM (3 HARI)' : (form.value.promo_type === 'FLASHSALE' ? 'FLASHSALE' : 'Diskon!')))) : undefined,
+    promo_title: isPromo ? (form.value.promo_title || (form.value.promo_type === 'GANTUNG' ? 'Promo Gantung Alfamart (#GajianUntungAlfamart)' : (form.value.promo_type === 'JSM' ? 'Promo Jumat Sabtu Minggu' : (form.value.promo_type === 'FLASHSALE' ? 'Flash Sale Hari Ini' : 'Diskon Spesial')))) : undefined,
     promo_end_date: isPromo ? (form.value.promo_end_date || undefined) : undefined
   };
 

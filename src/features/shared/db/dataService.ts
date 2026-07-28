@@ -550,10 +550,19 @@ export const dataService = {
         p.is_promo = true;
         const badgeUpper = String(p.promo_badge || '').toUpperCase();
         const titleUpper = String(p.promo_title || '').toUpperCase();
+        const isGantung = badgeUpper.includes('GANTUNG') || titleUpper.includes('GANTUNG') || titleUpper.includes('GAJIAN');
         const isJsm = badgeUpper.includes('JSM') || titleUpper.includes('JSM');
         const isFlash = badgeUpper.includes('FLASH') || titleUpper.includes('FLASH');
 
-        if (isJsm) {
+        if (isGantung || p.promo_type === 'GANTUNG') {
+          p.promo_type = 'GANTUNG';
+          if (!p.promo_badge || p.promo_badge === 'Diskon!' || p.promo_badge === 'PROMO') {
+            p.promo_badge = 'PROMO GANTUNG (GAJIAN)';
+          }
+          if (!p.promo_title || p.promo_title === 'Diskon Spesial') {
+            p.promo_title = 'Promo Gantung Alfamart (#GajianUntungAlfamart)';
+          }
+        } else if (isJsm) {
           p.promo_type = 'JSM';
           if (!p.promo_badge || p.promo_badge === 'Diskon!' || p.promo_badge === 'PROMO') {
             p.promo_badge = 'PROMO JSM (3 HARI)';

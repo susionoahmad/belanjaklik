@@ -51,7 +51,7 @@ def process_with_gemini_vision(image_path: str, api_key: str = "") -> List[Dict[
     """
     key = api_key or GEMINI_API_KEY
     filename = Path(image_path).name
-    is_jsm_flyer = "jsm" in filename.lower() or "flyer" in filename.lower() or "katalog" in filename.lower()
+    is_jsm_flyer = any(kw in filename.lower() for kw in ["jsm", "gantung", "gajian", "flyer", "katalog"])
 
     if not is_valid_gemini_key(key):
         print("[INFO] Gemini API Key tidak ditemukan atau masih berupa placeholder. Gunakan Local OCR Engine...")
@@ -171,20 +171,24 @@ def crop_grid_product_cards(image_path: str) -> List[tuple[str, Image.Image]]:
     """
     output_crops = []
     filename = Path(image_path).name.lower()
-    is_flyer = "jsm" in filename or "flyer" in filename or "katalog" in filename or "promo" in filename
+    is_flyer = any(kw in filename for kw in ["jsm", "gantung", "gajian", "flyer", "katalog", "promo"])
 
     try:
         with Image.open(image_path) as img:
             w, h = img.size
             
             if is_flyer or (w > 600 and h > 1000):
-                # Precision 4x4 Grid Segmentation for JSM Flyer Catalog (16 Cards)
-                # Header banner is top ~14%, Footer disclaimer is bottom ~7%
-                top_header_h = int(h * 0.14)
-                bottom_footer_h = int(h * 0.93)
-                grid_h = bottom_footer_h - top_header_h
+                # Precision Grid Segmentation for Catalog Flyers
+                if any(kw in filename for kw in ["gantung", "gajian", "3col"]):
+                    num_cols = 3
+                    top_header_h = int(h * 0.105)
+                    bottom_footer_h = int(h * 0.938)
+                else:
+                    num_cols = 4
+                    top_header_h = int(h * 0.14)
+                    bottom_footer_h = int(h * 0.93)
 
-                num_cols = 4
+                grid_h = bottom_footer_h - top_header_h
                 num_rows = 4
                 card_w = w / num_cols
                 card_h = grid_h / num_rows
@@ -296,8 +300,8 @@ def process_with_local_ocr(image_path: str) -> List[Dict[str, Any]]:
     Local OCR engine using EasyOCR / PyTesseract / Precision Grid Cropping.
     """
     filename = Path(image_path).name
-    is_jsm_flyer = "jsm" in filename.lower() or "flyer" in filename.lower() or "katalog" in filename.lower()
-    print(f"[OCR-Local] Memproses gambar lokal: {filename} (JSM Flyer Mode: {is_jsm_flyer})...")
+    is_jsm_flyer = any(kw in filename.lower() for kw in ["jsm", "gantung", "gajian", "flyer", "katalog"])
+    print(f"[OCR-Local] Memproses gambar lokal: {filename} (Flyer Catalog Mode: {is_jsm_flyer})...")
 
     easyocr_reader = None
     try:
@@ -346,7 +350,7 @@ def process_with_local_ocr(image_path: str) -> List[Dict[str, Any]]:
             except Exception:
                 pass
 
-        if not is_jsm_flyer and any(kw in extracted_text.upper() for kw in ["JSM", "JUMAT SABTU MINGGU", "HANYA 3 HARI"]):
+        if not is_jsm_flyer and any(kw in extracted_text.upper() for kw in ["JSM", "GANTUNG", "GAJIAN", "JUMAT SABTU MINGGU", "HANYA 3 HARI"]):
             is_jsm_flyer = True
 
         lines = [l.strip() for l in extracted_text.splitlines() if l.strip()]
@@ -384,29 +388,39 @@ def process_with_local_ocr(image_path: str) -> List[Dict[str, Any]]:
             full_name = clean_product_name(raw_name)
 
             if full_name and len(full_name) > 3:
+                is_gantung_img = "gantung" in filename.lower() or "gajian" in filename.lower()
+                p_type = "GANTUNG" if is_gantung_img else ("JSM" if is_jsm_flyer else jsm_info["promo_type"])
+                p_badge = "PROMO GANTUNG (GAJIAN)" if is_gantung_img else ("PROMO JSM (3 HARI)" if is_jsm_flyer else jsm_info["promo_badge"])
+                p_title = "Promo Gantung Alfamart (#GajianUntungAlfamart)" if is_gantung_img else ("Promo JSM Alfamart (Jumat Sabtu Minggu)" if is_jsm_flyer else (jsm_info["promo_title"] if jsm_info["is_jsm"] else ""))
+
                 raw_item = {
                     "product_name": full_name,
                     "brand": extract_brand(full_name) or "Umum",
                     "package_size": extract_package_size(full_name),
                     "price": price,
                     "original_price": original_price,
-                    "promo_type": "JSM" if is_jsm_flyer else jsm_info["promo_type"],
-                    "promo_badge": "PROMO JSM (3 HARI)" if is_jsm_flyer else jsm_info["promo_badge"],
-                    "promo_title": "Promo JSM Alfamart (Jumat Sabtu Minggu)" if is_jsm_flyer else (jsm_info["promo_title"] if jsm_info["is_jsm"] else ""),
+                    "promo_type": p_type,
+                    "promo_badge": p_badge,
+                    "promo_title": p_title,
                     "image": str(highres_400_path)
                 }
                 products.append(normalize_product_dict(raw_item, global_jsm=is_jsm_flyer))
 
     if not products:
         clean_name = filename.rsplit('.', 1)[0].replace('_', ' ').replace('-', ' ').title()
+        is_gantung_img = "gantung" in filename.lower() or "gajian" in filename.lower()
+        p_type = "GANTUNG" if is_gantung_img else ("JSM" if is_jsm_flyer else "REGULAR")
+        p_badge = "PROMO GANTUNG (GAJIAN)" if is_gantung_img else ("PROMO JSM (3 HARI)" if is_jsm_flyer else "")
+        p_title = "Promo Gantung Alfamart (#GajianUntungAlfamart)" if is_gantung_img else ("Promo JSM Alfamart (Jumat Sabtu Minggu)" if is_jsm_flyer else "")
+
         raw_item = {
             "product_name": clean_product_name(clean_name),
             "brand": extract_brand(clean_name) or "Umum",
             "price": 0,
             "original_price": 0,
-            "promo_type": "JSM" if is_jsm_flyer else "REGULAR",
-            "promo_badge": "PROMO JSM (3 HARI)" if is_jsm_flyer else "",
-            "promo_title": "Promo JSM Alfamart (Jumat Sabtu Minggu)" if is_jsm_flyer else "",
+            "promo_type": p_type,
+            "promo_badge": p_badge,
+            "promo_title": p_title,
             "image": str(image_path)
         }
         products.append(normalize_product_dict(raw_item, global_jsm=is_jsm_flyer))

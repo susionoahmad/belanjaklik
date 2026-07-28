@@ -63,8 +63,13 @@ export class JsmPromoService {
    */
   static isProductJsmExpired(product: Product, config?: JsmConfig, currentDateStr?: string): boolean {
     const isJsmType = product.promo_type === 'JSM' || 
+                      product.promo_type === 'GANTUNG' ||
                       String(product.promo_badge || '').toUpperCase().includes('JSM') || 
-                      String(product.promo_title || '').toUpperCase().includes('JSM');
+                      String(product.promo_badge || '').toUpperCase().includes('GANTUNG') || 
+                      String(product.promo_badge || '').toUpperCase().includes('GAJIAN') || 
+                      String(product.promo_title || '').toUpperCase().includes('JSM') ||
+                      String(product.promo_title || '').toUpperCase().includes('GANTUNG') ||
+                      String(product.promo_title || '').toUpperCase().includes('GAJIAN');
     
     if (!isJsmType) return false;
 
@@ -93,8 +98,13 @@ export class JsmPromoService {
     for (let i = 0; i < updatedProducts.length; i++) {
       const p = updatedProducts[i];
       const isJsmType = p.promo_type === 'JSM' || 
+                        p.promo_type === 'GANTUNG' ||
                         String(p.promo_badge || '').toUpperCase().includes('JSM') || 
-                        String(p.promo_title || '').toUpperCase().includes('JSM');
+                        String(p.promo_badge || '').toUpperCase().includes('GANTUNG') || 
+                        String(p.promo_badge || '').toUpperCase().includes('GAJIAN') || 
+                        String(p.promo_title || '').toUpperCase().includes('JSM') ||
+                        String(p.promo_title || '').toUpperCase().includes('GANTUNG') ||
+                        String(p.promo_title || '').toUpperCase().includes('GAJIAN');
 
       if (isJsmType && this.isProductJsmExpired(p, config, today)) {
         // Revert JSM product back to regular non-promo state
@@ -107,7 +117,7 @@ export class JsmPromoService {
           promo_title: undefined,
           promo_start_date: undefined,
           promo_end_date: undefined,
-          notes: p.notes ? `${p.notes} (Promo JSM Berakhir)` : `Promo JSM Berakhir`
+          notes: p.notes ? `${p.notes} (Promo Berakhir)` : `Promo Berakhir`
         };
 
         updatedProducts[i] = expiredProd;
@@ -146,8 +156,13 @@ export class JsmPromoService {
     return products.filter(p => {
       if (!p.is_promo && !p.promo_price) return false;
       const isJsmType = p.promo_type === 'JSM' || 
+                        p.promo_type === 'GANTUNG' ||
                         String(p.promo_badge || '').toUpperCase().includes('JSM') || 
-                        String(p.promo_title || '').toUpperCase().includes('JSM');
+                        String(p.promo_badge || '').toUpperCase().includes('GANTUNG') || 
+                        String(p.promo_badge || '').toUpperCase().includes('GAJIAN') || 
+                        String(p.promo_title || '').toUpperCase().includes('JSM') ||
+                        String(p.promo_title || '').toUpperCase().includes('GANTUNG') ||
+                        String(p.promo_title || '').toUpperCase().includes('GAJIAN');
       if (!isJsmType) return false;
       return !this.isProductJsmExpired(p, config);
     });

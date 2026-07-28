@@ -79,7 +79,7 @@ export interface ParsedProductData {
   promo_start_date?: string;
   promo_end_date?: string;
   promo_badge?: string;
-  promo_type?: 'JSM' | 'FLASHSALE' | 'MEMBER' | 'SUPER_SAVER' | 'REGULAR';
+  promo_type?: 'JSM' | 'GANTUNG' | 'FLASHSALE' | 'MEMBER' | 'SUPER_SAVER' | 'REGULAR';
   discount_badge?: string;
   barcode?: string;
   external_product_code?: string;

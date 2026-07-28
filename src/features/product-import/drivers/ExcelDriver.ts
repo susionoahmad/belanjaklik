@@ -299,14 +299,20 @@ export class ExcelDriver implements ImportDriver {
     const stockStatus: 'in_stock' | 'out_of_stock' = isKosong ? 'out_of_stock' : 'in_stock';
     const isAvailable = !isKosong;
 
-    const isJsmItem = row.promo_type === 'JSM' || 
+    const isGantungItem = String(row.promo_type || '').toUpperCase() === 'GANTUNG' ||
+                          String(row.promo_badge || '').toUpperCase().includes('GANTUNG') ||
+                          String(row.promo_title || '').toUpperCase().includes('GANTUNG') ||
+                          String(row.promo_title || '').toUpperCase().includes('GAJIAN') ||
+                          String(row.category || '').toUpperCase().includes('GANTUNG');
+
+    const isJsmItem = String(row.promo_type || '').toUpperCase() === 'JSM' || 
                       String(row.promo_badge || '').toUpperCase().includes('JSM') ||
                       String(row.promo_title || '').toUpperCase().includes('JSM') ||
                       String(row.category || '').toUpperCase().includes('JSM');
 
-    const promoType = row.promo_type || (isJsmItem ? 'JSM' : undefined);
-    const promoBadge = row.promo_badge || (isJsmItem ? 'PROMO JSM (3 HARI)' : (hasStrikethrough ? 'Diskon!' : undefined));
-    const promoTitle = row.promo_title || row.campaign_title || (isJsmItem ? 'Promo Jumat Sabtu Minggu' : (hasStrikethrough ? 'Diskon Spesial' : undefined));
+    const promoType = row.promo_type || (isGantungItem ? 'GANTUNG' : (isJsmItem ? 'JSM' : undefined));
+    const promoBadge = row.promo_badge || (isGantungItem ? 'PROMO GANTUNG (GAJIAN)' : (isJsmItem ? 'PROMO JSM (3 HARI)' : (hasStrikethrough ? 'Diskon!' : undefined)));
+    const promoTitle = row.promo_title || row.campaign_title || (isGantungItem ? 'Promo Gantung Alfamart (#GajianUntungAlfamart)' : (isJsmItem ? 'Promo Jumat Sabtu Minggu' : (hasStrikethrough ? 'Diskon Spesial' : undefined)));
     const promoStartDate = row.promo_start_date || row.start_date;
     const promoEndDate = row.promo_end_date || row.end_date;
 
