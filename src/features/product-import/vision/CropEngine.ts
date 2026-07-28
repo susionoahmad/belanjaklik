@@ -12,7 +12,12 @@ export class CropEngine {
       const img = new Image();
       img.crossOrigin = 'anonymous';
 
+      const timeoutId = setTimeout(() => {
+        resolve(typeof imageSrc === 'string' ? imageSrc : '');
+      }, 3000);
+
       img.onload = () => {
+        clearTimeout(timeoutId);
         try {
           const scaleX = img.naturalWidth / refWidth;
           const scaleY = img.naturalHeight / refHeight;
@@ -62,6 +67,7 @@ export class CropEngine {
       };
 
       img.onerror = () => {
+        clearTimeout(timeoutId);
         resolve(typeof imageSrc === 'string' ? imageSrc : '');
       };
 

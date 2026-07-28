@@ -213,20 +213,28 @@ const refreshMetrics = async () => {
 };
 
 const handleFilesSelected = async (files: File[]) => {
-  if (files && files.length > 0 && selectedSourceType.value === 'SCREENSHOT') {
-    try {
-      activePreviewImage.value = URL.createObjectURL(files[0]);
-    } catch (e) {}
+  if (files && files.length > 0) {
+    const fileName = files[0].name.toLowerCase();
+    if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls') || fileName.endsWith('.csv')) {
+      selectedSourceType.value = 'EXCEL';
+    } else {
+      selectedSourceType.value = 'SCREENSHOT';
+      try {
+        activePreviewImage.value = URL.createObjectURL(files[0]);
+      } catch (e) {}
+    }
   }
   await executeImportSession({ files });
 };
 
 const handlePresetSelected = async (preset: { id: string; title: string; preview: string }) => {
+  selectedSourceType.value = 'SCREENSHOT';
   activePreviewImage.value = preset.preview;
   await executeImportSession({ fileUrls: [preset.preview] });
 };
 
 const handleExcelPresetSelected = async (url: string) => {
+  selectedSourceType.value = 'EXCEL';
   await executeImportSession({ fileUrls: [url] });
 };
 
@@ -244,6 +252,8 @@ const executeImportSession = async (input: any) => {
     logs.value = result.logs;
     await refreshMetrics();
   } catch (err: any) {
+    console.error('[ProductImportPanel] Pipeline execution error:', err);
+    logs.value.push(`✕ Pipeline Error: ${err.message}`);
     alert(`Gagal menjalankan pipeline impor: ${err.message}`);
   } finally {
     isProcessing.value = false;

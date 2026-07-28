@@ -31,9 +31,10 @@ export class PipelineEngine {
       try {
         console.log(`[PipelineEngine] Executing stage: ${stage.name}`);
         context = await stage.execute(context);
-        context.logs.push(`Stage completed: ${stage.name}`);
+        context.logs.push(`✓ ${stage.name} Selesai`);
       } catch (err: any) {
         console.error(`[PipelineEngine] Stage ${stage.name} failed:`, err);
+        context.logs.push(`✕ Error (${stage.name}): ${err.message}`);
         context.errors.push(`Stage ${stage.name} error: ${err.message}`);
       }
     }
