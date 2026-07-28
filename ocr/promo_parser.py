@@ -133,7 +133,19 @@ KNOWN_JSM_PRICE_MAP = {
     "BELFOODS Royal RTG Sosis Daegu Ori / Jeju Chs / Nami Hot 55g": (6400, 7500),
     "KRAFT Quick Melt Mozza 150g": (26600, 33200),
     "KRAFT Cheddar 150g": (21500, 27900),
-    "KRAFT All In 1 150g": (14200, 17900)
+    "KRAFT All In 1 150g": (14200, 17900),
+    "NAEEM Body Wash Taifi Rose / Jasmine Refill 400ml": (14900, 17900),
+    "SHINZU'I Body Wash Kirei / Matsu / Sakura Refill 380ml": (19900, 27500),
+    "SHINZU'I Body Wash Kirei / Sakura Refill 725ml": (34900, 46900),
+    "NUVO Body Wash Mild / Total Protect / Sakinah Zaitun / Ice Cool 400ml": (18500, 20200),
+    "NUVO Body Wash Total / Mild Protect / Family Kuning 800ml": (32900, 40900),
+    "PEPSODENT Travel Kit Soft": (20000, 22900),
+    "CLOSE UP Pasta Gigi Travel Kit": (20000, 23500),
+    "PEPSODENT Pasta Gigi Act123 Herbal 190g": (20900, 26500),
+    "PEPSODENT Pasta Gigi Act123 Charcoal 160g": (20900, 28500),
+    "LISTERINE Mouth Wash Cool Mint / Fresh Burst 250ml": (19900, 26900),
+    "LISTERINE Mouthwash Multi Protect Zero 250ml": (21900, 30900),
+    "SERASOFT Shampoo Dandruff / Smooth & Shine / Hair Fall 170ml": (19900, 23800)
 }
 
 def clean_price(val: Any) -> int:
@@ -177,6 +189,9 @@ def clean_product_name(raw_name: str) -> str:
     """
     if not raw_name:
         return ""
+
+    if raw_name in KNOWN_JSM_PRICE_MAP:
+        return raw_name
 
     text = raw_name
 
@@ -359,6 +374,34 @@ def clean_product_name(raw_name: str) -> str:
             return "KRAFT All In 1 150g"
         else:
             return "KRAFT Cheddar 150g"
+    elif "NAEEM" in text_upper or "NA'EEM" in text_upper:
+        return "NAEEM Body Wash Taifi Rose / Jasmine Refill 400ml"
+    elif "SHINZU" in text_upper or "SHINZUI" in text_upper:
+        if "725" in text_upper or "34.900" in text_upper or "34900" in text_upper:
+            return "SHINZU'I Body Wash Kirei / Sakura Refill 725ml"
+        else:
+            return "SHINZU'I Body Wash Kirei / Matsu / Sakura Refill 380ml"
+    elif "NUVO" in text_upper:
+        if "800" in text_upper or "32.900" in text_upper or "32900" in text_upper:
+            return "NUVO Body Wash Total / Mild Protect / Family Kuning 800ml"
+        else:
+            return "NUVO Body Wash Mild / Total Protect / Sakinah Zaitun / Ice Cool 400ml"
+    elif "PEPSODENT" in text_upper or "PEPSO" in text_upper:
+        if "TRAVEL" in text_upper or "KIT" in text_upper or "SOFT" in text_upper:
+            return "PEPSODENT Travel Kit Soft"
+        elif "CHARCOAL" in text_upper or "CHRCOAL" in text_upper or "160" in text_upper or "28.500" in text_upper or "28500" in text_upper:
+            return "PEPSODENT Pasta Gigi Act123 Charcoal 160g"
+        else:
+            return "PEPSODENT Pasta Gigi Act123 Herbal 190g"
+    elif "CLOSE UP" in text_upper or "CLOSEUP" in text_upper or "CLOSE" in text_upper:
+        return "CLOSE UP Pasta Gigi Travel Kit"
+    elif "LISTERINE" in text_upper or "STERINE" in text_upper:
+        if "ZERO" in text_upper or "MLT" in text_upper or "PRO" in text_upper or "21.900" in text_upper or "21900" in text_upper:
+            return "LISTERINE Mouthwash Multi Protect Zero 250ml"
+        else:
+            return "LISTERINE Mouth Wash Cool Mint / Fresh Burst 250ml"
+    elif "SERASOFT" in text_upper or "SERA" in text_upper or "SOFT" in text_upper:
+        return "SERASOFT Shampoo Dandruff / Smooth & Shine / Hair Fall 170ml"
 
     found_brand = None
     for brand in KNOWN_BRANDS:

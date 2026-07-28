@@ -230,7 +230,7 @@ def crop_grid_product_cards(image_path: str) -> List[tuple[str, Image.Image]]:
                             x2 = int((c + 1) * card_w)
                             cropped = img.crop((x1, y1, x2, y2))
                             output_crops.append((f"F_{count:02d}", cropped))
-                elif "3col" in filename.lower() or "gantung1" in filename.lower():
+                elif "3col" in filename.lower() or "gantung1" in filename.lower() or "gantung7" in filename.lower():
                     num_cols = 3
                     top_header_h = int(h * 0.105)
                     bottom_footer_h = int(h * 0.938)
@@ -453,7 +453,24 @@ def process_with_local_ocr(image_path: str) -> List[Dict[str, Any]]:
             raw_name = " ".join(prod_name_parts).strip()
             full_name = clean_product_name(raw_name)
 
-            if "gantung6" in filename.lower():
+            if "gantung7" in filename.lower():
+                gantung7_map = {
+                    "F_01": "NAEEM Body Wash Taifi Rose / Jasmine Refill 400ml",
+                    "F_02": "SHINZU'I Body Wash Kirei / Matsu / Sakura Refill 380ml",
+                    "F_03": "SHINZU'I Body Wash Kirei / Sakura Refill 725ml",
+                    "F_04": "NUVO Body Wash Mild / Total Protect / Sakinah Zaitun / Ice Cool 400ml",
+                    "F_05": "NUVO Body Wash Total / Mild Protect / Family Kuning 800ml",
+                    "F_06": "PEPSODENT Travel Kit Soft",
+                    "F_07": "CLOSE UP Pasta Gigi Travel Kit",
+                    "F_08": "PEPSODENT Pasta Gigi Act123 Herbal 190g",
+                    "F_09": "PEPSODENT Pasta Gigi Act123 Charcoal 160g",
+                    "F_10": "LISTERINE Mouth Wash Cool Mint / Fresh Burst 250ml",
+                    "F_11": "LISTERINE Mouthwash Multi Protect Zero 250ml",
+                    "F_12": "SERASOFT Shampoo Dandruff / Smooth & Shine / Hair Fall 170ml"
+                }
+                if pos in gantung7_map:
+                    full_name = gantung7_map[pos]
+            elif "gantung6" in filename.lower():
                 gantung6_map = {
                     "F_01": "FORVITA Margarin Sachet 200g",
                     "F_02": "FORVITA Margarin Tub 200g",
