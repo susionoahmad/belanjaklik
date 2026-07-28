@@ -408,7 +408,12 @@ def process_with_local_ocr(image_path: str) -> List[Dict[str, Any]]:
                 }
                 norm_item = normalize_product_dict(raw_item, global_jsm=is_jsm_flyer)
                 if norm_item and norm_item["product_name"]:
-                    if not any(p["product_name"] == norm_item["product_name"] for p in products):
+                    is_dup = any(
+                        p["product_name"] == norm_item["product_name"] and
+                        p.get("price") == norm_item.get("price")
+                        for p in products
+                    )
+                    if not is_dup:
                         products.append(norm_item)
 
     if not products:
