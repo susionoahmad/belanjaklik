@@ -545,7 +545,9 @@ export const dataService = {
 
     // Auto-heal promo classification for products in Promo Merchant or promo items missing explicit promo_type
     sanitized.forEach(p => {
-      const isPromoProd = Boolean(p.is_promo) && Boolean(p.promo_price && p.promo_price < p.price);
+      const hasPromoPrice = Boolean(p.promo_price && p.promo_price > 0);
+      const hasPromoType = Boolean(p.promo_type && p.promo_type !== 'REGULAR');
+      const isPromoProd = Boolean(p.is_promo) || hasPromoPrice || hasPromoType || Boolean(p.promo_badge);
       if (isPromoProd) {
         p.is_promo = true;
         const badgeUpper = String(p.promo_badge || '').toUpperCase();
@@ -562,7 +564,7 @@ export const dataService = {
           if (!p.promo_title || p.promo_title === 'Diskon Spesial') {
             p.promo_title = 'Promo Gantung Alfamart (#GajianUntungAlfamart)';
           }
-        } else if (isJsm) {
+        } else if (isJsm || p.promo_type === 'JSM') {
           p.promo_type = 'JSM';
           if (!p.promo_badge || p.promo_badge === 'Diskon!' || p.promo_badge === 'PROMO') {
             p.promo_badge = 'PROMO JSM (3 HARI)';
@@ -570,7 +572,7 @@ export const dataService = {
           if (!p.promo_title || p.promo_title === 'Diskon Spesial') {
             p.promo_title = 'Promo Jumat Sabtu Minggu';
           }
-        } else if (isFlash) {
+        } else if (isFlash || p.promo_type === 'FLASHSALE') {
           p.promo_type = 'FLASHSALE';
           if (!p.promo_badge || p.promo_badge === 'Diskon!' || p.promo_badge === 'PROMO') {
             p.promo_badge = 'FLASHSALE';
@@ -579,19 +581,16 @@ export const dataService = {
             p.promo_title = 'Flash Sale Hari Ini';
           }
         } else {
-          if (!p.promo_type || (p.promo_type as string) === 'JSM') {
+          if (!p.promo_type) {
             p.promo_type = 'REGULAR';
           }
-          if (!p.promo_badge || p.promo_badge === 'PROMO JSM (3 HARI)') {
+          if (!p.promo_badge) {
             p.promo_badge = 'Diskon!';
           }
-          if (!p.promo_title || p.promo_title === 'Promo Jumat Sabtu Minggu') {
+          if (!p.promo_title) {
             p.promo_title = 'Diskon Spesial';
           }
         }
-      } else {
-        p.is_promo = false;
-        p.promo_price = undefined;
       }
     });
 
@@ -705,7 +704,17 @@ export const dataService = {
         const isValidUuid = payload.id ? uuidRegex.test(payload.id) : false;
         
         // Strip non-column transient fields before sending to Supabase
-        const dbPayload: any = { ...payload };
+        const isPromoBool = Boolean(
+          payload.is_promo || 
+          (payload.promo_price && payload.promo_price > 0) || 
+          (payload.promo_type && payload.promo_type !== 'REGULAR') || 
+          !!payload.promo_badge
+        );
+
+        const dbPayload: any = { 
+          ...payload,
+          is_promo: isPromoBool
+        };
         delete dbPayload.category;
         delete dbPayload.channel;
 

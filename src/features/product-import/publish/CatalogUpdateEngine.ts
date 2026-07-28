@@ -32,17 +32,18 @@ export class CatalogUpdateEngine {
       // Determine effective promo_type
       const promoType = item.editedData?.promo_type 
         || norm?.promo_type 
+        || (norm?.promo_badge?.toUpperCase().includes('GANTUNG') || norm?.promo_title?.toUpperCase().includes('GANTUNG') || norm?.promo_title?.toUpperCase().includes('GAJIAN') ? 'GANTUNG' : undefined)
         || (norm?.promo_badge?.toUpperCase().includes('FLASH') ? 'FLASHSALE' : undefined)
         || (norm?.promo_badge?.toUpperCase().includes('JSM') ? 'JSM' : undefined)
         || (isPromo ? 'REGULAR' : undefined);
 
       const promoBadge = item.editedData?.promo_badge 
         || norm?.promo_badge 
-        || (promoType === 'JSM' ? 'PROMO JSM (3 HARI)' : (promoType === 'FLASHSALE' ? 'FLASHSALE' : (isPromo ? 'Diskon!' : undefined)));
+        || (promoType === 'GANTUNG' ? 'PROMO GANTUNG (GAJIAN)' : (promoType === 'JSM' ? 'PROMO JSM (3 HARI)' : (promoType === 'FLASHSALE' ? 'FLASHSALE' : (isPromo ? 'Diskon!' : undefined))));
 
       const promoTitle = item.editedData?.promo_title 
         || norm?.promo_title 
-        || (promoType === 'JSM' ? 'Promo Jumat Sabtu Minggu' : (promoType === 'FLASHSALE' ? 'Flash Sale Hari Ini' : (isPromo ? 'Diskon Spesial' : undefined)));
+        || (promoType === 'GANTUNG' ? 'Promo Gantung Alfamart (#GajianUntungAlfamart)' : (promoType === 'JSM' ? 'Promo Jumat Sabtu Minggu' : (promoType === 'FLASHSALE' ? 'Flash Sale Hari Ini' : (isPromo ? 'Diskon Spesial' : undefined))));
 
       const promoStartDate = item.editedData?.promo_start_date || norm?.promo_start_date;
       const promoEndDate = item.editedData?.promo_end_date || norm?.promo_end_date;
