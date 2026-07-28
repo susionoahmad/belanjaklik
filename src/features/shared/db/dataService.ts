@@ -493,17 +493,29 @@ export const dataService = {
     const mergedList = [...baseList]; // Supabase data selalu dipakai sebagai base
 
     if (baseList.length > 0) {
-      // Supabase tersedia: hanya tambahkan produk lokal yang belum ada di Supabase
+      // Supabase tersedia: gabungkan atribut promo lokal ke data Supabase jika data lokal lebih spesifik
       offlineList.forEach(offProd => {
-        const existsInSupabase = mergedList.some(
+        const idx = mergedList.findIndex(
           p => p.id === offProd.id || 
-               (offProd.external_product_code && p.external_product_code === offProd.external_product_code)
+               (offProd.external_product_code && p.external_product_code === offProd.external_product_code) ||
+               (offProd.name && p.name && offProd.name.toLowerCase() === p.name.toLowerCase())
         );
-        if (!existsInSupabase) {
-          // Produk ini hanya ada di lokal (belum di-sync ke Supabase) → tambahkan
+        if (idx === -1) {
+          // Produk ini hanya ada di lokal → tambahkan
           mergedList.unshift(offProd);
+        } else {
+          // Jika ada di Supabase, tapi data lokal memiliki info promo yang valid → gabungkan atribut promo
+          const sp = mergedList[idx];
+          const offType = normalizePromoType(offProd.promo_type, offProd.promo_badge, offProd.promo_title);
+          if (offType && offType !== 'REGULAR') {
+            sp.promo_type = offType;
+            sp.is_promo = true;
+            if (offProd.promo_badge) sp.promo_badge = offProd.promo_badge;
+            if (offProd.promo_title) sp.promo_title = offProd.promo_title;
+            if (offProd.promo_price) sp.promo_price = offProd.promo_price;
+            if (offProd.promo_end_date) sp.promo_end_date = offProd.promo_end_date;
+          }
         }
-        // Jika ada di Supabase → biarkan data Supabase yang dipakai (tidak ditimpa IndexedDB lama)
       });
     } else {
       // Supabase tidak tersedia (offline mode) → gunakan semua data IndexedDB sebagai fallback

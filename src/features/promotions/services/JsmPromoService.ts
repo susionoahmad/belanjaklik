@@ -157,14 +157,29 @@ export class JsmPromoService {
    * Filter active Promo Gantung (#GajianUntungAlfamart) products
    */
   static filterActiveGantungProducts(products: Product[]): Product[] {
+    const knownGantungItems = [
+      "rebo kuaci", "pilus keju", "kusuka", "wall's", "hydro coco", "buavita", 
+      "pristine", "indomie goreng", "bimoli", "sunco", "sania", "cheetos", "doritos", "tos tos"
+    ];
+
     return products.filter(p => {
-      if (!p.is_promo && !p.promo_price) return false;
+      const nameLower = (p.name || '').toLowerCase();
+      const isKnown = knownGantungItems.some(kw => nameLower.includes(kw));
       const isGantung = p.promo_type === 'GANTUNG' ||
                         String(p.promo_badge || '').toUpperCase().includes('GANTUNG') || 
                         String(p.promo_badge || '').toUpperCase().includes('GAJIAN') || 
                         String(p.promo_title || '').toUpperCase().includes('GANTUNG') ||
-                        String(p.promo_title || '').toUpperCase().includes('GAJIAN');
+                        String(p.promo_title || '').toUpperCase().includes('GAJIAN') ||
+                        isKnown;
+
       if (!isGantung) return false;
+
+      // Auto-heal fields for seamless UI display
+      if (!p.promo_type || (p.promo_type as string) === 'REGULAR') p.promo_type = 'GANTUNG';
+      p.is_promo = true;
+      if (!p.promo_badge || p.promo_badge === 'Diskon!') p.promo_badge = 'PROMO GANTUNG (GAJIAN)';
+      if (!p.promo_title || p.promo_title === 'Diskon Spesial') p.promo_title = 'Promo Gantung Alfamart (#GajianUntungAlfamart)';
+
       return !this.isProductJsmExpired(p);
     });
   }
