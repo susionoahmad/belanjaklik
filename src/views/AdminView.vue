@@ -230,6 +230,11 @@
                   <td class="p-3.5 whitespace-nowrap">
                     <div class="font-bold text-brand-red">{{ formatRupiah(p.promo_price || p.price) }}</div>
                     <div v-if="p.is_promo && p.promo_price && p.price > p.promo_price" class="text-[10px] text-gray-400 line-through">{{ formatRupiah(p.price) }}</div>
+                    <div v-if="p.is_promo || p.promo_type || p.promo_badge" class="mt-1">
+                      <span class="px-2 py-0.5 rounded-md text-[9px] font-black bg-gradient-to-r from-amber-500 to-red-600 text-white inline-flex items-center gap-1 shadow-2xs">
+                        🏷️ {{ p.promo_badge || p.promo_type || 'PROMO' }}
+                      </span>
+                    </div>
                   </td>
                   <td class="p-3.5 whitespace-nowrap">
                     <span :class="p.is_available ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900' : 'bg-red-50 text-red-700 dark:bg-red-950/60 dark:text-red-400 border border-red-200 dark:border-red-900'" class="px-2.5 py-1 rounded-full text-[10px] font-extrabold flex items-center gap-1 w-fit">

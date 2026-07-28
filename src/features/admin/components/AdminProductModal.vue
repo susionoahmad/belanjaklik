@@ -34,15 +34,15 @@
             <span class="text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-amber-200 text-amber-900">Config Promo</span>
           </div>
 
-          <div v-if="form.is_promo || form.promo_price" class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+          <div v-if="form.is_promo || !!form.promo_price || (form.promo_type && form.promo_type !== 'REGULAR')" class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
             <div>
               <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Tipe Promo (Lokasi Tampilan)</label>
-              <select v-model="form.promo_type" class="w-full px-3 py-2 rounded-xl border border-amber-300 dark:border-amber-700 bg-white dark:bg-gray-800 text-xs font-bold focus:ring-2 focus:ring-brand-red outline-none">
+              <select v-model="form.promo_type" @change="onPromoTypeChange(($event.target as HTMLSelectElement).value)" class="w-full px-3 py-2 rounded-xl border border-amber-300 dark:border-amber-700 bg-white dark:bg-gray-800 text-xs font-bold focus:ring-2 focus:ring-brand-red outline-none">
                 <option value="GANTUNG">🎁 PROMO GANTUNG (#GajianUntungAlfamart)</option>
                 <option value="JSM">🔥 PROMO JSM (Tampil di Banner JSM 3 Hari)</option>
                 <option value="FLASHSALE">⚡ FLASH SALE (Tampil di Banner Flash Sale)</option>
-                <option value="REGULAR">🏷️ Promo Regular (Diskon Katalog Biasa)</option>
                 <option value="SUPER_SAVER">💰 Super Saver (Hemat Banget)</option>
+                <option value="REGULAR">🏷️ Promo Regular (Diskon Katalog Biasa)</option>
               </select>
             </div>
 
@@ -235,13 +235,41 @@ const form = ref<{
   is_available: true
 });
 
+const onPromoTypeChange = (newType: string) => {
+  if (!form.value) return;
+  form.value.is_promo = true;
+  if (newType === 'GANTUNG') {
+    form.value.promo_badge = 'PROMO GANTUNG (GAJIAN)';
+    form.value.promo_title = 'Promo Gantung Alfamart (#GajianUntungAlfamart)';
+  } else if (newType === 'JSM') {
+    form.value.promo_badge = 'PROMO JSM (3 HARI)';
+    form.value.promo_title = 'Promo Jumat Sabtu Minggu';
+  } else if (newType === 'FLASHSALE') {
+    form.value.promo_badge = 'FLASHSALE';
+    form.value.promo_title = 'Flash Sale Hari Ini';
+  } else if (newType === 'SUPER_SAVER') {
+    form.value.promo_badge = 'SUPER SAVER';
+    form.value.promo_title = 'Super Saver Alfamart';
+  } else if (newType === 'REGULAR') {
+    form.value.promo_badge = 'Diskon!';
+    form.value.promo_title = 'Diskon Spesial';
+  }
+};
+
 watch(() => props.product, (newP) => {
   if (newP) {
     const list = newP.images && newP.images.length > 0 
       ? [...newP.images] 
       : (newP.image_url ? [newP.image_url] : []);
 
-    const isPromoProd = newP.is_promo ?? (!!newP.promo_price && newP.promo_price < newP.price);
+    const isPromoProd = Boolean(
+      newP.is_promo ||
+      (newP.promo_price && newP.promo_price > 0) ||
+      (newP.promo_type && newP.promo_type !== 'REGULAR') ||
+      !!newP.promo_badge ||
+      !!newP.promo_end_date
+    );
+
     const pType = newP.promo_type || (newP.promo_badge?.toUpperCase().includes('GANTUNG') ? 'GANTUNG' : (newP.promo_badge?.toUpperCase().includes('JSM') ? 'JSM' : (newP.promo_badge?.toUpperCase().includes('FLASH') ? 'FLASHSALE' : 'REGULAR')));
 
     const descClean = newP.description?.trim();
