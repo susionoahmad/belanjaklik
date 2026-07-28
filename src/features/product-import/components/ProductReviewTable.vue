@@ -156,8 +156,10 @@
                   @change="updateItemPromoType(item, ($event.target as HTMLSelectElement).value)"
                   class="w-full px-2 py-1 rounded-xl border border-amber-300 dark:border-amber-700 bg-amber-50/60 dark:bg-amber-950/40 text-xs font-extrabold text-amber-900 dark:text-amber-200 focus:ring-2 focus:ring-brand-red outline-none shadow-xs"
                 >
+                  <option value="GANTUNG">🎁 PROMO GANTUNG (Gajian)</option>
                   <option value="JSM">🔥 PROMO JSM (3 Hari)</option>
                   <option value="FLASHSALE">⚡ Flash Sale Hari Ini</option>
+                  <option value="SUPER_SAVER">💰 Super Saver (Hemat Banget)</option>
                   <option value="REGULAR">🏷️ Diskon Katalog Regular</option>
                   <option value="NONE">❌ Bukan Produk Promo</option>
                 </select>
@@ -258,16 +260,17 @@ const getSelectedPromoType = (item: ReviewItem): string => {
   const norm = item.card.normalizedData;
   let type = 'JSM';
   if (norm?.promo_type) type = norm.promo_type;
+  else if (norm?.promo_badge?.includes('GANTUNG') || norm?.promo_badge?.includes('GAJIAN')) type = 'GANTUNG';
   else if (norm?.promo_badge?.includes('FLASHSALE')) type = 'FLASHSALE';
 
   // Explicitly sync into item.editedData so publish engine reads it correctly
   if (!item.editedData) item.editedData = {};
   item.editedData.promo_type = type as any;
   if (!item.editedData.promo_badge) {
-    item.editedData.promo_badge = type === 'JSM' ? 'PROMO JSM (3 HARI)' : (type === 'FLASHSALE' ? 'FLASHSALE' : 'Diskon!');
+    item.editedData.promo_badge = type === 'GANTUNG' ? 'PROMO GANTUNG (GAJIAN)' : (type === 'JSM' ? 'PROMO JSM (3 HARI)' : (type === 'FLASHSALE' ? 'FLASHSALE' : 'Diskon!'));
   }
   if (!item.editedData.promo_title) {
-    item.editedData.promo_title = type === 'JSM' ? 'Promo Jumat Sabtu Minggu' : (type === 'FLASHSALE' ? 'Flash Sale Hari Ini' : 'Diskon Spesial');
+    item.editedData.promo_title = type === 'GANTUNG' ? 'Promo Gantung Alfamart (#GajianUntungAlfamart)' : (type === 'JSM' ? 'Promo Jumat Sabtu Minggu' : (type === 'FLASHSALE' ? 'Flash Sale Hari Ini' : 'Diskon Spesial'));
   }
   if (item.editedData.is_promo === undefined) {
     item.editedData.is_promo = true;
@@ -281,13 +284,21 @@ const updateItemPromoType = (item: ReviewItem, promoType: string) => {
     item.editedData = {};
   }
   item.editedData.promo_type = promoType as any;
-  if (promoType === 'JSM') {
+  if (promoType === 'GANTUNG') {
+    item.editedData.promo_badge = 'PROMO GANTUNG (GAJIAN)';
+    item.editedData.promo_title = 'Promo Gantung Alfamart (#GajianUntungAlfamart)';
+    item.editedData.is_promo = true;
+  } else if (promoType === 'JSM') {
     item.editedData.promo_badge = 'PROMO JSM (3 HARI)';
     item.editedData.promo_title = 'Promo Jumat Sabtu Minggu';
     item.editedData.is_promo = true;
   } else if (promoType === 'FLASHSALE') {
     item.editedData.promo_badge = 'FLASHSALE';
     item.editedData.promo_title = 'Flash Sale Hari Ini';
+    item.editedData.is_promo = true;
+  } else if (promoType === 'SUPER_SAVER') {
+    item.editedData.promo_badge = 'SUPER SAVER';
+    item.editedData.promo_title = 'Super Saver Alfamart';
     item.editedData.is_promo = true;
   } else if (promoType === 'REGULAR') {
     item.editedData.promo_badge = 'Diskon!';
