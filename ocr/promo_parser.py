@@ -111,7 +111,18 @@ KNOWN_JSM_PRICE_MAP = {
     "Gadjah Kopi Tubruk 138 g": (18800, 21800),
     "TOP Coffee Mokachinno / Gula Aren 9x22 g": (11500, 14200),
     "TOP 3in1 Coffee Susu Gula 10x31 g": (14000, 17500),
-    "Good Day Cappuccino 10x25 g": (22900, 25200)
+    "Good Day Cappuccino 10x25 g": (22900, 25200),
+    "SUKSESS 2 Goreng Rendang 132g / Kremes 133g / Kecap 129g / Aceh 140g": (4000, 4300),
+    "INDOMIE Goreng All Var (kecuali Geprek/Rendang/Aceh) 5x85g": (14600, 16000),
+    "SEDAAP Mie Goreng Kor Spicy Ckn / Buldak / Limau / Chef": (8300, 9300),
+    "SEDAAP Mie Soto 5x76g / Ayam Bawang 5x71g": (13200, 14900),
+    "SEDAAP Mie Goreng 5x91g": (13600, 15400),
+    "INDOFOOD Kecap Manis Refill 725g": (16500, 18600),
+    "ABC Kecap Manis Refill 685g": (17100, 22500),
+    "INDOFOOD Sambal Ekstra Pedas / Pedas PET 275ml": (11900, 13600),
+    "INDOFOOD Sambal Dahsyat PET 275ml": (13300, 15000),
+    "DUA BELIBIS Sambal Cabe Lada PET 235ml": (13500, 15000),
+    "DUA BELIBIS Sambal Cabe Extra PET 235ml": (14500, 16000)
 }
 
 def clean_price(val: Any) -> int:
@@ -287,6 +298,31 @@ def clean_product_name(raw_name: str) -> str:
             return "Good Day Cappuccino 10x25 g"
         else:
             return "Good Day Coffee Drink PET 250 ml"
+    elif "SUKSESS" in text_upper or "SUKSES" in text_upper or "MANTAAB" in text_upper:
+        return "SUKSESS 2 Goreng Rendang 132g / Kremes 133g / Kecap 129g / Aceh 140g"
+    elif "INDOMIE" in text_upper or "EPREK" in text_upper or "CABE IJO" in text_upper:
+        return "INDOMIE Goreng All Var (kecuali Geprek/Rendang/Aceh) 5x85g"
+    elif "SEDAAP" in text_upper or "SEDAAF" in text_upper or "SEDA" in text_upper or "EDAAP" in text_upper or "EDAAP" in text_upper:
+        if "KOR" in text_upper or "SPICY" in text_upper or "BULDAK" in text_upper or "CHEF" in text_upper or "8.300" in text_upper or "8300" in text_upper:
+            return "SEDAAP Mie Goreng Kor Spicy Ckn / Buldak / Limau / Chef"
+        elif "SOTO" in text_upper or "BAWANG" in text_upper or "13.200" in text_upper or "13200" in text_upper:
+            return "SEDAAP Mie Soto 5x76g / Ayam Bawang 5x71g"
+        else:
+            return "SEDAAP Mie Goreng 5x91g"
+    elif "INDOFOOD" in text_upper or "INDOJOOD" in text_upper or "INNAUOA" in text_upper:
+        if "KECAP" in text_upper or "725" in text_upper or "16.500" in text_upper or "16500" in text_upper:
+            return "INDOFOOD Kecap Manis Refill 725g"
+        elif "DAHSYAT" in text_upper or "13.300" in text_upper or "13300" in text_upper:
+            return "INDOFOOD Sambal Dahsyat PET 275ml"
+        else:
+            return "INDOFOOD Sambal Ekstra Pedas / Pedas PET 275ml"
+    elif "ABC" in text_upper and ("KECAP" in text_upper or "REF" in text_upper or "685" in text_upper or "17.100" in text_upper or "17100" in text_upper):
+        return "ABC Kecap Manis Refill 685g"
+    elif "DUA BELIBIS" in text_upper or "BELIBIS" in text_upper or "CABE" in text_upper or "LADA" in text_upper:
+        if "EXTRA" in text_upper or "14.500" in text_upper or "14500" in text_upper:
+            return "DUA BELIBIS Sambal Cabe Extra PET 235ml"
+        else:
+            return "DUA BELIBIS Sambal Cabe Lada PET 235ml"
 
     found_brand = None
     for brand in KNOWN_BRANDS:

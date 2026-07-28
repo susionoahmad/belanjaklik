@@ -196,6 +196,23 @@ def crop_grid_product_cards(image_path: str) -> List[tuple[str, Image.Image]]:
                             x2 = int((c + 1) * card_w)
                             cropped = img.crop((x1, y1, x2, y2))
                             output_crops.append((f"F_{count:02d}", cropped))
+                elif "gantung5" in filename.lower():
+                    top_header_h = int(h * 0.105)
+                    bottom_footer_h = int(h * 0.938)
+                    grid_h = bottom_footer_h - top_header_h
+                    row_h = grid_h / 4
+                    row_specs = [2, 3, 3, 3]
+                    count = 0
+                    for r, num_cols in enumerate(row_specs):
+                        y1 = top_header_h + int(r * row_h)
+                        y2 = top_header_h + int((r + 1) * row_h)
+                        card_w = w / num_cols
+                        for c in range(num_cols):
+                            count += 1
+                            x1 = int(c * card_w)
+                            x2 = int((c + 1) * card_w)
+                            cropped = img.crop((x1, y1, x2, y2))
+                            output_crops.append((f"F_{count:02d}", cropped))
                 elif "3col" in filename.lower() or "gantung1" in filename.lower():
                     num_cols = 3
                     top_header_h = int(h * 0.105)
