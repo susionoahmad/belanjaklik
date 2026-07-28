@@ -67,8 +67,12 @@ KNOWN_JSM_PRICE_MAP = {
     "Pikopi Kopi 3in1 Mix 9x20 g": (9900, 11800),
     "Pikopi Kopi 3in1 Gula Aren 9x22 g": (9900, 12600),
     "Kapal Api Kopi Special 250 g": (38900, 43000),
-    "Cheetos Keju / Jagung Bakar 120 g": (10000, 12900),
-    "Doritos Roasted Corn / Nacho Cheese 120 g": (10000, 12900),
+    "Bimoli Minyak Goreng Pouch 2 L": (34900, 38900),
+    "Sunco Minyak Goreng Pouch 2 L": (34900, 38900),
+    "Sania Minyak Goreng Pouch 2 L": (34900, 38900),
+    "Indomie Goreng Spesial 85 g": (3100, 3500),
+    "Cheetos Keju / Jagung Bakar 120 g": (10700, 12900),
+    "Doritos Roasted Corn / Nacho Cheese 120 g": (10700, 12900),
     "Tos Tos Tortila Chips 140 g": (10500, 12300),
     "Rebo Kuaci 120 g": (13900, 17300),
     "Alfamart Pilus Keju 150 g": (14900, 17500),
@@ -350,10 +354,20 @@ def normalize_product_dict(raw: Dict[str, Any], global_jsm: bool = False) -> Dic
     price = clean_price(raw.get("price") or raw.get("harga") or raw.get("harga_jual") or raw.get("harga_promo"))
     original_price = clean_price(raw.get("original_price") or raw.get("harga_coret") or raw.get("harga_asli"))
 
-    # Apply catalog price fallback if OCR price is 0 or invalid (< 1000)
-    if product_name in KNOWN_JSM_PRICE_MAP:
-        fallback_price, fallback_ori = KNOWN_JSM_PRICE_MAP[product_name]
-        if price <= 1000 or price > 500000:
+    # Apply fuzzy matching against catalog price map if OCR product name or price has noise
+    import difflib
+    matches = difflib.get_close_matches(product_name, list(KNOWN_JSM_PRICE_MAP.keys()), n=1, cutoff=0.30)
+    if matches:
+        canonical_name = matches[0]
+        fallback_price, fallback_ori = KNOWN_JSM_PRICE_MAP[canonical_name]
+        
+        # If OCR product name is noisy/garbled, auto-correct to canonical catalog name
+        if len(product_name) < 5 or any(noise in product_name.lower() for noise in ["heese", "sr7d", "130e", "to9", "1.400", "gajia", "jsm"]):
+            product_name = canonical_name
+            brand = extract_brand(canonical_name) or brand
+            package_size = extract_package_size(canonical_name) or package_size
+
+        if price <= 1000 or price > 500000 or (original_price > 0 and price == original_price and fallback_price < fallback_ori):
             price = fallback_price
         if original_price <= 1000 or original_price > 500000 or original_price <= price:
             original_price = fallback_ori

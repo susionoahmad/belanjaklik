@@ -372,12 +372,13 @@ def process_with_local_ocr(image_path: str) -> List[Dict[str, Any]]:
                     if cleaned_line and len(cleaned_line) > 2:
                         prod_name_parts.append(cleaned_line)
 
-            # Sort prices so price = lowest (selling promo price) and original_price = highest (strikethrough price)
+            # Sort prices so price = lowest (selling promo price >= 2000) and original_price = highest
             price = 0
             original_price = 0
 
             if valid_prices:
-                unique_prices = sorted(list(set(valid_prices)))
+                filtered_prices = [p for p in set(valid_prices) if p >= 2000]
+                unique_prices = sorted(filtered_prices)
                 if len(unique_prices) >= 2:
                     price = unique_prices[0]
                     original_price = unique_prices[-1]
