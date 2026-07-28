@@ -85,12 +85,15 @@
               {{ product.description }}
             </p>
             
-            <div class="pt-1">
+            <div class="pt-1 flex items-center gap-1.5 flex-wrap">
               <div class="font-black text-sm text-brand-red">
                 {{ formatRupiah(product.promo_price || product.price) }}
               </div>
               <div v-if="product.promo_price && product.price > product.promo_price" class="text-[10px] text-gray-400 line-through font-semibold">
                 {{ formatRupiah(product.price) }}
+              </div>
+              <div v-else-if="product.is_promo || product.promo_price" class="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+                Harga Spesial
               </div>
             </div>
           </div>
