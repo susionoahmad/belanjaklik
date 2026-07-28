@@ -12,10 +12,10 @@ export interface JsmConfig {
 const STORAGE_KEY = 'psa_jsm_config';
 
 const DEFAULT_JSM_CONFIG: JsmConfig = {
-  startDate: '2026-07-24',
-  endDate: '2026-07-26',
+  startDate: '2026-07-28',
+  endDate: '2026-08-03',
   isActive: true,
-  title: 'Promo Jumat Sabtu Minggu',
+  title: 'Promo Gantung & JSM Alfamart',
   subtitle: 'Spesial harga hemat produk pilihan Alfamart'
 };
 
@@ -28,7 +28,14 @@ export class JsmPromoService {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) return DEFAULT_JSM_CONFIG;
-      return { ...DEFAULT_JSM_CONFIG, ...JSON.parse(raw) };
+      const parsed = JSON.parse(raw);
+      const today = new Date().toISOString().slice(0, 10);
+      if (parsed.endDate && parsed.endDate < today) {
+        // Automatically refresh stale localStorage config to active dates
+        localStorage.removeItem(STORAGE_KEY);
+        return DEFAULT_JSM_CONFIG;
+      }
+      return { ...DEFAULT_JSM_CONFIG, ...parsed };
     } catch {
       return DEFAULT_JSM_CONFIG;
     }
@@ -76,8 +83,8 @@ export class JsmPromoService {
     const today = currentDateStr || new Date().toISOString().slice(0, 10);
 
     // 1. Check individual product promo_end_date if specified
-    if (product.promo_end_date && today > product.promo_end_date) {
-      return true;
+    if (product.promo_end_date) {
+      return today > product.promo_end_date;
     }
 
     // 2. Fall back to global JSM config end date / active status
