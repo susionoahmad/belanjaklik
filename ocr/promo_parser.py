@@ -67,10 +67,15 @@ KNOWN_JSM_PRICE_MAP = {
     "Pikopi Kopi 3in1 Mix 9x20 g": (9900, 11800),
     "Pikopi Kopi 3in1 Gula Aren 9x22 g": (9900, 12600),
     "Kapal Api Kopi Special 250 g": (38900, 43000),
-    "Bimoli Minyak Goreng Pouch 2 L": (34900, 38900),
-    "Sunco Minyak Goreng Pouch 2 L": (34900, 38900),
-    "Sania Minyak Goreng Pouch 2 L": (34900, 38900),
-    "Indomie Goreng Spesial 85 g": (3100, 3500),
+    "Vidoran Xmart 5+ Cokelat 700 g": (49400, 52000),
+    "Pediasure Tsure Madu / Cokelat Can 380 g": (189000, 195500),
+    "Pediasure Tsure Madu / Cokelat Can 800 g": (338900, 380600),
+    "Anlene Gold 5X Cokelat / Vanila / Ori Box 560 g": (95900, 109500),
+    "Anlene Act 3X Vanila Box 560 g": (70500, 81500),
+    "Alfamart Minyak Goreng Pouch 2 L": (41500, 43900),
+    "Sovia Minyak Goreng Pouch 2 L": (42100, 42400),
+    "Sania Minyak Goreng Pouch 2 L": (42500, 42800),
+    "Fortune Minyak Goreng Pouch 2 L": (42200, 42500),
     "Cheetos Keju / Jagung Bakar 120 g": (10700, 12900),
     "Doritos Roasted Corn / Nacho Cheese 120 g": (10700, 12900),
     "Tos Tos Tortila Chips 140 g": (10500, 12300),
@@ -170,6 +175,28 @@ def clean_product_name(raw_name: str) -> str:
         return "Buavita Juice TP 250 ml"
     elif "PRISTINE" in text_upper or "PRIST" in text_upper:
         return "Pristine 8.6+ Water PET 1500 ml"
+    elif "VIDORAN" in text_upper or "XMART" in text_upper:
+        return "Vidoran Xmart 5+ Cokelat 700 g"
+    elif "PEDIASURE" in text_upper or "EDIASURE" in text_upper or "TSURE" in text_upper:
+        if "800" in text_upper or "800G" in text_upper or "CAN 800" in text_upper:
+            return "Pediasure Tsure Madu / Cokelat Can 800 g"
+        else:
+            return "Pediasure Tsure Madu / Cokelat Can 380 g"
+    elif "ANLENE" in text_upper or "AOLE" in text_upper or "LENE" in text_upper:
+        if "ACT" in text_upper or "3X" in text_upper:
+            return "Anlene Act 3X Vanila Box 560 g"
+        else:
+            return "Anlene Gold 5X Cokelat / Vanila / Ori Box 560 g"
+    elif "SOVIA" in text_upper:
+        return "Sovia Minyak Goreng Pouch 2 L"
+    elif "SANIA" in text_upper:
+        return "Sania Minyak Goreng Pouch 2 L"
+    elif "FORTUNE" in text_upper:
+        return "Fortune Minyak Goreng Pouch 2 L"
+    elif "BIMOLI" in text_upper:
+        return "Bimoli Minyak Goreng Pouch 2 L"
+    elif "ALFAMART MINYAK" in text_upper or ("ALFAMART" in text_upper and "MINYAK" in text_upper):
+        return "Alfamart Minyak Goreng Pouch 2 L"
 
     found_brand = None
     for brand in KNOWN_BRANDS:
@@ -367,9 +394,9 @@ def normalize_product_dict(raw: Dict[str, Any], global_jsm: bool = False) -> Dic
             brand = extract_brand(canonical_name) or brand
             package_size = extract_package_size(canonical_name) or package_size
 
-        if price <= 1000 or price > 500000 or (original_price > 0 and price == original_price and fallback_price < fallback_ori):
+        if price <= 1000 or price > 500000 or (price < 10000 and fallback_price >= 10000) or (original_price > 0 and price == original_price and fallback_price < fallback_ori):
             price = fallback_price
-        if original_price <= 1000 or original_price > 500000 or original_price <= price:
+        if original_price <= 1000 or original_price > 500000 or original_price < price:
             original_price = fallback_ori
 
     discount_pct = raw.get("discount_percentage") or raw.get("diskon")

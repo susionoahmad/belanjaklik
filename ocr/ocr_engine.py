@@ -275,12 +275,13 @@ def extract_pure_product_pack(pil_img: Image.Image, pos: str) -> Image.Image:
 def extract_valid_prices_from_line(line: str) -> list[int]:
     """
     Strips package sizes (200ml, 250ml, 10x25g, 2026 year), discount text (Potongan Rp 1.800),
-    and returns valid retail prices between Rp 1.000 and Rp 500.000.
+    regional text (Palembang, Lombok, Batam, Luar Jawa), and returns valid retail prices.
     """
-    if re.search(r"\b(?:potongan|hemat|cashback|diskon)\b", line, re.IGNORECASE):
+    if re.search(r"\b(?:potongan|hemat|cashback|diskon|palembang|medan|pekanbaru|jambi|kalimantan|sulawesi|lombok|batam|luar jawa|wilayah|syarat|ketentuan|berbeda|aplikasi|berlaku|toko)\b", line, re.IGNORECASE):
         return []
 
-    line_clean = re.sub(r"\b\d+\s*(?:ml|g|gr|gram|kg|l|pcs|pack|sachet|x\d+g)\b", "", line, flags=re.IGNORECASE)
+    line_clean = re.sub(r"\b\d+\s*(?:ml|g|gr|gram|kg|l|pcs|pack|sachet|x\d+g|\+)\b", "", line, flags=re.IGNORECASE)
+    line_clean = re.sub(r"\b\d+g\b", "", line_clean, flags=re.IGNORECASE)
     line_clean = re.sub(r"\b202\d\b", "", line_clean)
     line_clean = re.sub(r"\b\d+X\d+\w*\b", "", line_clean, flags=re.IGNORECASE)
 
@@ -361,7 +362,7 @@ def process_with_local_ocr(image_path: str) -> List[Dict[str, Any]]:
             valid_prices = []
 
             for line in lines:
-                if any(btn_word in line.lower() for btn_word in ['keranjang', 'tambah', 'beli', 'cart', 'add', 'cari', 'search', 'syarat', 'ketentuan']):
+                if any(btn_word in line.lower() for btn_word in ['keranjang', 'tambah', 'beli', 'cart', 'add', 'cari', 'search', 'syarat', 'ketentuan', 'palembang', 'medan', 'pekanbaru', 'jambi', 'kalimantan', 'sulawesi', 'lombok', 'batam', 'luar jawa', 'wilayah', 'berbeda', 'aplikasi', 'berlaku', 'toko', 'harga final', 'berubah sewaktu']):
                     continue
 
                 line_prices = extract_valid_prices_from_line(line)
