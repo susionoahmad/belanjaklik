@@ -406,7 +406,10 @@ def process_with_local_ocr(image_path: str) -> List[Dict[str, Any]]:
                     "promo_title": p_title,
                     "image": str(highres_400_path)
                 }
-                products.append(normalize_product_dict(raw_item, global_jsm=is_jsm_flyer))
+                norm_item = normalize_product_dict(raw_item, global_jsm=is_jsm_flyer)
+                if norm_item and norm_item["product_name"]:
+                    if not any(p["product_name"] == norm_item["product_name"] for p in products):
+                        products.append(norm_item)
 
     if not products:
         clean_name = filename.rsplit('.', 1)[0].replace('_', ' ').replace('-', ' ').title()
