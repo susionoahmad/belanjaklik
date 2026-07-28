@@ -348,26 +348,32 @@ def normalize_product_dict(raw: Dict[str, Any], global_jsm: bool = False) -> Dic
     package_size = str(raw.get("package_size") or raw.get("ukuran") or raw.get("berat") or "").strip() or extract_package_size(product_name)
     
     price = clean_price(raw.get("price") or raw.get("harga") or raw.get("harga_jual") or raw.get("harga_promo"))
-    original_price = clean_price(raw.get("original_price") or raw.get("harga_coret") or raw.get("harga_asli"))
+    raw_ori = raw.get("original_price") or raw.get("harga_coret") or raw.get("harga_asli")
+
+    if isinstance(raw_ori, str) and "spesial" in raw_ori.lower():
+        original_price = "Harga Spesial"
+    else:
+        original_price = clean_price(raw_ori)
 
     # Apply catalog price fallback if OCR price is 0 or invalid (< 1000)
     if product_name in KNOWN_JSM_PRICE_MAP:
         fallback_price, fallback_ori = KNOWN_JSM_PRICE_MAP[product_name]
         if price <= 1000 or price > 500000:
             price = fallback_price
-        if original_price <= 1000 or original_price > 500000 or original_price <= price:
+        if original_price != "Harga Spesial" and isinstance(original_price, int) and (original_price <= 1000 or original_price > 500000):
             original_price = fallback_ori
-    
+
     discount_pct = raw.get("discount_percentage") or raw.get("diskon")
-    if original_price > price and price > 0:
-        calculated_pct = round(((original_price - price) / original_price) * 100)
-        discount_pct = calculated_pct
-    elif discount_pct:
-        try:
-            discount_pct = int(float(discount_pct))
-        except (ValueError, TypeError):
+    if isinstance(original_price, (int, float)) and original_price > 0:
+        if original_price > price and price > 0:
+            calculated_pct = round(((original_price - price) / original_price) * 100)
+            discount_pct = calculated_pct
+        else:
+            # Jika harga promo dan harga asli sama (atau original_price <= price), ganti harga coret dengan "Harga Spesial"
+            original_price = "Harga Spesial"
             discount_pct = 0
     else:
+        original_price = "Harga Spesial"
         discount_pct = 0
 
     raw_promo_type = str(raw.get("promo_type") or raw.get("tipe_promo") or "").upper()
@@ -420,7 +426,7 @@ def normalize_product_dict(raw: Dict[str, Any], global_jsm: bool = False) -> Dic
         "variant": variant or "",
         "package_size": package_size or "",
         "price": price,
-        "original_price": original_price if original_price > 0 else "",
+        "original_price": original_price if (isinstance(original_price, (int, float)) and original_price > 0) or (isinstance(original_price, str) and original_price) else "",
         "discount_percentage": discount_pct if discount_pct > 0 else "",
         "stock_status": stock_status,
         "category": category,

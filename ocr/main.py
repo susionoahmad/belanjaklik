@@ -73,7 +73,7 @@ def process_images_batch(input_path: str, output_excel: str, api_key: str = "", 
         price_val = p.get('price')
         orig_val = p.get('original_price')
         price = f"Rp{price_val:,}" if isinstance(price_val, (int, float)) and price_val > 0 else "-"
-        orig_price = f"Rp{orig_val:,}" if isinstance(orig_val, (int, float)) and orig_val > 0 else "-"
+        orig_price = f"Rp{orig_val:,}" if isinstance(orig_val, (int, float)) and orig_val > 0 else str(orig_val or "-")
         promo = str(p.get('promo_type', '-'))
         cat = str(p.get('category', 'Umum'))
         print(f"{i:<3} | {p_name:<32} | {price:<10} | {orig_price:<11} | {promo:<6} | {cat}")
