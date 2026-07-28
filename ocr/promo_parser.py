@@ -163,8 +163,7 @@ def clean_product_name(raw_name: str) -> str:
     
     text = " ".join(clean_words)
 
-    # Fuzzy OCR catalog pattern matching for 100% accuracy
-    text_upper = text.upper()
+    text_upper = re.sub(r"[^A-Z0-9\s]", " ", text.upper())
     if "CHEET" in text_upper or "CHEETO" in text_upper:
         return "Cheetos Keju / Jagung Bakar 120 g"
     elif "DORIT" in text_upper or "DORI" in text_upper:
@@ -212,12 +211,12 @@ def clean_product_name(raw_name: str) -> str:
         return "Bimoli Minyak Goreng Pouch 2 L"
     elif "ALFAMART MINYAK" in text_upper or ("ALFAMART" in text_upper and "MINYAK" in text_upper):
         return "Alfamart Minyak Goreng Pouch 2 L"
-    elif "KODOMO" in text_upper or "DOMO" in text_upper or "BABU WIPES" in text_upper:
+    elif "KODOMO" in text_upper or "DOMO" in text_upper or "BABU WIPES" in text_upper or "WIPES" in text_upper:
         if "ANTI" in text_upper or "MOUTH" in text_upper or "BAC" in text_upper or "HAND" in text_upper:
             return "KODOMO Baby Wipes Anti Bac, Hand&Mouth Wipes 2x50s"
         else:
             return "KODOMO Baby Wipes Pink, Blue 2x50s"
-    elif "SWEETY" in text_upper or "WEETY" in text_upper or "RONZE PNTS" in text_upper or "SWEETY DRY" in text_upper:
+    elif "SWEETY" in text_upper or "WEETY" in text_upper or "SWEET" in text_upper or "RONZE" in text_upper or "BRONZE" in text_upper:
         if "SILVER" in text_upper or "SLVR" in text_upper or "MAX" in text_upper:
             if "XXL" in text_upper or "18+4" in text_upper:
                 return "SWEETY Silver/MP Pnts XXL-18+4/18"
@@ -227,23 +226,23 @@ def clean_product_name(raw_name: str) -> str:
             return "SWEETY Bronze Pnts Dry Xprt XXL-20/20+3"
         elif "XL-24" in text_upper or "XL-26" in text_upper or "XL" in text_upper:
             return "SWEETY Bronze Pnts Dry Xprt XL-24/26"
-        elif "M-44" in text_upper or "L-38" in text_upper or "XL-32" in text_upper or "64.500" in text_upper or "64,500" in text_upper or "1-44" in text_upper:
+        elif "M-44" in text_upper or "L-38" in text_upper or "XL-32" in text_upper or "64 500" in text_upper or "64500" in text_upper or "1-44" in text_upper:
             return "SWEETY Bronze Pnts Dry Xprt M-44, L-38, XL-32"
         elif "M-32" in text_upper or "L-28" in text_upper or "M" in text_upper:
             return "SWEETY Bronze Pnts Dry Xprt M-32, L-28"
         else:
             return "SWEETY Bronze Pnts Dry Xprt S-38/36+2"
     elif "MERRIES" in text_upper or "AERRIES" in text_upper or "ERRIES" in text_upper or "GOOD SKIN" in text_upper:
-        if "S-40" in text_upper or "5-40" in text_upper or "76.600" in text_upper or "76,600" in text_upper:
+        if "S-40" in text_upper or "5-40" in text_upper or "76 600" in text_upper or "76600" in text_upper:
             return "MERRIES Pants Good Skin S-40"
         else:
             return "MERRIES Pants Good Skin M-32+2, L-28, XL-26"
-    elif "BABY HAPPY" in text_upper or "HAPPY BABY" in text_upper or ("BABY" in text_upper and "HAPPY" in text_upper):
-        if "FUN" in text_upper or "SOFT" in text_upper or "COMFORT" in text_upper or "CMF" in text_upper:
+    elif "BABY HAPPY" in text_upper or "HAPPY BABY" in text_upper or "HAPPY" in text_upper or "ABY" in text_upper or "CMF" in text_upper:
+        if "FUN" in text_upper or "SOFT" in text_upper or "COMFORT" in text_upper or "CMF" in text_upper or "OFT" in text_upper:
             return "BABY HAPPY Soft/Fun Cmf Pnts M-32, L-28"
-        elif "S-38" in text_upper or "38+2" in text_upper or "56.900" in text_upper or "56,900" in text_upper:
+        elif "S-38" in text_upper or "38+2" in text_upper or "56 900" in text_upper or "56900" in text_upper:
             return "BABY HAPPY Pants S-38+2"
-        elif "XL" in text_upper or "XL-26" in text_upper or "61.900" in text_upper or "61,900" in text_upper:
+        elif "XL" in text_upper or "XL-26" in text_upper or "61 900" in text_upper or "61900" in text_upper:
             return "BABY HAPPY Pants XL-26"
         else:
             return "BABY HAPPY Pants M-32, L-28"
