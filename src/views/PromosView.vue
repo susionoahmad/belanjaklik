@@ -5,8 +5,11 @@
       <p class="text-xs text-gray-500">Hemat lebih banyak dengan penawaran diskon minggu ini</p>
     </div>
 
+    <!-- Promo Gantung (#GajianUntungAlfamart) Section -->
+    <GantungPromoSection @select="openProductDetail" />
+
     <!-- Promo JSM Section -->
-    <JsmPromoSection />
+    <JsmPromoSection @select="openProductDetail" />
 
     <!-- Flash Sale Section -->
     <FlashSaleSection />
@@ -113,6 +116,7 @@ import type { Product, PromoFile } from '../features/shared/types';
 import { updatePageSeo } from '../features/shared/utils/seo';
 import FlashSaleSection from '../features/promotions/components/FlashSaleSection.vue';
 import JsmPromoSection from '../features/promotions/components/JsmPromoSection.vue';
+import GantungPromoSection from '../features/promotions/components/GantungPromoSection.vue';
 
 import ProductCard from '../features/catalog/components/ProductCard.vue';
 import ProductDetailModal from '../features/catalog/components/ProductDetailModal.vue';

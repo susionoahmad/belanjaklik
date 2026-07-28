@@ -154,6 +154,22 @@ export class JsmPromoService {
   }
 
   /**
+   * Filter active Promo Gantung (#GajianUntungAlfamart) products
+   */
+  static filterActiveGantungProducts(products: Product[]): Product[] {
+    return products.filter(p => {
+      if (!p.is_promo && !p.promo_price) return false;
+      const isGantung = p.promo_type === 'GANTUNG' ||
+                        String(p.promo_badge || '').toUpperCase().includes('GANTUNG') || 
+                        String(p.promo_badge || '').toUpperCase().includes('GAJIAN') || 
+                        String(p.promo_title || '').toUpperCase().includes('GANTUNG') ||
+                        String(p.promo_title || '').toUpperCase().includes('GAJIAN');
+      if (!isGantung) return false;
+      return !this.isProductJsmExpired(p);
+    });
+  }
+
+  /**
    * Filter active JSM products (excluding expired ones)
    */
   static filterActiveJsmProducts(products: Product[]): Product[] {
