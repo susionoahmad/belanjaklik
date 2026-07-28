@@ -1,6 +1,7 @@
 import { supabase, isSupabaseConfigured } from './supabaseClient';
 import { offlineDb } from './offlineDb';
 import type { Product, Category, FulfillmentChannel, ShoppingTemplate, ShoppingRequest, StoreProfile, ProductSource } from '../types';
+import { normalizePromoType } from '../types';
 
 // INITIAL FALLBACK DATASET FOR IMMEDIATE OFFLINE / MOCK DEMO EXECUTION
 const DEFAULT_CHANNELS: FulfillmentChannel[] = [
@@ -550,30 +551,24 @@ export const dataService = {
       const isPromoProd = Boolean(p.is_promo) || hasPromoPrice || hasPromoType || Boolean(p.promo_badge);
       if (isPromoProd) {
         p.is_promo = true;
-        const badgeUpper = String(p.promo_badge || '').toUpperCase();
-        const titleUpper = String(p.promo_title || '').toUpperCase();
-        const isGantung = badgeUpper.includes('GANTUNG') || titleUpper.includes('GANTUNG') || titleUpper.includes('GAJIAN');
-        const isJsm = badgeUpper.includes('JSM') || titleUpper.includes('JSM');
-        const isFlash = badgeUpper.includes('FLASH') || titleUpper.includes('FLASH');
+        const effectiveType = normalizePromoType(p.promo_type, p.promo_badge, p.promo_title);
+        p.promo_type = effectiveType;
 
-        if (isGantung || p.promo_type === 'GANTUNG') {
-          p.promo_type = 'GANTUNG';
+        if (effectiveType === 'GANTUNG') {
           if (!p.promo_badge || p.promo_badge === 'Diskon!' || p.promo_badge === 'PROMO') {
             p.promo_badge = 'PROMO GANTUNG (GAJIAN)';
           }
           if (!p.promo_title || p.promo_title === 'Diskon Spesial') {
             p.promo_title = 'Promo Gantung Alfamart (#GajianUntungAlfamart)';
           }
-        } else if (isJsm || p.promo_type === 'JSM') {
-          p.promo_type = 'JSM';
+        } else if (effectiveType === 'JSM') {
           if (!p.promo_badge || p.promo_badge === 'Diskon!' || p.promo_badge === 'PROMO') {
             p.promo_badge = 'PROMO JSM (3 HARI)';
           }
           if (!p.promo_title || p.promo_title === 'Diskon Spesial') {
             p.promo_title = 'Promo Jumat Sabtu Minggu';
           }
-        } else if (isFlash || p.promo_type === 'FLASHSALE') {
-          p.promo_type = 'FLASHSALE';
+        } else if (effectiveType === 'FLASHSALE') {
           if (!p.promo_badge || p.promo_badge === 'Diskon!' || p.promo_badge === 'PROMO') {
             p.promo_badge = 'FLASHSALE';
           }
@@ -581,9 +576,6 @@ export const dataService = {
             p.promo_title = 'Flash Sale Hari Ini';
           }
         } else {
-          if (!p.promo_type) {
-            p.promo_type = 'REGULAR';
-          }
           if (!p.promo_badge) {
             p.promo_badge = 'Diskon!';
           }

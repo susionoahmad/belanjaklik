@@ -82,6 +82,19 @@ export interface Product {
   sort_order?: number;
 }
 
+export const normalizePromoType = (rawType?: string, badge?: string, title?: string): 'JSM' | 'GANTUNG' | 'FLASHSALE' | 'MEMBER' | 'SUPER_SAVER' | 'REGULAR' => {
+  const str = `${rawType || ''} ${badge || ''} ${title || ''}`.toUpperCase().trim();
+  if (str.includes('GANTUNG') || str.includes('GAJIAN')) return 'GANTUNG';
+  if (str.includes('JSM') || str.includes('JUMAT SABTU MINGGU')) return 'JSM';
+  if (str.includes('FLASH')) return 'FLASHSALE';
+  if (str.includes('SUPER') || str.includes('SAVER')) return 'SUPER_SAVER';
+  if (str.includes('MEMBER')) return 'MEMBER';
+  if (rawType && ['JSM', 'GANTUNG', 'FLASHSALE', 'MEMBER', 'SUPER_SAVER', 'REGULAR'].includes(rawType.toUpperCase())) {
+    return rawType.toUpperCase() as any;
+  }
+  return 'REGULAR';
+};
+
 
 export interface PromoFile {
   id: string;

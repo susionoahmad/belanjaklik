@@ -176,6 +176,7 @@ import { ref, watch, computed } from 'vue';
 import { Upload, Trash2 } from 'lucide-vue-next';
 import Modal from '../../shared/components/Modal.vue';
 import type { Product, PurchaseMethod, FulfillmentChannel } from '../../shared/types';
+import { normalizePromoType } from '../../shared/types';
 import { useCatalogStore } from '../../catalog/stores/catalogStore';
 import { dataService } from '../../shared/db/dataService';
 import { storageService } from '../../shared/db/storageService';
@@ -270,7 +271,7 @@ watch(() => props.product, (newP) => {
       !!newP.promo_end_date
     );
 
-    const pType = newP.promo_type || (newP.promo_badge?.toUpperCase().includes('GANTUNG') ? 'GANTUNG' : (newP.promo_badge?.toUpperCase().includes('JSM') ? 'JSM' : (newP.promo_badge?.toUpperCase().includes('FLASH') ? 'FLASHSALE' : 'REGULAR')));
+    const pType = normalizePromoType(newP.promo_type, newP.promo_badge, newP.promo_title);
 
     const descClean = newP.description?.trim();
     const pBrand = newP.brand || 'Alfamind';

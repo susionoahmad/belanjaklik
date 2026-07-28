@@ -1,6 +1,7 @@
 import * as XLSX from 'xlsx';
 import type { DetectedCard, DriverInput, DriverResult, ImportDriver, ParsedProductData, SourceType } from '../types';
 import { ProductImageResolver } from '../services/ProductImageResolver';
+import { normalizePromoType } from '../../shared/types';
 
 
 export interface ExcelRowProduct {
@@ -299,20 +300,9 @@ export class ExcelDriver implements ImportDriver {
     const stockStatus: 'in_stock' | 'out_of_stock' = isKosong ? 'out_of_stock' : 'in_stock';
     const isAvailable = !isKosong;
 
-    const isGantungItem = String(row.promo_type || '').toUpperCase() === 'GANTUNG' ||
-                          String(row.promo_badge || '').toUpperCase().includes('GANTUNG') ||
-                          String(row.promo_title || '').toUpperCase().includes('GANTUNG') ||
-                          String(row.promo_title || '').toUpperCase().includes('GAJIAN') ||
-                          String(row.category || '').toUpperCase().includes('GANTUNG');
-
-    const isJsmItem = String(row.promo_type || '').toUpperCase() === 'JSM' || 
-                      String(row.promo_badge || '').toUpperCase().includes('JSM') ||
-                      String(row.promo_title || '').toUpperCase().includes('JSM') ||
-                      String(row.category || '').toUpperCase().includes('JSM');
-
-    const promoType = row.promo_type || (isGantungItem ? 'GANTUNG' : (isJsmItem ? 'JSM' : undefined));
-    const promoBadge = row.promo_badge || (isGantungItem ? 'PROMO GANTUNG (GAJIAN)' : (isJsmItem ? 'PROMO JSM (3 HARI)' : (hasStrikethrough ? 'Diskon!' : undefined)));
-    const promoTitle = row.promo_title || row.campaign_title || (isGantungItem ? 'Promo Gantung Alfamart (#GajianUntungAlfamart)' : (isJsmItem ? 'Promo Jumat Sabtu Minggu' : (hasStrikethrough ? 'Diskon Spesial' : undefined)));
+    const promoType = normalizePromoType(row.promo_type, row.promo_badge, row.promo_title || row.category);
+    const promoBadge = row.promo_badge || (promoType === 'GANTUNG' ? 'PROMO GANTUNG (GAJIAN)' : (promoType === 'JSM' ? 'PROMO JSM (3 HARI)' : (hasStrikethrough ? 'Diskon!' : undefined)));
+    const promoTitle = row.promo_title || row.campaign_title || (promoType === 'GANTUNG' ? 'Promo Gantung Alfamart (#GajianUntungAlfamart)' : (promoType === 'JSM' ? 'Promo Jumat Sabtu Minggu' : (hasStrikethrough ? 'Diskon Spesial' : undefined)));
     const promoStartDate = row.promo_start_date || row.start_date;
     const promoEndDate = row.promo_end_date || row.end_date;
 

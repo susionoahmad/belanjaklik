@@ -219,6 +219,7 @@
 <script setup lang="ts">
 import { CheckSquare } from 'lucide-vue-next';
 import type { ReviewItem } from '../types';
+import { normalizePromoType } from '../../shared/types';
 import { useCatalogStore } from '../../catalog/stores/catalogStore';
 
 const props = defineProps<{
@@ -254,14 +255,11 @@ const updateItemCategory = (item: ReviewItem, categoryId: string) => {
 };
 
 const getSelectedPromoType = (item: ReviewItem): string => {
-  if (item.editedData?.promo_type) return item.editedData.promo_type;
+  if (item.editedData?.promo_type) return normalizePromoType(item.editedData.promo_type, item.editedData.promo_badge, item.editedData.promo_title);
   if (item.editedData?.is_promo === false) return 'NONE';
 
   const norm = item.card.normalizedData;
-  let type = 'JSM';
-  if (norm?.promo_type) type = norm.promo_type;
-  else if (norm?.promo_badge?.includes('GANTUNG') || norm?.promo_badge?.includes('GAJIAN')) type = 'GANTUNG';
-  else if (norm?.promo_badge?.includes('FLASHSALE')) type = 'FLASHSALE';
+  const type = normalizePromoType(norm?.promo_type, norm?.promo_badge, norm?.promo_title);
 
   // Explicitly sync into item.editedData so publish engine reads it correctly
   if (!item.editedData) item.editedData = {};
