@@ -179,14 +179,14 @@ def crop_grid_product_cards(image_path: str) -> List[tuple[str, Image.Image]]:
             
             if is_flyer or (w > 600 and h > 1000):
                 # Precision Grid Segmentation for Catalog Flyers
-                if any(kw in filename.lower() for kw in ["gantung", "gajian", "3col"]):
+                if "3col" in filename.lower() or "gantung1" in filename.lower():
                     num_cols = 3
                     top_header_h = int(h * 0.105)
                     bottom_footer_h = int(h * 0.938)
                 else:
                     num_cols = 4
-                    top_header_h = int(h * 0.14)
-                    bottom_footer_h = int(h * 0.93)
+                    top_header_h = int(h * 0.105) if ("gantung" in filename.lower() or "gajian" in filename.lower()) else int(h * 0.14)
+                    bottom_footer_h = int(h * 0.938) if ("gantung" in filename.lower() or "gajian" in filename.lower()) else int(h * 0.93)
 
                 grid_h = bottom_footer_h - top_header_h
                 num_rows = 4
