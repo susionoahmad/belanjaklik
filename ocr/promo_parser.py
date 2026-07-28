@@ -122,7 +122,18 @@ KNOWN_JSM_PRICE_MAP = {
     "INDOFOOD Sambal Ekstra Pedas / Pedas PET 275ml": (11900, 13600),
     "INDOFOOD Sambal Dahsyat PET 275ml": (13300, 15000),
     "DUA BELIBIS Sambal Cabe Lada PET 235ml": (13500, 15000),
-    "DUA BELIBIS Sambal Cabe Extra PET 235ml": (14500, 16000)
+    "DUA BELIBIS Sambal Cabe Extra PET 235ml": (14500, 16000),
+    "FORVITA Margarin Sachet 200g": (5900, 6900),
+    "FORVITA Margarin Tub 200g": (6500, 8100),
+    "FORVITA Margarin Tub 250g": (11900, 13200),
+    "KANZLER Chicken Nugget Original 450g": (50900, 57900),
+    "KANZLER Nugget Stick Crispy 450g": (51900, 58900),
+    "KANZLER Chicken Nugget Crispy 450g": (51900, 58900),
+    "KANZLER Chicken Nugget Crispy Spicy 450g": (54900, 61900),
+    "BELFOODS Royal RTG Sosis Daegu Ori / Jeju Chs / Nami Hot 55g": (6400, 7500),
+    "KRAFT Quick Melt Mozza 150g": (26600, 33200),
+    "KRAFT Cheddar 150g": (21500, 27900),
+    "KRAFT All In 1 150g": (14200, 17900)
 }
 
 def clean_price(val: Any) -> int:
@@ -323,6 +334,31 @@ def clean_product_name(raw_name: str) -> str:
             return "DUA BELIBIS Sambal Cabe Extra PET 235ml"
         else:
             return "DUA BELIBIS Sambal Cabe Lada PET 235ml"
+    elif "FORVITA" in text_upper or "VITA" in text_upper or "FOR VITA" in text_upper:
+        if "SAC" in text_upper or "SACHET" in text_upper or "5.900" in text_upper or "5900" in text_upper:
+            return "FORVITA Margarin Sachet 200g"
+        elif "250" in text_upper or "11.900" in text_upper or "11900" in text_upper:
+            return "FORVITA Margarin Tub 250g"
+        else:
+            return "FORVITA Margarin Tub 200g"
+    elif "KANZLER" in text_upper or "ANZLER" in text_upper:
+        if "SPICY" in text_upper or "54.900" in text_upper or "54900" in text_upper or "61.900" in text_upper:
+            return "KANZLER Chicken Nugget Crispy Spicy 450g"
+        elif "STICK" in text_upper or "CRSP" in text_upper:
+            return "KANZLER Nugget Stick Crispy 450g"
+        elif "ORI" in text_upper or "ORIGINAL" in text_upper or "50.900" in text_upper or "50900" in text_upper:
+            return "KANZLER Chicken Nugget Original 450g"
+        else:
+            return "KANZLER Chicken Nugget Crispy 450g"
+    elif "BELFOODS" in text_upper or "DAEGU" in text_upper or "SOSIS" in text_upper:
+        return "BELFOODS Royal RTG Sosis Daegu Ori / Jeju Chs / Nami Hot 55g"
+    elif "KRAFT" in text_upper or "RAFT" in text_upper:
+        if "QUICK" in text_upper or "MELT" in text_upper or "MOZZA" in text_upper or "26.600" in text_upper or "26600" in text_upper:
+            return "KRAFT Quick Melt Mozza 150g"
+        elif "ALL IN" in text_upper or "ALL-IN" in text_upper or "14.200" in text_upper or "14200" in text_upper:
+            return "KRAFT All In 1 150g"
+        else:
+            return "KRAFT Cheddar 150g"
 
     found_brand = None
     for brand in KNOWN_BRANDS:
@@ -518,7 +554,28 @@ def normalize_product_dict(raw: Dict[str, Any], global_jsm: bool = False) -> Dic
                 canonical_name = "Gadjah Kopi Tubruk 138 g"
             else:
                 canonical_name = "Gadjah Kopi Tubruk 10x23 g"
-        fallback_price, fallback_ori = KNOWN_JSM_PRICE_MAP[canonical_name]
+
+        # Explicit variant override for Kanzler Nuggets based on price & text
+        if "kanzler" in canonical_name.lower():
+            if price == 50900 or original_price == 57900 or "ori" in raw_name.lower():
+                canonical_name = "KANZLER Chicken Nugget Original 450g"
+            elif price == 54900 or original_price == 61900 or "spicy" in raw_name.lower():
+                canonical_name = "KANZLER Chicken Nugget Crispy Spicy 450g"
+            elif "stick" in raw_name.lower() or "crsp" in raw_name.lower():
+                canonical_name = "KANZLER Nugget Stick Crispy 450g"
+            else:
+                canonical_name = "KANZLER Chicken Nugget Crispy 450g"
+
+        # Explicit variant override for Kraft Cheese based on price
+        if "kraft" in canonical_name.lower():
+            if price == 26600 or original_price == 33200 or "mozza" in raw_name.lower():
+                canonical_name = "KRAFT Quick Melt Mozza 150g"
+            elif price == 14200 or original_price == 17900 or "all" in raw_name.lower():
+                canonical_name = "KRAFT All In 1 150g"
+            else:
+                canonical_name = "KRAFT Cheddar 150g"
+
+        fallback_price, fallback_ori = KNOWN_JSM_PRICE_MAP.get(canonical_name, (price, original_price))
 
         # If fuzzy match shares brand or is close, normalize to canonical name and prices
         first_word_orig = product_name.split()[0].lower() if product_name else ""
@@ -528,9 +585,9 @@ def normalize_product_dict(raw: Dict[str, Any], global_jsm: bool = False) -> Dic
             brand = extract_brand(canonical_name) or brand
             package_size = extract_package_size(canonical_name) or package_size
 
-        if price <= 1000 or price > 500000 or (price < 10000 and fallback_price >= 10000) or (original_price > 0 and price == original_price and fallback_price < fallback_ori) or abs(price - fallback_price) > 5000:
+        if price <= 1000 or price > 500000 or (price < 10000 and fallback_price >= 10000) or (original_price > 0 and price == original_price and fallback_price < fallback_ori) or abs(price - fallback_price) > 200:
             price = fallback_price
-        if original_price <= 1000 or original_price > 500000 or original_price < price or abs(original_price - fallback_ori) > 5000:
+        if original_price <= 1000 or original_price > 500000 or original_price < price or abs(original_price - fallback_ori) > 200:
             original_price = fallback_ori
 
     discount_pct = raw.get("discount_percentage") or raw.get("diskon")

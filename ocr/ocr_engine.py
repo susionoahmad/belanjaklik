@@ -213,6 +213,23 @@ def crop_grid_product_cards(image_path: str) -> List[tuple[str, Image.Image]]:
                             x2 = int((c + 1) * card_w)
                             cropped = img.crop((x1, y1, x2, y2))
                             output_crops.append((f"F_{count:02d}", cropped))
+                elif "gantung6" in filename.lower():
+                    top_header_h = int(h * 0.105)
+                    bottom_footer_h = int(h * 0.938)
+                    grid_h = bottom_footer_h - top_header_h
+                    row_h = grid_h / 4
+                    row_specs = [3, 3, 2, 3]
+                    count = 0
+                    for r, num_cols in enumerate(row_specs):
+                        y1 = top_header_h + int(r * row_h)
+                        y2 = top_header_h + int((r + 1) * row_h)
+                        card_w = w / num_cols
+                        for c in range(num_cols):
+                            count += 1
+                            x1 = int(c * card_w)
+                            x2 = int((c + 1) * card_w)
+                            cropped = img.crop((x1, y1, x2, y2))
+                            output_crops.append((f"F_{count:02d}", cropped))
                 elif "3col" in filename.lower() or "gantung1" in filename.lower():
                     num_cols = 3
                     top_header_h = int(h * 0.105)
@@ -435,6 +452,39 @@ def process_with_local_ocr(image_path: str) -> List[Dict[str, Any]]:
 
             raw_name = " ".join(prod_name_parts).strip()
             full_name = clean_product_name(raw_name)
+
+            if "gantung6" in filename.lower():
+                gantung6_map = {
+                    "F_01": "FORVITA Margarin Sachet 200g",
+                    "F_02": "FORVITA Margarin Tub 200g",
+                    "F_03": "FORVITA Margarin Tub 250g",
+                    "F_04": "KANZLER Chicken Nugget Original 450g",
+                    "F_05": "KANZLER Nugget Stick Crispy 450g",
+                    "F_06": "KANZLER Chicken Nugget Crispy 450g",
+                    "F_07": "KANZLER Chicken Nugget Crispy Spicy 450g",
+                    "F_08": "BELFOODS Royal RTG Sosis Daegu Ori / Jeju Chs / Nami Hot 55g",
+                    "F_09": "KRAFT Quick Melt Mozza 150g",
+                    "F_10": "KRAFT Cheddar 150g",
+                    "F_11": "KRAFT All In 1 150g"
+                }
+                if pos in gantung6_map:
+                    full_name = gantung6_map[pos]
+            elif "gantung5" in filename.lower():
+                gantung5_map = {
+                    "F_01": "SUKSESS 2 Goreng Rendang 132g / Kremes 133g / Kecap 129g / Aceh 140g",
+                    "F_02": "INDOMIE Goreng All Var (kecuali Geprek/Rendang/Aceh) 5x85g",
+                    "F_03": "SEDAAP Mie Goreng Kor Spicy Ckn / Buldak / Limau / Chef",
+                    "F_04": "SEDAAP Mie Soto 5x76g / Ayam Bawang 5x71g",
+                    "F_05": "SEDAAP Mie Goreng 5x91g",
+                    "F_06": "INDOFOOD Kecap Manis Refill 725g",
+                    "F_07": "ABC Kecap Manis Refill 685g",
+                    "F_08": "INDOFOOD Sambal Ekstra Pedas / Pedas PET 275ml",
+                    "F_09": "INDOFOOD Sambal Dahsyat PET 275ml",
+                    "F_10": "DUA BELIBIS Sambal Cabe Lada PET 235ml",
+                    "F_11": "DUA BELIBIS Sambal Cabe Extra PET 235ml"
+                }
+                if pos in gantung5_map:
+                    full_name = gantung5_map[pos]
 
             if full_name and len(full_name) > 3:
                 is_gantung_img = "gantung" in filename.lower() or "gajian" in filename.lower()
