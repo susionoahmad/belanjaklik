@@ -240,7 +240,7 @@ const onPromoTypeChange = (newType: string) => {
   if (!form.value) return;
   form.value.is_promo = true;
   if (newType === 'GANTUNG') {
-    form.value.promo_badge = 'PROMO GANTUNG (GAJIAN)';
+    form.value.promo_badge = 'PROMO GANTUNG';
     form.value.promo_title = 'Promo Gantung Alfamart (#GajianUntungAlfamart)';
   } else if (newType === 'JSM') {
     form.value.promo_badge = 'PROMO JSM (3 HARI)';
@@ -286,7 +286,7 @@ watch(() => props.product, (newP) => {
       promo_price: newP.promo_price,
       is_promo: isPromoProd,
       promo_type: pType,
-      promo_badge: newP.promo_badge || (pType === 'GANTUNG' ? 'PROMO GANTUNG (GAJIAN)' : (pType === 'JSM' ? 'PROMO JSM (3 HARI)' : (pType === 'FLASHSALE' ? 'FLASHSALE' : (isPromoProd ? 'Diskon!' : '')))),
+      promo_badge: newP.promo_badge || (pType === 'GANTUNG' ? 'PROMO GANTUNG' : (pType === 'JSM' ? 'PROMO JSM (3 HARI)' : (pType === 'FLASHSALE' ? 'FLASHSALE' : (isPromoProd ? 'Diskon!' : '')))),
       promo_title: newP.promo_title || (pType === 'GANTUNG' ? 'Promo Gantung Alfamart (#GajianUntungAlfamart)' : (pType === 'JSM' ? 'Promo Jumat Sabtu Minggu' : (pType === 'FLASHSALE' ? 'Flash Sale Hari Ini' : (isPromoProd ? 'Diskon Spesial' : '')))),
       promo_end_date: newP.promo_end_date || '',
       brand: newP.brand || '',

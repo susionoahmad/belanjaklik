@@ -265,7 +265,7 @@ const getSelectedPromoType = (item: ReviewItem): string => {
   if (!item.editedData) item.editedData = {};
   item.editedData.promo_type = type as any;
   if (!item.editedData.promo_badge) {
-    item.editedData.promo_badge = type === 'GANTUNG' ? 'PROMO GANTUNG (GAJIAN)' : (type === 'JSM' ? 'PROMO JSM (3 HARI)' : (type === 'FLASHSALE' ? 'FLASHSALE' : 'Diskon!'));
+    item.editedData.promo_badge = type === 'GANTUNG' ? 'PROMO GANTUNG' : (type === 'JSM' ? 'PROMO JSM (3 HARI)' : (type === 'FLASHSALE' ? 'FLASHSALE' : 'Diskon!'));
   }
   if (!item.editedData.promo_title) {
     item.editedData.promo_title = type === 'GANTUNG' ? 'Promo Gantung Alfamart (#GajianUntungAlfamart)' : (type === 'JSM' ? 'Promo Jumat Sabtu Minggu' : (type === 'FLASHSALE' ? 'Flash Sale Hari Ini' : 'Diskon Spesial'));
@@ -283,7 +283,7 @@ const updateItemPromoType = (item: ReviewItem, promoType: string) => {
   }
   item.editedData.promo_type = promoType as any;
   if (promoType === 'GANTUNG') {
-    item.editedData.promo_badge = 'PROMO GANTUNG (GAJIAN)';
+    item.editedData.promo_badge = 'PROMO GANTUNG';
     item.editedData.promo_title = 'Promo Gantung Alfamart (#GajianUntungAlfamart)';
     item.editedData.is_promo = true;
   } else if (promoType === 'JSM') {

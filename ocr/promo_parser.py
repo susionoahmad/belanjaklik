@@ -428,7 +428,7 @@ def detect_jsm_promo(text: str) -> Dict[str, Any]:
     if any(kw in text_upper for kw in ["GANTUNG", "GAJIAN UNTUNG", "GAJIAN"]):
         is_jsm = True
         promo_type = "GANTUNG"
-        promo_badge = "PROMO GANTUNG (GAJIAN)"
+        promo_badge = "PROMO GANTUNG"
         promo_title = "Promo Gantung Alfamart (#GajianUntungAlfamart)"
     elif any(kw in text_upper for kw in ["JSM", "JUMAT SABTU MINGGU", "WEEKEND", "PROMO JSM", "HANYA 3 HARI"]):
         is_jsm = True
@@ -518,7 +518,7 @@ def normalize_product_dict(raw: Dict[str, Any], global_jsm: bool = False) -> Dic
 
     if any(kw in search_text for kw in ["GANTUNG", "GAJIAN"]):
         promo_type = "GANTUNG"
-        promo_badge = raw_promo_badge if ("GANTUNG" in raw_promo_badge or "GAJIAN" in raw_promo_badge) else "PROMO GANTUNG (GAJIAN)"
+        promo_badge = raw_promo_badge if ("GANTUNG" in raw_promo_badge or "GAJIAN" in raw_promo_badge) else "PROMO GANTUNG"
         promo_title = raw_promo_title if ("GANTUNG" in raw_promo_title or "GAJIAN" in raw_promo_title) else "Promo Gantung Alfamart (#GajianUntungAlfamart)"
     elif global_jsm or any(kw in search_text for kw in ["JSM", "JUMAT SABTU MINGGU"]):
         promo_type = "JSM"

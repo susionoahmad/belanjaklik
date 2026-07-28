@@ -301,7 +301,7 @@ export class ExcelDriver implements ImportDriver {
     const isAvailable = !isKosong;
 
     const promoType = normalizePromoType(row.promo_type, row.promo_badge, row.promo_title || row.category);
-    const promoBadge = row.promo_badge || (promoType === 'GANTUNG' ? 'PROMO GANTUNG (GAJIAN)' : (promoType === 'JSM' ? 'PROMO JSM (3 HARI)' : (hasStrikethrough ? 'Diskon!' : undefined)));
+    const promoBadge = row.promo_badge || (promoType === 'GANTUNG' ? 'PROMO GANTUNG' : (promoType === 'JSM' ? 'PROMO JSM (3 HARI)' : (hasStrikethrough ? 'Diskon!' : undefined)));
     const promoTitle = row.promo_title || row.campaign_title || (promoType === 'GANTUNG' ? 'Promo Gantung Alfamart (#GajianUntungAlfamart)' : (promoType === 'JSM' ? 'Promo Jumat Sabtu Minggu' : (hasStrikethrough ? 'Diskon Spesial' : undefined)));
     const promoStartDate = row.promo_start_date || row.start_date;
     const promoEndDate = row.promo_end_date || row.end_date;

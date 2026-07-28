@@ -75,7 +75,7 @@
             />
             
             <span class="absolute top-1.5 left-1.5 bg-gradient-to-r from-red-600 to-amber-500 text-white text-[9px] font-black px-2 py-0.5 rounded-md shadow-xs uppercase">
-              GAJIAN
+              GANTUNG
             </span>
           </div>
 

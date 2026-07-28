@@ -567,8 +567,8 @@ export const dataService = {
         p.promo_type = effectiveType;
 
         if (effectiveType === 'GANTUNG') {
-          if (!p.promo_badge || p.promo_badge === 'Diskon!' || p.promo_badge === 'PROMO') {
-            p.promo_badge = 'PROMO GANTUNG (GAJIAN)';
+          if (!p.promo_badge || p.promo_badge === 'Diskon!' || p.promo_badge === 'PROMO' || p.promo_badge === 'PROMO GANTUNG (GAJIAN)') {
+            p.promo_badge = 'PROMO GANTUNG';
           }
           if (!p.promo_title || p.promo_title === 'Diskon Spesial') {
             p.promo_title = 'Promo Gantung Alfamart (#GajianUntungAlfamart)';

@@ -422,7 +422,7 @@ def process_with_local_ocr(image_path: str) -> List[Dict[str, Any]]:
             if full_name and len(full_name) > 3:
                 is_gantung_img = "gantung" in filename.lower() or "gajian" in filename.lower()
                 p_type = "GANTUNG" if is_gantung_img else ("JSM" if is_jsm_flyer else jsm_info["promo_type"])
-                p_badge = "PROMO GANTUNG (GAJIAN)" if is_gantung_img else ("PROMO JSM (3 HARI)" if is_jsm_flyer else jsm_info["promo_badge"])
+                p_badge = "PROMO GANTUNG" if is_gantung_img else ("PROMO JSM (3 HARI)" if is_jsm_flyer else jsm_info["promo_badge"])
                 p_title = "Promo Gantung Alfamart (#GajianUntungAlfamart)" if is_gantung_img else ("Promo JSM Alfamart (Jumat Sabtu Minggu)" if is_jsm_flyer else (jsm_info["promo_title"] if jsm_info["is_jsm"] else ""))
 
                 raw_item = {
@@ -450,7 +450,7 @@ def process_with_local_ocr(image_path: str) -> List[Dict[str, Any]]:
         clean_name = filename.rsplit('.', 1)[0].replace('_', ' ').replace('-', ' ').title()
         is_gantung_img = "gantung" in filename.lower() or "gajian" in filename.lower()
         p_type = "GANTUNG" if is_gantung_img else ("JSM" if is_jsm_flyer else "REGULAR")
-        p_badge = "PROMO GANTUNG (GAJIAN)" if is_gantung_img else ("PROMO JSM (3 HARI)" if is_jsm_flyer else "")
+        p_badge = "PROMO GANTUNG" if is_gantung_img else ("PROMO JSM (3 HARI)" if is_jsm_flyer else "")
         p_title = "Promo Gantung Alfamart (#GajianUntungAlfamart)" if is_gantung_img else ("Promo JSM Alfamart (Jumat Sabtu Minggu)" if is_jsm_flyer else "")
 
         raw_item = {

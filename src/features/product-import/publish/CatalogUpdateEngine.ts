@@ -39,7 +39,7 @@ export class CatalogUpdateEngine {
 
       const promoBadge = item.editedData?.promo_badge 
         || norm?.promo_badge 
-        || (promoType === 'GANTUNG' ? 'PROMO GANTUNG (GAJIAN)' : (promoType === 'JSM' ? 'PROMO JSM (3 HARI)' : (promoType === 'FLASHSALE' ? 'FLASHSALE' : (isPromo ? 'Diskon!' : undefined))));
+        || (promoType === 'GANTUNG' ? 'PROMO GANTUNG' : (promoType === 'JSM' ? 'PROMO JSM (3 HARI)' : (promoType === 'FLASHSALE' ? 'FLASHSALE' : (isPromo ? 'Diskon!' : undefined))));
 
       const promoTitle = item.editedData?.promo_title 
         || norm?.promo_title 
