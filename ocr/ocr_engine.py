@@ -94,7 +94,7 @@ def process_with_gemini_vision(image_path: str, api_key: str = "") -> List[Dict[
     7. 'discount_percentage': Persentase diskon (contoh: 15 untuk 15%).
     8. 'stock_status': 'Tersedia' atau 'Habis'.
     9. 'category': Kategori produk resmi Alfamart (contoh: Promo Merchant, Alfamart (Sembako), Makanan & Minuman).
-    10. 'promo_type': 'JSM' (jika promo Jumat Sabtu Minggu / weekend), 'FLASHSALE', 'MEMBER', 'SUPER_SAVER', atau 'REGULAR'.
+    10. 'promo_type': 'GANTUNG' (jika promo gantung / gajian untung / gajian hemat), 'JSM' (jika promo Jumat Sabtu Minggu / weekend), 'FLASHSALE', 'MEMBER', 'SUPER_SAVER', atau 'REGULAR'.
     11. 'promo_badge': Badge/label promo (contoh: 'PROMO JSM (3 HARI)', 'Diskon Spesial', 'Hemat Minggu Ini').
     12. 'promo_title': Judul campaign promo katalog.
     13. 'promo_start_date' & 'promo_end_date': Tanggal promo jika terdeteksi pada header flyer.
@@ -179,7 +179,7 @@ def crop_grid_product_cards(image_path: str) -> List[tuple[str, Image.Image]]:
             
             if is_flyer or (w > 600 and h > 1000):
                 # Precision Grid Segmentation for Catalog Flyers
-                if any(kw in filename for kw in ["gantung", "gajian", "3col"]):
+                if any(kw in filename.lower() for kw in ["gantung", "gajian", "3col"]):
                     num_cols = 3
                     top_header_h = int(h * 0.105)
                     bottom_footer_h = int(h * 0.938)
