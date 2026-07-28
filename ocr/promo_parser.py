@@ -101,7 +101,17 @@ KNOWN_JSM_PRICE_MAP = {
     "Wall's Ice Cream 350 ml": (21500, 21500),
     "Hydro Coco Original PET 500 ml": (14500, 16000),
     "Buavita Juice TP 250 ml": (8600, 10000),
-    "Pristine 8.6+ Water PET 1500 ml": (8900, 11400)
+    "Pristine 8.6+ Water PET 1500 ml": (8900, 11400),
+    "Foxbud Cofeat Crml Mcto / Aren Latte / Cpcino PET 240 ml": (11900, 15900),
+    "Kapal Api Kopi Special 90 g": (13900, 15500),
+    "Sariwangi Teh Celup Asli 30s": (7300, 8900),
+    "Sariwangi Teh Celup Melati 25s": (9200, 10900),
+    "Sariwangi Teh Celup Asli 50x1.9 g": (11200, 13900),
+    "Gadjah Kopi Tubruk 10x23 g": (14900, 19900),
+    "Gadjah Kopi Tubruk 138 g": (18800, 21800),
+    "TOP Coffee Mokachinno / Gula Aren 9x22 g": (11500, 14200),
+    "TOP 3in1 Coffee Susu Gula 10x31 g": (14000, 17500),
+    "Good Day Cappuccino 10x25 g": (22900, 25200)
 }
 
 def clean_price(val: Any) -> int:
@@ -248,6 +258,35 @@ def clean_product_name(raw_name: str) -> str:
             return "BABY HAPPY Pants XL-26"
         else:
             return "BABY HAPPY Pants M-32, L-28"
+    elif "FOXBUD" in text_upper or "FOX" in text_upper or "BUD" in text_upper:
+        return "Foxbud Cofeat Crml Mcto / Aren Latte / Cpcino PET 240 ml"
+    elif "KAPAL API" in text_upper or "KAPAL" in text_upper:
+        if "SPECIAL" in text_upper or "90" in text_upper or "90G" in text_upper or "13.900" in text_upper or "13900" in text_upper or "15.500" in text_upper:
+            return "Kapal Api Kopi Special 90 g"
+        else:
+            return "Kapal Api Kopi Special 250 g"
+    elif "SARIWANGI" in text_upper or "SARI" in text_upper or "WANGI" in text_upper:
+        if "MELATI" in text_upper or "25" in text_upper or "9.200" in text_upper or "9200" in text_upper:
+            return "Sariwangi Teh Celup Melati 25s"
+        elif "50" in text_upper or "50X" in text_upper or "1,9" in text_upper or "1.9" in text_upper or "11.200" in text_upper or "11200" in text_upper:
+            return "Sariwangi Teh Celup Asli 50x1.9 g"
+        else:
+            return "Sariwangi Teh Celup Asli 30s"
+    elif "GADJAH" in text_upper or "GODJOH" in text_upper or "GADJ" in text_upper:
+        if "138" in text_upper or "21" in text_upper or "18" in text_upper:
+            return "Gadjah Kopi Tubruk 138 g"
+        else:
+            return "Gadjah Kopi Tubruk 10x23 g"
+    elif "TOP" in text_upper:
+        if "3IN1" in text_upper or "SUSU" in text_upper or "31" in text_upper or "14" in text_upper or "17" in text_upper:
+            return "TOP 3in1 Coffee Susu Gula 10x31 g"
+        else:
+            return "TOP Coffee Mokachinno / Gula Aren 9x22 g"
+    elif "GOOD" in text_upper or "DAY" in text_upper or "CAPPUCCINO" in text_upper:
+        if "CAPPUCCINO" in text_upper or "10X25" in text_upper or "22" in text_upper or "25" in text_upper:
+            return "Good Day Cappuccino 10x25 g"
+        else:
+            return "Good Day Coffee Drink PET 250 ml"
 
     found_brand = None
     for brand in KNOWN_BRANDS:
@@ -437,17 +476,25 @@ def normalize_product_dict(raw: Dict[str, Any], global_jsm: bool = False) -> Dic
     matches = difflib.get_close_matches(product_name, list(KNOWN_JSM_PRICE_MAP.keys()), n=1, cutoff=0.30)
     if matches:
         canonical_name = matches[0]
+        # Explicit variant override for Gadjah Kopi Tubruk based on price
+        if "gadjah" in canonical_name.lower():
+            if price == 18800 or original_price == 21800 or "138" in raw_name.lower():
+                canonical_name = "Gadjah Kopi Tubruk 138 g"
+            else:
+                canonical_name = "Gadjah Kopi Tubruk 10x23 g"
         fallback_price, fallback_ori = KNOWN_JSM_PRICE_MAP[canonical_name]
-        
-        # If OCR product name is noisy/garbled, auto-correct to canonical catalog name
-        if len(product_name) < 5 or any(noise in product_name.lower() for noise in ["heese", "sr7d", "130e", "to9", "1.400", "gajia", "jsm"]):
+
+        # If fuzzy match shares brand or is close, normalize to canonical name and prices
+        first_word_orig = product_name.split()[0].lower() if product_name else ""
+        first_word_canon = canonical_name.split()[0].lower()
+        if first_word_orig == first_word_canon or len(product_name) < 5:
             product_name = canonical_name
             brand = extract_brand(canonical_name) or brand
             package_size = extract_package_size(canonical_name) or package_size
 
-        if price <= 1000 or price > 500000 or (price < 10000 and fallback_price >= 10000) or (original_price > 0 and price == original_price and fallback_price < fallback_ori):
+        if price <= 1000 or price > 500000 or (price < 10000 and fallback_price >= 10000) or (original_price > 0 and price == original_price and fallback_price < fallback_ori) or abs(price - fallback_price) > 5000:
             price = fallback_price
-        if original_price <= 1000 or original_price > 500000 or original_price < price:
+        if original_price <= 1000 or original_price > 500000 or original_price < price or abs(original_price - fallback_ori) > 5000:
             original_price = fallback_ori
 
     discount_pct = raw.get("discount_percentage") or raw.get("diskon")
