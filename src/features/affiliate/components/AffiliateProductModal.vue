@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <Modal :isOpen="isOpen" @close="$emit('close')">
     <div class="space-y-4 max-h-[85vh] overflow-y-auto pr-1">
       <div class="flex items-center justify-between border-b border-gray-100 dark:border-gray-700 pb-3">
@@ -58,11 +58,43 @@
               <option value="tokopedia">Tokopedia</option>
               <option value="lazada">Lazada</option>
               <option value="tiktok_shop">TikTok Shop</option>
+              <option value="traveloka">Traveloka</option>
+              <option value="accesstrade">ACCESSTRADE (Umum)</option>
               <option value="other">Lainnya / Merchant Lain</option>
             </select>
           </div>
         </div>
 
+        <!-- Vertical & Subkategori MVP -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Layanan / Vertikal</label>
+            <select v-model="form.vertical" class="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700 text-xs font-bold focus:ring-2 focus:ring-emerald-500 outline-none">
+              <option value="marketplace">Marketplace</option>
+              <option value="travel">Travel</option>
+              <option value="digital">Internet & Digital</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Subkategori</label>
+            <select v-model="form.subcategory" class="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700 text-xs font-bold focus:ring-2 focus:ring-emerald-500 outline-none">
+              <option value="">Pilih subkategori</option>
+              <option v-if="form.vertical === 'marketplace'" value="gadget">Gadget & Elektronik</option>
+              <option v-if="form.vertical === 'marketplace'" value="baby">Ibu & Bayi</option>
+              <option v-if="form.vertical === 'marketplace'" value="beauty">Kecantikan & Skincare</option>
+              <option v-if="form.vertical === 'marketplace'" value="kitchen">Dapur & Kuliner</option>
+              <option v-if="form.vertical === 'marketplace'" value="home">Rumah Tangga</option>
+              <option v-if="form.vertical === 'marketplace'" value="fashion">Fashion & Hijab</option>
+              <option v-if="form.vertical === 'travel'" value="hotel">Hotel</option>
+              <option v-if="form.vertical === 'travel'" value="flight">Tiket Pesawat</option>
+              <option v-if="form.vertical === 'travel'" value="activity">Aktivitas Wisata</option>
+              <option v-if="form.vertical === 'digital'" value="hosting">Hosting</option>
+              <option v-if="form.vertical === 'digital'" value="domain">Domain</option>
+              <option v-if="form.vertical === 'digital'" value="data-package">Paket Data</option>
+              <option v-if="form.vertical === 'digital'" value="software">Software</option>
+            </select>
+          </div>
+        </div>
         <!-- Link Affiliate & Link Produk Asli -->
         <div>
           <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
@@ -275,6 +307,9 @@ const importFailed = ref(false);
 const form = ref<Partial<AffiliateProduct>>({
   name: '',
   merchant: 'shopee',
+  vertical: 'marketplace',
+  subcategory: '',
+  offer_type: 'product',
   affiliate_url: '',
   product_url: '',
   image_url: '',
@@ -297,6 +332,9 @@ watch(() => props.product, (newVal) => {
       id: newVal.id,
       name: newVal.name || '',
       merchant: newVal.merchant || 'shopee',
+      vertical: newVal.vertical || 'marketplace',
+      subcategory: newVal.subcategory || '',
+      offer_type: newVal.offer_type || 'product',
       affiliate_url: newVal.affiliate_url || '',
       product_url: newVal.product_url || '',
       image_url: newVal.image_url || '',
@@ -310,12 +348,16 @@ watch(() => props.product, (newVal) => {
       source: newVal.source || 'manual_link',
       campaign_id: newVal.campaign_id || 'manual',
       site_id: newVal.site_id || 'legacy',
-      site_url: newVal.site_url || ''
+      site_url: newVal.site_url || '',
+      ...(inferExistingClassification(newVal) || {})
     };
   } else {
     form.value = {
       name: '',
       merchant: 'shopee',
+      vertical: 'marketplace',
+      subcategory: '',
+      offer_type: 'product',
       affiliate_url: '',
       product_url: '',
       image_url: '',
@@ -334,6 +376,18 @@ watch(() => props.product, (newVal) => {
   }
 }, { immediate: true });
 
+function inferExistingClassification(product: Partial<AffiliateProduct>) {
+  const text = `${product.name || ''} ${product.category || ''} ${product.affiliate_url || ''} ${product.product_url || ''}`.toLowerCase();
+  if (text.includes('traveloka') || text.includes('travel.prf.hn') || text.includes('attraction')) {
+    return {
+      merchant: 'traveloka',
+      vertical: 'travel' as const,
+      subcategory: text.includes('hotel') ? 'hotel' : text.includes('flight') || text.includes('pesawat') ? 'flight' : 'activity',
+      offer_type: 'booking'
+    };
+  }
+  return null;
+};
 const handleMerchantImport = async () => {
   if (!merchantUrl.value.trim() || isImporting.value) return;
   isImporting.value = true;
@@ -377,4 +431,8 @@ const handleSubmit = async () => {
   }
 };
 </script>
+
+
+
+
 

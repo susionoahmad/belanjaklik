@@ -19,6 +19,11 @@ const ACCESSTRADE_BASE = Deno.env.get('ACCESSTRADE_BASE_URL') || 'https://gurkha
 interface CampaignConfig {
   merchant: string // 'shopee' | 'tiktok_shop' | 'tokopedia' | dst
   campaignId: string,
+  vertical?: 'marketplace' | 'travel' | 'digital',
+  subcategory?: string,
+  offerType?: 'product' | 'booking' | 'service' | 'application',
+  campaignName?: string,
+  advertiserName?: string,
 }
 
 function getCampaigns(): CampaignConfig[] {
@@ -308,7 +313,8 @@ function mapCsvRowToProduct(
   merchant: string,
   campaignId: string,
   siteId: string,
-  siteUrl?: string | null
+  siteUrl?: string | null,
+  campaign?: CampaignConfig
 ) {
   let extId = String(
     row['Merchant Product ID'] ||
@@ -375,6 +381,8 @@ function mapCsvRowToProduct(
     row['category'] ||
     row['Main Category Name'] ||
     ''
+  const vertical = campaign?.vertical || 'marketplace'
+  const subcategory = campaign?.subcategory || category || null
   const shopName = row['Saller Name'] || row['Seller Name'] || row['Brand'] || row['brand'] || row['Merchant Name'] || row['shop_name'] || ''
   const itemSold = parseNumeric(row['item_sold']) || 0
   const itemRating = parseNumeric(row['item_rating'])
@@ -409,6 +417,11 @@ function mapCsvRowToProduct(
     discount_percent: discountPercent,
     shop_name: shopName || null,
     category: category || null,
+    vertical,
+    subcategory,
+    offer_type: campaign?.offerType || (vertical === 'marketplace' ? 'product' : 'service'),
+    campaign_name: campaign?.campaignName || null,
+    advertiser_name: campaign?.advertiserName || shopName || null,
     is_active: true,
     raw_data: {
       item_sold: itemSold,
@@ -426,6 +439,7 @@ async function processCsvStreamResponse(
   merchant: string,
   campaignId: string,
   supabase: any,
+  campaign: CampaignConfig | undefined,
   options: {
     siteId: string
     siteUrl?: string | null
@@ -519,7 +533,7 @@ async function processCsvStreamResponse(
         const productName = cleanProductName(rowObj['Merchant Product Name'] || rowObj['name'] || '')
         if (!productName) continue
 
-        const productObj = mapCsvRowToProduct(rowObj, merchant, campaignId, options.siteId, options.siteUrl)
+        const productObj = mapCsvRowToProduct(rowObj, merchant, campaignId, options.siteId, options.siteUrl, campaign)
         if (!productObj.affiliate_url) continue
 
         const catKey = (productObj.category || 'Lainnya').toLowerCase().trim()
@@ -568,7 +582,7 @@ async function processCsvStreamResponse(
         const productName = cleanProductName(rowObj['Merchant Product Name'] || rowObj['name'] || '')
 
         if (isAvailable && itemSold >= options.minItemSold && productName) {
-          const productObj = mapCsvRowToProduct(rowObj, merchant, campaignId, options.siteId, options.siteUrl)
+          const productObj = mapCsvRowToProduct(rowObj, merchant, campaignId, options.siteId, options.siteUrl, campaign)
           if (productObj.affiliate_url) {
             const catKey = (productObj.category || 'Lainnya').toLowerCase().trim()
             const currentCount = options.categoryCounts[catKey] || 0
@@ -835,6 +849,7 @@ Deno.serve(async (req) => {
     console.log(`[AccesstradeSync] Menggunakan ${directCsvUrls.length} URL CSV langsung dari ACCESSTRADE_CSV_URLS`)
     const merchant = 'accesstrade'
     const campaignId = 'direct_csv'
+    const directCampaign: CampaignConfig = { merchant, campaignId, vertical: 'marketplace' }
 
     for (const feedUrl of directCsvUrls) {
       if (totalSynced >= MAX_PRODUCTS_PER_SYNC) break
@@ -851,6 +866,7 @@ Deno.serve(async (req) => {
           merchant,
           campaignId,
           supabase,
+          directCampaign,
           streamOptions
         )
 
@@ -876,7 +892,8 @@ Deno.serve(async (req) => {
     )
   }
 
-  for (const { merchant, campaignId } of campaigns) {
+  for (const campaign of campaigns) {
+    const { merchant, campaignId } = campaign
     if (totalSynced >= MAX_PRODUCTS_PER_SYNC) break
 
     try {
@@ -896,6 +913,7 @@ Deno.serve(async (req) => {
           merchant,
           campaignId,
           supabase,
+          campaign,
           streamOptions
         )
 
@@ -935,7 +953,4 @@ Deno.serve(async (req) => {
     headers: { 'Content-Type': 'application/json' },
   })
 })
-
-
-
 

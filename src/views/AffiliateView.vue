@@ -1,15 +1,15 @@
-<template>
+﻿<template>
   <div class="space-y-6 pb-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
     <!-- Header Page -->
     <div class="bg-gradient-to-r from-red-600 to-rose-700 rounded-3xl p-6 text-white shadow-lg relative overflow-hidden">
       <div class="relative z-10">
         <div class="inline-flex items-center gap-2 px-3 py-1 bg-white/20 backdrop-blur-md rounded-full text-xs font-bold text-white mb-3">
           <Sparkles class="w-4 h-4 text-yellow-300" />
-          <span>Promo Afiliasi Marketplace Terbaik</span>
+          <span>Promo Afiliasi Terpilih</span>
         </div>
-        <h1 class="text-2xl sm:text-3xl font-black mb-2">Katalog Promo Shopee & Tokopedia</h1>
+        <h1 class="text-2xl sm:text-3xl font-black mb-2">Katalog Promo & Layanan Digital</h1>
         <p class="text-xs sm:text-sm text-red-100 max-w-2xl">
-          Temukan ribuan penawaran harga terhemat dari Shopee, Tokopedia & Lazada dengan diskon hingga 70% yang disaring secara otomatis.
+          Temukan promo marketplace, hotel, tiket pesawat, hosting, domain, paket data, dan layanan digital dari partner resmi.
         </p>
       </div>
       <ShoppingBag class="absolute -bottom-6 -right-6 w-36 h-36 text-white/10" />
@@ -24,7 +24,7 @@
           <input
             v-model="searchQuery"
             type="text"
-            placeholder="Cari promo tisu, minyak telon, baju, skincare..."
+            placeholder="Cari promo, hotel, tiket, hosting, domain, software..."
             class="w-full pl-10 pr-4 py-2.5 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl text-xs sm:text-sm focus:outline-none focus:border-brand-red dark:text-white"
             @input="handleSearch"
           />
@@ -47,8 +47,17 @@
         </div>
       </div>
 
-      <!-- Marketplace Filter -->
+      <!-- Vertical Filter -->
       <div class="flex flex-col sm:flex-row sm:items-center gap-2">
+        <span class="text-xs font-bold text-gray-500 dark:text-gray-400 shrink-0">Layanan:</span>
+        <div class="flex gap-1.5 overflow-x-auto pb-1">
+          <button v-for="tab in verticalTabs" :key="tab.id" @click="selectVertical(tab.id)" :class="['px-3 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer border', selectedVertical === tab.id ? 'bg-brand-red text-white border-brand-red shadow-sm' : 'bg-gray-100 dark:bg-gray-700/60 text-gray-700 dark:text-gray-300 border-transparent hover:bg-gray-200 dark:hover:bg-gray-600']">
+            <component :is="tab.icon" class="w-4 h-4" /><span>{{ tab.name }}</span>
+          </button>
+        </div>
+      </div>
+      <!-- Marketplace Filter -->
+      <div v-if="selectedVertical === 'marketplace'" class="flex flex-col sm:flex-row sm:items-center gap-2">
         <span class="text-xs font-bold text-gray-500 dark:text-gray-400 shrink-0">Marketplace:</span>
         <div class="grid grid-cols-3 sm:flex gap-1.5 bg-gray-100/80 dark:bg-gray-700/50 p-1 sm:p-0 rounded-xl sm:rounded-none sm:bg-transparent sm:dark:bg-transparent">
           <button
@@ -62,7 +71,7 @@
                 : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-transparent sm:border-gray-200 sm:dark:border-gray-600 hover:border-brand-red hover:text-brand-red dark:hover:border-red-400'
             ]"
           >
-            <span>{{ mp.icon }}</span>
+            <component :is="mp.icon" class="w-4 h-4" />
             <span>{{ mp.name }}</span>
           </button>
         </div>
@@ -71,7 +80,7 @@
       <!-- Category Filter Pills -->
       <div class="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
         <button
-          v-for="cat in categoryTabs"
+          v-for="cat in visibleCategoryTabs"
           :key="cat.id"
           @click="selectCategory(cat.id)"
           :class="[
@@ -81,7 +90,7 @@
               : 'bg-gray-100 dark:bg-gray-700/60 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
           ]"
         >
-          <span>{{ cat.icon }}</span>
+          <component :is="cat.icon" class="w-3.5 h-3.5" />
           <span>{{ cat.name }}</span>
         </button>
       </div>
@@ -92,7 +101,7 @@
       v-if="selectedMerchant === 'tokopedia'"
       class="flex items-start gap-2.5 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/50 rounded-2xl px-4 py-3 text-xs text-amber-800 dark:text-amber-300"
     >
-      <span class="text-base shrink-0">ℹ️</span>
+      <span class="text-base shrink-0">â„¹ï¸</span>
       <span>
         <strong>Produk Tokopedia</strong> dari feed Accesstrade tidak menyertakan data item terjual & harga asli.
         Filter diskon tidak tersedia. Gunakan <strong>Harga Terendah / Tertinggi</strong> atau <strong>Terbaru</strong> untuk mengurutkan.
@@ -119,7 +128,7 @@
       <ShoppingBag class="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
       <h3 class="font-extrabold text-gray-800 dark:text-white text-base">Tidak ada produk ditemukan</h3>
       <p class="text-xs text-gray-500 mt-1 max-w-md mx-auto">
-        Coba ubah kata kunci pencarian atau pilih kategori lain untuk menemukan promo marketplace terbaik.
+        Coba ubah kata kunci pencarian atau pilih kategori lain untuk menemukan promo dan layanan terbaik.
       </p>
       <button
         @click="resetFilters"
@@ -173,8 +182,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
-import { Sparkles, ShoppingBag, Search, SlidersHorizontal, ChevronLeft, ChevronRight } from 'lucide-vue-next';
+import { ref, computed, onMounted } from 'vue';
+import { Sparkles, ShoppingBag, Search, SlidersHorizontal, ChevronLeft, ChevronRight, Plane, Globe2, Store, Folder, Smartphone, HeartPulse, Utensils, Home, Shirt } from 'lucide-vue-next';
 import AffiliateProductCard from '../features/affiliate/components/AffiliateProductCard.vue';
 import type { AffiliateProduct } from '../features/affiliate/types';
 import { supabase } from '../features/shared/db/supabaseClient';
@@ -184,134 +193,84 @@ const products = ref<AffiliateProduct[]>([]);
 const isLoading = ref(true);
 const searchQuery = ref('');
 const selectedCategory = ref('all');
+const selectedVertical = ref('all');
 const selectedMerchant = ref('all');
 const sortBy = ref('sold');
 const currentPage = ref(1);
 const PAGE_SIZE = 24;
 const hasNoMore = ref(false);
 
-const merchantTabs = [
-  { id: 'all',       name: 'Semua',     icon: '🛒' },
-  { id: 'shopee',    name: 'Shopee',    icon: '🟠' },
-  { id: 'tokopedia', name: 'Tokopedia', icon: '🟢' },
+const verticalTabs = [
+  { id: 'all', name: 'Semua', icon: Sparkles },
+  { id: 'marketplace', name: 'Marketplace', icon: ShoppingBag },
+  { id: 'travel', name: 'Travel', icon: Plane },
+  { id: 'digital', name: 'Internet & Digital', icon: Globe2 },
 ];
-
+const merchantTabs = [
+  { id: 'all', name: 'Semua', icon: ShoppingBag },
+  { id: 'shopee', name: 'Shopee', icon: Store },
+  { id: 'tokopedia', name: 'Tokopedia', icon: Store },
+];
 let searchDebounceTimer: any = null;
 
 const categoryTabs = [
-  { id: 'all', name: 'Semua Kategori', icon: '🔥', kw: [] },
-  {
-    id: 'gadget', name: 'Gadget & Elektronik', icon: '📱',
-    kw: ['camera', 'earphone', 'headphone', 'speaker', 'lighting', 'electrical', 'household appliance', 'bulbs', 'steamer', 'powerline'],
-  },
-  {
-    id: 'baby', name: 'Ibu & Bayi', icon: '👶',
-    kw: ['baby', 'diapering', 'feeding', 'milk formula', 'nursery', 'toys', 'maternity', 'pacifier', 'potty'],
-  },
-  {
-    id: 'beauty', name: 'Kecantikan & Skincare', icon: '💄',
-    kw: ['skincare', 'makeup', 'beauty', 'fragrance', 'oral care', 'hair care', 'personal care', 'lipstick', 'serum', 'toner'],
-  },
-  {
-    id: 'kitchen', name: 'Dapur & Kuliner', icon: '🍳',
-    kw: ['snack', 'food', 'cooking', 'beverage', 'dairy', 'chocolate', 'coffee', 'instant', 'cereal', 'sauce'],
-  },
-  {
-    id: 'home', name: 'Rumah Tangga', icon: '🏠',
-    kw: ['home care', 'notebook', 'tissue', 'office', 'furniture', 'decoration', 'storage', 'curtain', 'bedding', 'tool'],
-  },
-  {
-    id: 'fashion', name: 'Fashion & Hijab', icon: '👗',
-    kw: ['hijab', 'muslim wear', 'dress', 'shirt', 'pants', 'underwear', 'bag', 'wallet', 'scarves', 'pashmina'],
-  },
+  { id: 'all', name: 'Semua Kategori', icon: Folder, kw: [] },
+  { id: 'gadget', name: 'Gadget & Elektronik', icon: Smartphone, kw: ['camera', 'earphone', 'headphone', 'speaker', 'lighting', 'electrical', 'household appliance', 'bulbs', 'steamer', 'powerline'] },
+  { id: 'baby', name: 'Ibu & Bayi', icon: HeartPulse, kw: ['baby', 'diapering', 'feeding', 'milk formula', 'nursery', 'toys', 'maternity', 'pacifier', 'potty'] },
+  { id: 'beauty', name: 'Kecantikan & Skincare', icon: HeartPulse, kw: ['skincare', 'makeup', 'beauty', 'fragrance', 'oral care', 'hair care', 'personal care', 'lipstick', 'serum', 'toner'] },
+  { id: 'kitchen', name: 'Dapur & Kuliner', icon: Utensils, kw: ['snack', 'food', 'cooking', 'beverage', 'dairy', 'chocolate', 'coffee', 'instant', 'cereal', 'sauce'] },
+  { id: 'home', name: 'Rumah Tangga', icon: Home, kw: ['home care', 'notebook', 'tissue', 'office', 'furniture', 'decoration', 'storage', 'curtain', 'bedding', 'tool'] },
+  { id: 'fashion', name: 'Fashion & Hijab', icon: Shirt, kw: ['hijab', 'muslim wear', 'dress', 'shirt', 'pants', 'underwear', 'bag', 'wallet', 'scarves', 'pashmina'] },
+];
+const travelCategoryTabs = [
+  { id: 'all', name: 'Semua Travel', icon: Folder, kw: [] },
+  { id: 'hotel', name: 'Hotel', icon: Home, kw: [] },
+  { id: 'flight', name: 'Tiket Pesawat', icon: Plane, kw: [] },
+  { id: 'activity', name: 'Aktivitas Wisata', icon: Sparkles, kw: [] },
 ];
 
+const digitalCategoryTabs = [
+  { id: 'all', name: 'Semua Digital', icon: Folder, kw: [] },
+  { id: 'hosting', name: 'Hosting', icon: Globe2, kw: [] },
+  { id: 'domain', name: 'Domain', icon: Globe2, kw: [] },
+  { id: 'data-package', name: 'Paket Data', icon: Smartphone, kw: [] },
+  { id: 'software', name: 'Software', icon: Smartphone, kw: [] },
+];
+
+const visibleCategoryTabs = computed(() => {
+  if (selectedVertical.value === 'travel') return travelCategoryTabs;
+  if (selectedVertical.value === 'digital') return digitalCategoryTabs;
+  return categoryTabs;
+});
 // Helper: build OR filter string from keywords
 const buildOrFilter = (kw: string[]) =>
   kw.map(k => `category.ilike.%${k}%,name.ilike.%${k}%`).join(',');
 
 const loadProducts = async (resetPage = false) => {
-  if (resetPage) {
-    currentPage.value = 1;
-  }
+  if (resetPage) currentPage.value = 1;
   isLoading.value = true;
-
   try {
-    const tab = categoryTabs.find(t => t.id === selectedCategory.value);
+    const tab = visibleCategoryTabs.value.find(t => t.id === selectedCategory.value);
     const kw = tab?.kw ?? [];
-
-    // Determine sort column
-    const sortCol = sortBy.value === 'discount' ? 'discount_percent'
-      : sortBy.value === 'sold' ? 'item_sold'
-      : sortBy.value === 'price_low' || sortBy.value === 'price_high' ? 'price'
-      : 'created_at';
+    const sortCol = sortBy.value === 'discount' ? 'discount_percent' : sortBy.value === 'sold' ? 'item_sold' : sortBy.value === 'price_low' || sortBy.value === 'price_high' ? 'price' : 'created_at';
     const isAsc = sortBy.value === 'price_low';
-
-    const buildQuery = (merchant: string, limit: number, offset: number) => {
-      let q = supabase
-        .from('affiliate_products')
-        .select('*')
-        .eq('is_active', true)
-        .eq('merchant', merchant);
-
-      // Text search takes priority — skip category keywords when searching
-      // so results like "samsung" show up regardless of which category tab is active
-      if (searchQuery.value.trim()) {
-        const s = searchQuery.value.trim();
-        q = q.or(`name.ilike.%${s}%,category.ilike.%${s}%,shop_name.ilike.%${s}%`);
-      } else if (selectedCategory.value !== 'all' && kw.length > 0) {
-        // Category keyword filter only when NOT searching
-        q = q.or(buildOrFilter(kw));
-      }
-
-      // Sort: Tokopedia use last_synced_at as default (since it has no discount or item_sold)
-      const col = merchant === 'tokopedia' && (sortCol === 'discount_percent' || sortCol === 'item_sold') ? 'last_synced_at' : sortCol;
-      q = q.order(col, { ascending: isAsc, nullsFirst: false });
-
-      return q.range(offset, offset + limit - 1);
-    };
-
-    if (selectedMerchant.value !== 'all') {
-      // Single merchant: use full PAGE_SIZE
-      const offset = (currentPage.value - 1) * PAGE_SIZE;
-      const { data, error } = await buildQuery(selectedMerchant.value, PAGE_SIZE, offset);
-      if (error) console.error('[AffiliateView] error:', error);
-      products.value = data || [];
-      hasNoMore.value = (data || []).length < PAGE_SIZE;
-    } else if (sortBy.value === 'discount' || sortBy.value === 'sold') {
-      // Shopee-only for discount/sold sort — Tokopedia has no discount_percent or item_sold data
-      const offset = (currentPage.value - 1) * PAGE_SIZE;
-      const { data, error } = await buildQuery('shopee', PAGE_SIZE, offset);
-      if (error) console.error('[AffiliateView] Shopee error:', error);
-      products.value = data || [];
-      hasNoMore.value = (data || []).length < PAGE_SIZE;
-    } else {
-      // Both merchants: 50/50 interleave (for latest, price_low, price_high)
-      const halfLimit = Math.ceil(PAGE_SIZE / 2);
-      const offset = (currentPage.value - 1) * halfLimit;
-
-      const [shopeeRes, tokoRes] = await Promise.all([
-        buildQuery('shopee', halfLimit, offset),
-        buildQuery('tokopedia', halfLimit, offset),
-      ]);
-
-      if (shopeeRes.error) console.error('[AffiliateView] Shopee error:', shopeeRes.error);
-      if (tokoRes.error) console.error('[AffiliateView] Toko error:', tokoRes.error);
-
-      const shopeeList = shopeeRes.data || [];
-      const tokoList = tokoRes.data || [];
-
-      // Interleave: Shopee[0], Toko[0], Shopee[1], Toko[1], ...
-      const combined: AffiliateProduct[] = [];
-      const maxLen = Math.max(shopeeList.length, tokoList.length);
-      for (let i = 0; i < maxLen; i++) {
-        if (i < shopeeList.length) combined.push(shopeeList[i]);
-        if (i < tokoList.length) combined.push(tokoList[i]);
-      }
-
-      products.value = combined;
-      hasNoMore.value = combined.length < PAGE_SIZE;
+    let q = supabase.from('affiliate_products').select('*').eq('is_active', true);
+    if (selectedVertical.value !== 'all') q = q.eq('vertical', selectedVertical.value);
+    if (selectedMerchant.value !== 'all') q = q.eq('merchant', selectedMerchant.value);
+    if (searchQuery.value.trim()) {
+      const term = searchQuery.value.trim();
+      q = q.or(`name.ilike.%${term}%,category.ilike.%${term}%,shop_name.ilike.%${term}%,subcategory.ilike.%${term}%`);
+    } else if (selectedCategory.value !== 'all' && selectedVertical.value !== 'marketplace') {
+      q = q.eq('subcategory', selectedCategory.value);
+    } else if (selectedCategory.value !== 'all' && kw.length > 0) {
+      q = q.or(buildOrFilter(kw));
     }
+    q = q.order(sortCol, { ascending: isAsc, nullsFirst: false });
+    const offset = (currentPage.value - 1) * PAGE_SIZE;
+    const { data, error } = await q.range(offset, offset + PAGE_SIZE - 1);
+    if (error) console.error('[AffiliateView] error:', error);
+    products.value = data || [];
+    hasNoMore.value = products.value.length < PAGE_SIZE;
   } catch (err) {
     console.error('[AffiliateView] Exception:', err);
     products.value = [];
@@ -325,6 +284,12 @@ const handleSearch = () => {
   searchDebounceTimer = setTimeout(() => {
     loadProducts(true);
   }, 350);
+};
+
+const selectVertical = (verticalId: string) => {
+  selectedVertical.value = verticalId;
+  selectedMerchant.value = 'all';
+  loadProducts(true);
 };
 
 const selectCategory = (catId: string) => {
@@ -366,7 +331,12 @@ const nextPage = () => {
 };
 
 onMounted(() => {
-  updatePageSeo('Katalog Promo Marketplace', 'Cari promo produk Shopee, Tokopedia, dan Lazada pilihan terbaik.');
+  updatePageSeo('Katalog Promo & Layanan Digital', 'Cari promo marketplace, travel, hosting, domain, paket data, dan software pilihan.');
   loadProducts();
 });
 </script>
+
+
+
+
+

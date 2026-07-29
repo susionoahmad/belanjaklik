@@ -131,7 +131,7 @@
               :class="merchantStyle.buttonClass"
             >
               <component :is="merchantStyle.icon" class="w-5 h-5" />
-              <span>Beli di {{ merchantStyle.label }}</span>
+              <span>{{ actionLabel }} {{ merchantStyle.label }}</span>
               <ExternalLink class="w-4 h-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
             </button>
             <p class="text-[11px] text-center text-gray-400 dark:text-gray-500">
@@ -225,6 +225,13 @@ const discountPercent = computed(() => {
     return Math.round(((original - current) / original) * 100);
   }
   return 0;
+});
+
+const actionLabel = computed(() => {
+  const vertical = product.value?.vertical;
+  if (vertical === 'travel') return 'Pesan di';
+  if (vertical === 'digital') return 'Lihat di';
+  return 'Beli di';
 });
 
 const merchantStyle = computed(() => {
@@ -332,5 +339,4 @@ onMounted(async () => {
 
 watch(() => route.params.slug, loadProductData);
 </script>
-
 

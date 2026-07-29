@@ -35,6 +35,10 @@ export interface ParsedFeedItem {
   external_product_id?: string;
   site_id?: string | null;
   site_url?: string | null;
+  merchant?: string;
+  vertical?: 'marketplace' | 'travel' | 'digital';
+  subcategory?: string;
+  offer_type?: string;
   isValid: boolean;
   validationError?: string;
 }
@@ -241,6 +245,15 @@ export function autoDetectMapping(headers: string[]): ColumnMappingConfig {
 /**
  * Transform raw file rows into cleaned & validated preview items
  */
+function inferAffiliateClassification(input: { name?: string; category?: string; affiliate_url?: string; product_url?: string }, fallback: { merchant: string; vertical: 'marketplace' | 'travel' | 'digital'; subcategory?: string }) {
+  const text = `${input.name || ''} ${input.category || ''} ${input.affiliate_url || ''} ${input.product_url || ''}`.toLowerCase();
+  const isTraveloka = text.includes('traveloka') || text.includes('travel.prf.hn');
+  if (isTraveloka || text.includes('attraction')) {
+    const subcategory = text.includes('hotel') ? 'hotel' : text.includes('flight') || text.includes('pesawat') ? 'flight' : 'activity';
+    return { merchant: 'traveloka', vertical: 'travel' as const, subcategory, offer_type: 'booking' };
+  }
+  return { merchant: fallback.merchant, vertical: fallback.vertical, subcategory: fallback.subcategory || undefined, offer_type: fallback.vertical === 'digital' ? 'service' : 'product' };
+}
 export function transformAndCleanRows(
   rows: Record<string, any>[],
   mapping: ColumnMappingConfig
@@ -280,6 +293,11 @@ export function transformAndCleanRows(
       validationError = 'Link affiliate kosong';
     }
 
+    const classification = inferAffiliateClassification(
+      { name: cleanedName, category, affiliate_url, product_url },
+      { merchant: 'other', vertical: 'marketplace' }
+    );
+
     return {
       rawRowIndex: index + 1,
       name: cleanedName,
@@ -297,6 +315,10 @@ export function transformAndCleanRows(
       external_product_id: external_product_id || undefined,
       site_id: extractSiteIdFromAffiliateUrl(affiliate_url),
       site_url: null,
+      merchant: classification.merchant,
+      vertical: classification.vertical,
+      subcategory: classification.subcategory,
+      offer_type: classification.offer_type,
       isValid,
       validationError
     };
@@ -319,6 +341,8 @@ export async function bulkUpsertAffiliateFeed(
   items: ParsedFeedItem[],
   options: {
     merchant: string;
+    vertical?: 'marketplace' | 'travel' | 'digital';
+    subcategory?: string;
     campaignId?: string;
     source?: string;
     siteId?: string;
@@ -367,7 +391,10 @@ export async function bulkUpsertAffiliateFeed(
       if (slug.length > 90) slug = slug.substring(0, 90).replace(/-+$/, '');
 
       return {
-        merchant,
+        merchant: item.merchant || merchant,
+        vertical: item.vertical || options.vertical || 'marketplace',
+        subcategory: item.subcategory || options.subcategory || item.category || null,
+        offer_type: item.offer_type || (options.vertical === 'travel' ? 'booking' : options.vertical === 'digital' ? 'service' : 'product'),
         campaign_id,
         external_product_id,
         source,
@@ -432,6 +459,11 @@ export async function bulkUpsertAffiliateFeed(
 
   return summary;
 }
+
+
+
+
+
 
 
 

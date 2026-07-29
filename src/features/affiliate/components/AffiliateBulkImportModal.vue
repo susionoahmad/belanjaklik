@@ -87,6 +87,7 @@
               <option value="tokopedia">Tokopedia</option>
               <option value="lazada">Lazada</option>
               <option value="tiktok_shop">TikTok Shop</option>
+              <option value="traveloka">Traveloka</option>
               <option value="other">Lainnya / Merchant Lain</option>
             </select>
           </div>
@@ -120,7 +121,7 @@
             class="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs px-5 py-2.5 rounded-xl shadow-md flex items-center gap-1.5 disabled:opacity-50 cursor-pointer transition-all"
           >
             <span v-if="isParsing" class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-            <span>{{ isParsing ? 'Membaca File...' : 'Lanjut ke Pemetaan & Preview â†’' }}</span>
+            <span>Lanjut ke Pemetaan & Preview</span><ArrowRight v-if="!isParsing" class="w-4 h-4" />
           </button>
         </div>
       </div>
@@ -257,11 +258,9 @@
                     {{ item.category || '-' }}
                   </td>
                   <td class="p-2 whitespace-nowrap">
-                    <span 
-                      :class="item.isValid ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300'"
-                      class="px-2 py-0.5 rounded text-[9px] font-bold"
-                    >
-                      {{ item.isValid ? 'âœ“ Valid' : item.validationError }}
+                    <span :class="item.isValid ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300'" class="px-2 py-0.5 rounded text-[9px] font-bold inline-flex items-center gap-1">
+                      <Check v-if="item.isValid" class="w-3 h-3" />
+                      <span>{{ item.isValid ? 'Valid' : item.validationError }}</span>
                     </span>
                   </td>
                 </tr>
@@ -276,7 +275,7 @@
             @click="step = 1" 
             class="px-4 py-2.5 rounded-xl text-xs font-bold border border-gray-200 dark:border-gray-700"
           >
-            â† Kembali
+            <ArrowLeft class="w-4 h-4" /> Kembali
           </button>
 
           <button 
@@ -286,7 +285,7 @@
             class="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs px-6 py-2.5 rounded-xl shadow-md flex items-center gap-1.5 disabled:opacity-50 cursor-pointer transition-all"
           >
             <span v-if="isImporting" class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-            <span>{{ isImporting ? `Meng-import (${progressText})...` : `Proses Import (${parsedRows.length} Produk) â†’` }}</span>
+            <span>{{ isImporting ? `Meng-import (${progressText})...` : `Proses Import (${parsedRows.length} Produk)` }}</span><ArrowRight v-if="!isImporting" class="w-4 h-4" />
           </button>
         </div>
       </div>
@@ -350,7 +349,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import { UploadCloud, FileSpreadsheet, Sliders, Sparkles, CheckCircle2 } from 'lucide-vue-next';
+import { UploadCloud, FileSpreadsheet, Sliders, Sparkles, CheckCircle2, ArrowRight, ArrowLeft, Check } from 'lucide-vue-next';
 import Modal from '@/features/shared/components/Modal.vue';
 import { formatRupiah } from '@/features/shared/utils/formatters';
 import { 
@@ -380,10 +379,12 @@ const isParsing = ref(false);
 const isImporting = ref(false);
 const progressText = ref('0/0');
 
-const defaultMerchant = ref('shopee');
+const defaultMerchant = ref('traveloka');
+const defaultVertical = ref<'marketplace' | 'travel' | 'digital'>('marketplace');
+const defaultSubcategory = ref('');
 const defaultCampaignId = ref('manual_feed');
-const defaultSiteId = ref('');
-const defaultSiteUrl = ref(typeof window !== 'undefined' ? window.location.origin : '');
+const defaultSiteId = ref('127950');
+const defaultSiteUrl = ref('https://belanjaklik.my.id');
 
 const fileHeaders = ref<string[]>([]);
 const parsedRows = ref<Record<string, any>[]>([]);
@@ -431,7 +432,18 @@ const parseAndNext = async () => {
     fileHeaders.value = result.headers;
     parsedRows.value = result.rows;
 
-    mapping.value = autoDetectMapping(result.headers);
+    const detected = autoDetectMapping(result.headers);
+    const exactHeader = (name: string) => result.headers.find(h => h.replace(/^\\uFEFF/, '').trim().toLowerCase() === name.toLowerCase()) || '';
+    mapping.value = {
+      ...detected,
+      name: exactHeader('Merchant Product Name') || detected.name,
+      affiliate_url: exactHeader('Product URL Web (encoded)') || detected.affiliate_url,
+      image_url: exactHeader('Image URL') || detected.image_url,
+      price: exactHeader('Discounted Price') || detected.price,
+      category: exactHeader('Sub category Name') || detected.category,
+      description: exactHeader('Description') || detected.description,
+      external_product_id: exactHeader('Merchant Product ID') || detected.external_product_id
+    };
     updatePreview();
     step.value = 2;
   } catch (err) {
@@ -456,6 +468,8 @@ const startImport = async () => {
   try {
     const summary = await bulkUpsertAffiliateFeed(previewItems.value, {
       merchant: defaultMerchant.value,
+      vertical: defaultVertical.value,
+      subcategory: defaultSubcategory.value,
       campaignId: defaultCampaignId.value,
       siteId: defaultSiteId.value,
       siteUrl: defaultSiteUrl.value,
@@ -488,4 +502,10 @@ const handleClose = () => {
   emit('close');
 };
 </script>
+
+
+
+
+
+
 

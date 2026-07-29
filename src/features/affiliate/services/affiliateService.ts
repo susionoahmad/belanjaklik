@@ -23,11 +23,15 @@ export async function getActiveAffiliateProducts(options?: {
   limit?: number;
   category?: string;
   merchant?: string;
+  vertical?: string;
+  subcategory?: string;
   mixMerchants?: boolean;
 }): Promise<AffiliateProduct[]> {
   if (!isSupabaseConfigured) {
     let list = getOfflineProducts().filter(p => p.is_active);
     if (options?.merchant) list = list.filter(p => p.merchant === options.merchant);
+    if (options?.vertical) list = list.filter(p => p.vertical === options.vertical);
+    if (options?.subcategory) list = list.filter(p => p.subcategory === options.subcategory);
     if (options?.category) list = list.filter(p => p.category === options.category);
     if (options?.limit) list = list.slice(0, options.limit);
     return list;
@@ -37,38 +41,32 @@ export async function getActiveAffiliateProducts(options?: {
     const fetchLimit = options?.limit || 40;
 
     if (options?.mixMerchants || !options?.merchant) {
-      // Fetch top Shopee & Tokopedia products separately to guarantee a balanced mix & top discounts
-      const halfLimit = Math.ceil(fetchLimit / 2);
-      const [shopeeRes, tokoRes] = await Promise.all([
-        supabase
+      // Landing page: mix all public MVP verticals instead of only Shopee/Tokopedia.
+      const perVertical = Math.ceil(fetchLimit / 3);
+      const verticals = ['marketplace', 'travel', 'digital'];
+      const responses = await Promise.all(verticals.map(vertical => {
+        let query = supabase
           .from('affiliate_products')
           .select('*')
-          .eq('is_active', true)
-          .eq('merchant', 'shopee')
-          .order('discount_percent', { ascending: false, nullsFirst: false })
-          .limit(halfLimit),
-        supabase
-          .from('affiliate_products')
-          .select('*')
-          .eq('is_active', true)
-          .eq('merchant', 'tokopedia')
-          .order('discount_percent', { ascending: false, nullsFirst: false })
-          .limit(halfLimit)
-      ]);
+          .eq('is_active', true);
+        // Legacy affiliate rows without vertical are marketplace products.
+        query = vertical === 'marketplace'
+          ? query.or('vertical.eq.marketplace,vertical.is.null')
+          : query.eq('vertical', vertical);
+        return query
+          .order('last_synced_at', { ascending: false })
+          .limit(perVertical);
+      }));
 
-      const shopeeList = shopeeRes.data || [];
-      const tokoList = tokoRes.data || [];
+      const lists = responses.map(response => response.data || []);
       const combined: AffiliateProduct[] = [];
-      const maxLen = Math.max(shopeeList.length, tokoList.length);
-
+      const maxLen = Math.max(...lists.map(list => list.length), 0);
       for (let i = 0; i < maxLen; i++) {
-        if (i < shopeeList.length) combined.push(shopeeList[i]);
-        if (i < tokoList.length) combined.push(tokoList[i]);
+        for (const list of lists) {
+          if (i < list.length) combined.push(list[i]);
+        }
       }
-
-      if (combined.length > 0) {
-        return combined.slice(0, fetchLimit);
-      }
+      if (combined.length > 0) return combined.slice(0, fetchLimit);
     }
 
     let query = supabase
@@ -229,6 +227,11 @@ export async function saveAffiliateProduct(payload: Partial<AffiliateProduct>): 
   const cleanData: Partial<AffiliateProduct> = {
     ...payload,
     merchant: payload.merchant || 'other',
+    vertical: payload.vertical || 'marketplace',
+    subcategory: payload.subcategory?.trim() || null,
+    offer_type: payload.offer_type || 'product',
+    campaign_name: payload.campaign_name?.trim() || null,
+    advertiser_name: payload.advertiser_name?.trim() || null,
     source: payload.source || 'manual_link',
     campaign_id: payload.campaign_id?.trim() || 'manual',
     site_id: normaliseSiteId(payload.site_id) || extractSiteIdFromAffiliateUrl(payload.affiliate_url) || 'legacy',
@@ -341,4 +344,6 @@ export async function trackAffiliateClick(productId: string): Promise<void> {
     console.error('[AffiliateService] Failed to track affiliate click:', err);
   }
 }
+
+
 

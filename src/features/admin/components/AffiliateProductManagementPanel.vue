@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="space-y-5">
     <!-- Top Toolbar Header -->
     <div class="flex flex-wrap items-center justify-between gap-3">
@@ -107,6 +107,7 @@
           <option value="tokopedia">Tokopedia</option>
           <option value="lazada">Lazada</option>
           <option value="tiktok_shop">TikTok Shop</option>
+          <option value="traveloka">Traveloka</option>
           <option value="other">Lainnya</option>
         </select>
       </div>
@@ -168,7 +169,7 @@
                   </div>
                   <div class="flex items-center gap-2 text-[10px] text-gray-400 mt-0.5">
                     <span v-if="p.shop_name" class="font-medium text-gray-500 dark:text-gray-400">
-                      ðŸ›’ {{ p.shop_name }}
+                      Ã°Å¸â€ºâ€™ {{ p.shop_name }}
                     </span>
                     <span v-if="p.category" class="px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-700 font-mono">
                       {{ p.category }}
@@ -345,7 +346,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { 
   Share2, Plus, RefreshCw, Package, CheckCircle2, Percent, Search, Clipboard, Code2, 
-  ExternalLink, Edit3, Trash2, AlertTriangle, CheckCircle, UploadCloud 
+  ExternalLink, Edit3, Trash2, AlertTriangle, CheckCircle, UploadCloud, Store 
 } from 'lucide-vue-next';
 import Modal from '@/features/shared/components/Modal.vue';
 import AffiliateProductModal from '@/features/affiliate/components/AffiliateProductModal.vue';
@@ -487,6 +488,7 @@ const getMerchantName = (merchant: string): string => {
     case 'tokopedia': return 'Tokopedia';
     case 'lazada': return 'Lazada';
     case 'tiktok_shop': return 'TikTok Shop';
+    case 'traveloka': return 'Traveloka';
     default: return 'Merchant Lain';
   }
 };
@@ -501,6 +503,8 @@ const getMerchantBadgeClass = (merchant: string): string => {
       return 'bg-blue-100 text-blue-800 border border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-900';
     case 'tiktok_shop': 
       return 'bg-purple-100 text-purple-800 border border-purple-200 dark:bg-purple-950 dark:text-purple-300 dark:border-purple-900';
+    case 'traveloka':
+      return 'bg-sky-100 text-sky-800 border border-sky-200 dark:bg-sky-950 dark:text-sky-300 dark:border-sky-900';
     default: 
       return 'bg-gray-100 text-gray-700 border border-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600';
   }
@@ -557,4 +561,6 @@ const handleBulkImported = async () => {
   await loadProducts();
 };
 </script>
+
+
 
