@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="space-y-5">
     <!-- Top Toolbar Header -->
     <div class="flex flex-wrap items-center justify-between gap-3">
@@ -21,6 +21,13 @@
           <span>Import Feed (CSV/Excel)</span>
         </button>
 
+        <button
+          @click="isCaptureOpen = true"
+          class="bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs px-4 py-2.5 rounded-xl flex items-center gap-1.5 shadow-md cursor-pointer transition-all"
+        >
+          <Code2 class="w-4 h-4" />
+          <span>Capture ACCESSTRADE</span>
+        </button>
         <button 
           @click="openAddModal" 
           class="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs px-4 py-2.5 rounded-xl flex items-center gap-1.5 shadow-md cursor-pointer transition-all"
@@ -259,6 +266,26 @@
       </div>
     </div>
 
+    <!-- Browser Capture Instructions -->
+    <Modal :isOpen="isCaptureOpen" @close="isCaptureOpen = false">
+      <div class="space-y-4 p-1">
+        <div>
+          <h3 class="font-extrabold text-base text-gray-900 dark:text-white">Capture Produk ACCESSTRADE</h3>
+          <p class="text-xs text-gray-500 mt-1">Gunakan bookmarklet ini di halaman ACCESSTRADE yang sudah login. Sistem mengambil data kartu produk dan link GET LINK.</p>
+        </div>
+        <ol class="list-decimal pl-5 space-y-1 text-xs text-gray-600 dark:text-gray-300">
+          <li>Salin kode di bawah, buat bookmark browser baru, lalu tempel kode sebagai URL bookmark.</li>
+          <li>Buka halaman daftar produk ACCESSTRADE dan klik bookmark tersebut.</li>
+          <li>Hasil capture otomatis disalin ke clipboard. Kembali ke sini dan klik Import Clipboard.</li>
+        </ol>
+        <textarea :value="captureBookmarklet" readonly rows="5" class="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700 p-2 text-[10px] font-mono break-all"></textarea>
+        <div class="flex gap-2">
+          <button @click="copyCaptureBookmarklet" class="flex-1 px-3 py-2.5 rounded-xl bg-blue-600 text-white text-xs font-extrabold flex items-center justify-center gap-1.5"><Clipboard class="w-4 h-4" /> Salin Bookmarklet</button>
+          <button @click="importFromClipboard" class="flex-1 px-3 py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-extrabold flex items-center justify-center gap-1.5"><UploadCloud class="w-4 h-4" /> Import Clipboard</button>
+        </div>
+        <p v-if="captureMessage" :class="['text-xs font-semibold', captureFailed ? 'text-red-600' : 'text-emerald-700']">{{ captureMessage }}</p>
+      </div>
+    </Modal>
     <!-- Edit/Add Modal Component -->
     <AffiliateProductModal 
       :isOpen="isModalOpen" 
@@ -317,7 +344,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { 
-  Share2, Plus, RefreshCw, Package, CheckCircle2, Percent, Search, 
+  Share2, Plus, RefreshCw, Package, CheckCircle2, Percent, Search, Clipboard, Code2, 
   ExternalLink, Edit3, Trash2, AlertTriangle, CheckCircle, UploadCloud 
 } from 'lucide-vue-next';
 import Modal from '@/features/shared/components/Modal.vue';
@@ -326,6 +353,7 @@ import AffiliateBulkImportModal from '@/features/affiliate/components/AffiliateB
 import type { AffiliateProduct } from '@/features/affiliate/types';
 import { formatRupiah } from '@/features/shared/utils/formatters';
 import { proxyImageUrl } from '@/features/tokosaya-sync/services/ImageProxyService';
+import { getAccesstradeCaptureBookmarklet, readCapturedAffiliateProducts, readAffiliateCaptureFromHash } from '@/features/affiliate/services/affiliateCaptureService';
 import { 
   getAllAffiliateProductsAdmin, 
   saveAffiliateProduct, 
@@ -340,6 +368,10 @@ const selectedMerchantFilter = ref('');
 const selectedStatusFilter = ref('');
 
 const isModalOpen = ref(false);
+const isCaptureOpen = ref(false);
+const captureMessage = ref('');
+const captureFailed = ref(false);
+const captureBookmarklet = getAccesstradeCaptureBookmarklet(`${window.location.origin}/admin`);
 const isBulkImportOpen = ref(false);
 const selectedProduct = ref<AffiliateProduct | null>(null);
 
@@ -355,6 +387,51 @@ const showToast = (msg: string) => {
   }, 3500);
 };
 
+const importCaptureFromHash = async () => {
+  try {
+    const captured = readAffiliateCaptureFromHash();
+    if (!captured.length) return;
+    let saved = 0;
+    for (const product of captured) {
+      const result = await saveAffiliateProduct({ ...product, site_id: '127950', source: 'accesstrade_browser_capture', is_active: true });
+      if (result) saved++;
+    }
+    window.history.replaceState({}, document.title, `${window.location.pathname}${window.location.search}`);
+    await loadProducts();
+    showToast(`${saved} produk ACCESSTRADE berhasil diimport.`);
+  } catch (error) {
+    captureMessage.value = error instanceof Error ? error.message : 'Gagal membaca hasil capture.';
+    captureFailed.value = true;
+    isCaptureOpen.value = true;
+  }
+};
+const copyCaptureBookmarklet = async () => {
+  try {
+    await navigator.clipboard.writeText(captureBookmarklet);
+    captureMessage.value = 'Bookmarklet berhasil disalin. Tempel sebagai URL bookmark browser.';
+    captureFailed.value = false;
+  } catch {
+    captureMessage.value = 'Clipboard browser tidak tersedia. Salin kode dari kotak secara manual.';
+    captureFailed.value = true;
+  }
+};
+
+const importFromClipboard = async () => {
+  try {
+    const captured = await readCapturedAffiliateProducts();
+    let saved = 0;
+    for (const product of captured) {
+      const result = await saveAffiliateProduct({ ...product, site_id: '127950', source: 'accesstrade_browser_capture', is_active: true });
+      if (result) saved++;
+    }
+    await loadProducts();
+    captureMessage.value = `${saved} produk berhasil diimport dari ACCESSTRADE.`;
+    captureFailed.value = false;
+  } catch (error) {
+    captureMessage.value = error instanceof Error ? error.message : 'Gagal membaca hasil capture.';
+    captureFailed.value = true;
+  }
+};
 const loadProducts = async () => {
   isLoading.value = true;
   try {

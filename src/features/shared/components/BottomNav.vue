@@ -1,6 +1,6 @@
 <template>
   <nav class="fixed bottom-0 left-0 right-0 z-30 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md border-t border-gray-200 dark:border-gray-800 md:hidden transition-colors duration-200">
-    <div class="grid grid-cols-6 h-16 max-w-lg mx-auto">
+    <div class="grid grid-cols-5 h-16 max-w-lg mx-auto">
       <router-link
         v-for="item in navItems"
         :key="item.path"
@@ -26,7 +26,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useRoute } from 'vue-router';
-import { Home, Grid, Package, Tag, Clock, Settings } from 'lucide-vue-next';
+import { Home, Grid, Package, Tag, Clock } from 'lucide-vue-next';
 import { useCartStore } from '../../cart/stores/cartStore';
 
 const route = useRoute();
@@ -37,7 +37,6 @@ const navItems = computed(() => [
   { path: '/catalog', label: 'Katalog', icon: Grid },
   { path: '/packages', label: 'Paket', icon: Package },
   { path: '/promos', label: 'Promo', icon: Tag },
-  { path: '/orders', label: 'Pesanan', icon: Clock, badge: cartStore.totalItemCount > 0 ? `${cartStore.totalItemCount}` : null },
-  { path: '/admin', label: 'Pengelola', icon: Settings }
+  { path: '/orders', label: 'Pesanan', icon: Clock, badge: cartStore.totalItemCount > 0 ? `${cartStore.totalItemCount}` : null }
 ]);
 </script>

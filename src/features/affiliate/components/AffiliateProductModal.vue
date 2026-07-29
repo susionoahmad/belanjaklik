@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <Modal :isOpen="isOpen" @close="$emit('close')">
     <div class="space-y-4 max-h-[85vh] overflow-y-auto pr-1">
       <div class="flex items-center justify-between border-b border-gray-100 dark:border-gray-700 pb-3">
@@ -12,6 +12,23 @@
         </div>
       </div>
 
+      <div v-if="!product?.id" class="p-3 rounded-2xl border border-blue-200 dark:border-blue-800 bg-blue-50/70 dark:bg-blue-950/30 space-y-2">
+        <div class="flex items-center justify-between gap-2">
+          <div>
+            <div class="text-xs font-extrabold text-blue-800 dark:text-blue-200">Import Produk via URL Merchant</div>
+            <div class="text-[10px] text-blue-700/80 dark:text-blue-300/80">Tempel URL produk; nama, gambar, dan harga akan dibaca otomatis jika tersedia.</div>
+          </div>
+          <span class="text-[10px] font-mono font-bold text-blue-700 dark:text-blue-300 whitespace-nowrap">Site ID 127950</span>
+        </div>
+        <div class="flex flex-col sm:flex-row gap-2">
+          <input v-model="merchantUrl" type="url" placeholder="https://www.tokopedia.com/..." class="flex-1 px-3 py-2 rounded-xl border border-blue-200 dark:border-blue-800 bg-white dark:bg-gray-800 text-xs font-mono focus:ring-2 focus:ring-blue-500 outline-none" @keyup.enter.prevent="handleMerchantImport" />
+          <button type="button" @click="handleMerchantImport" :disabled="isImporting || !merchantUrl.trim()" class="px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-extrabold disabled:opacity-50 flex items-center justify-center gap-1.5">
+            <RefreshCw :class="['w-3.5 h-3.5', isImporting ? 'animate-spin' : '']" />
+            {{ isImporting ? 'Membaca...' : 'Ambil Data' }}
+          </button>
+        </div>
+        <p v-if="importMessage" :class="['text-[10px] font-semibold', importFailed ? 'text-red-600' : 'text-emerald-700']">{{ importMessage }}</p>
+      </div>
       <form @submit.prevent="handleSubmit" class="space-y-3.5">
         <!-- Nama Produk & Merchant -->
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -233,10 +250,11 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue';
-import { Save, Image as ImageIcon } from 'lucide-vue-next';
+import { Save, Image as ImageIcon, RefreshCw } from 'lucide-vue-next';
 import Modal from '@/features/shared/components/Modal.vue';
 import type { AffiliateProduct } from '../types';
 import { proxyImageUrl } from '@/features/tokosaya-sync/services/ImageProxyService';
+import { importMerchantProductFromUrl } from '../services/merchantProductImportService';
 
 const props = defineProps<{
   isOpen: boolean;
@@ -249,6 +267,10 @@ const emit = defineEmits<{
 }>();
 
 const isSubmitting = ref(false);
+const isImporting = ref(false);
+const merchantUrl = ref('');
+const importMessage = ref('');
+const importFailed = ref(false);
 
 const form = ref<Partial<AffiliateProduct>>({
   name: '',
@@ -265,7 +287,7 @@ const form = ref<Partial<AffiliateProduct>>({
   is_active: true,
   source: 'manual_link',
   campaign_id: 'manual',
-  site_id: 'legacy',
+  site_id: '127950',
   site_url: ''
 });
 
@@ -306,12 +328,44 @@ watch(() => props.product, (newVal) => {
       is_active: true,
       source: 'manual_link',
       campaign_id: 'manual',
-  site_id: 'legacy',
+  site_id: '127950',
   site_url: ''
     };
   }
 }, { immediate: true });
 
+const handleMerchantImport = async () => {
+  if (!merchantUrl.value.trim() || isImporting.value) return;
+  isImporting.value = true;
+  importMessage.value = '';
+  importFailed.value = false;
+  try {
+    const metadata = await importMerchantProductFromUrl(merchantUrl.value);
+    form.value = {
+      ...form.value,
+      name: metadata.name || form.value.name || '',
+      merchant: metadata.merchant || form.value.merchant || 'other',
+      product_url: metadata.product_url,
+      affiliate_url: metadata.affiliate_url,
+      site_id: metadata.site_id,
+      site_url: 'https://belanjaklik.my.id',
+      image_url: metadata.image_url || form.value.image_url || '',
+      price: metadata.price || form.value.price,
+      original_price: metadata.original_price || form.value.original_price,
+      shop_name: metadata.shop_name || form.value.shop_name || '',
+      description: metadata.description || form.value.description || '',
+      source: 'merchant_url_import',
+      campaign_id: form.value.campaign_id || 'manual'
+    };
+    merchantUrl.value = metadata.product_url;
+    importMessage.value = 'Data produk berhasil diambil. Silakan periksa sebelum disimpan.';
+  } catch (error) {
+    importFailed.value = true;
+    importMessage.value = error instanceof Error ? error.message : 'Gagal membaca URL merchant.';
+  } finally {
+    isImporting.value = false;
+  }
+};
 const handleSubmit = async () => {
   if (!form.value.name?.trim() || !form.value.affiliate_url?.trim()) return;
   
