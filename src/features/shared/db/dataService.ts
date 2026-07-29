@@ -447,7 +447,7 @@ export const dataService = {
           const pBrand = updated.brand || 'Alfamind';
           const pCat = updated.category || 'Alfamart (Sembako)';
           const pCode = updated.external_product_code || '-';
-          updated.description = `${updated.name} - Produk Original Toko Saya Alfamind.\n\nSpesifikasi Produk:\n• Merek: ${pBrand}\n• Kategori: ${pCat}\n• Kode PLU: ${pCode}\n\nDeskripsi:\nDapatkan ${updated.name} kualitas terjamin langsung dari Toko Saya Alfamind. Dikirim cepat dan aman dari lokasi Alfamart terdekat.`;
+          updated.description = `${updated.name} - Produk Original Toko Saya Alfamind.\n\nSpesifikasi Produk:\nâ€¢ Merek: ${pBrand}\nâ€¢ Kategori: ${pCat}\nâ€¢ Kode PLU: ${pCode}\n\nDeskripsi:\nDapatkan ${updated.name} kualitas terjamin langsung dari Toko Saya Alfamind. Dikirim cepat dan aman dari lokasi Alfamart terdekat.`;
         }
 
         return updated;
@@ -487,8 +487,8 @@ export const dataService = {
 
 
 
-    // Merge offlineDb products — hanya tambahkan produk lokal yang BELUM ADA di Supabase
-    // Supabase adalah sumber kebenaran (source of truth) — TIDAK boleh ditimpa IndexedDB
+    // Merge offlineDb products â€” hanya tambahkan produk lokal yang BELUM ADA di Supabase
+    // Supabase adalah sumber kebenaran (source of truth) â€” TIDAK boleh ditimpa IndexedDB
     const offlineList = (await offlineDb.getProducts()) || [];
     const mergedList = [...baseList]; // Supabase data selalu dipakai sebagai base
 
@@ -501,10 +501,10 @@ export const dataService = {
                (offProd.name && p.name && offProd.name.toLowerCase() === p.name.toLowerCase())
         );
         if (idx === -1) {
-          // Produk ini hanya ada di lokal → tambahkan
+          // Produk ini hanya ada di lokal â†’ tambahkan
           mergedList.unshift(offProd);
         } else {
-          // Jika ada di Supabase, tapi data lokal memiliki info promo yang valid → gabungkan atribut promo
+          // Jika ada di Supabase, tapi data lokal memiliki info promo yang valid â†’ gabungkan atribut promo
           const sp = mergedList[idx];
           const offType = normalizePromoType(offProd.promo_type, offProd.promo_badge, offProd.promo_title);
           if (offType && offType !== 'REGULAR') {
@@ -518,7 +518,7 @@ export const dataService = {
         }
       });
     } else {
-      // Supabase tidak tersedia (offline mode) → gunakan semua data IndexedDB sebagai fallback
+      // Supabase tidak tersedia (offline mode) â†’ gunakan semua data IndexedDB sebagai fallback
       offlineList.forEach(offProd => {
         if (!mergedList.some(p => p.id === offProd.id)) {
           mergedList.push(offProd);
@@ -708,19 +708,43 @@ export const dataService = {
         const isValidUuid = payload.id ? uuidRegex.test(payload.id) : false;
         
         // Strip non-column transient fields before sending to Supabase
-        const isPromoBool = Boolean(
-          payload.is_promo || 
-          (payload.promo_price && payload.promo_price > 0) || 
-          (payload.promo_type && payload.promo_type !== 'REGULAR') || 
-          !!payload.promo_badge
-        );
+        // Respect an explicit checkbox value from AdminProductModal.
+        // A normal product may still contain an old promo_price in the form;
+        // that value must not force the product back into promo status.
+        const hasExplicitPromoState = payload.is_promo !== undefined;
+        const isPromoBool = hasExplicitPromoState
+          ? Boolean(payload.is_promo)
+          : Boolean(
+              (payload.promo_price && payload.promo_price > 0) ||
+              (payload.promo_type && payload.promo_type !== 'REGULAR') ||
+              !!payload.promo_badge
+            );
 
-        const dbPayload: any = { 
+        const dbPayload: any = {
           ...payload,
           is_promo: isPromoBool
         };
+
+        // Clear stale promo values when the product is returned to normal.
+        if (!isPromoBool) {
+          dbPayload.promo_price = null;
+          dbPayload.promo_title = null;
+          dbPayload.promo_start_date = null;
+          dbPayload.promo_end_date = null;
+          dbPayload.promo_badge = null;
+          dbPayload.promo_type = null;
+        }
         delete dbPayload.category;
         delete dbPayload.channel;
+
+        // Empty strings are invalid for PostgreSQL UUID columns.
+        // Omit optional UUID fields so updates preserve their existing values.
+        for (const uuidField of ['category_id', 'channel_id']) {
+          const value = dbPayload[uuidField];
+          if (value === '' || (value !== undefined && value !== null && !uuidRegex.test(String(value)))) {
+            delete dbPayload[uuidField];
+          }
+        }
 
         let resultData: any = null;
 
