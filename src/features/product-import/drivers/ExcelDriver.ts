@@ -300,7 +300,8 @@ export class ExcelDriver implements ImportDriver {
     const stockStatus: 'in_stock' | 'out_of_stock' = isKosong ? 'out_of_stock' : 'in_stock';
     const isAvailable = !isKosong;
 
-    const promoType = normalizePromoType(row.promo_type, row.promo_badge, row.promo_title || row.category);
+    const hasPromoMetadata = Boolean(hasStrikethrough || row.promo_type || row.promo_badge || row.promo_title || row.promo_start_date || row.promo_end_date);
+    const promoType = hasPromoMetadata ? normalizePromoType(row.promo_type, row.promo_badge, row.promo_title) : undefined;
     const promoBadge = row.promo_badge || (promoType === 'GANTUNG' ? 'PROMO GANTUNG' : (promoType === 'JSM' ? 'PROMO JSM (3 HARI)' : (hasStrikethrough ? 'Diskon!' : undefined)));
     const promoTitle = row.promo_title || row.campaign_title || (promoType === 'GANTUNG' ? 'Promo Gantung Alfamart (#GajianUntungAlfamart)' : (promoType === 'JSM' ? 'Promo Jumat Sabtu Minggu' : (hasStrikethrough ? 'Diskon Spesial' : undefined)));
     const promoStartDate = row.promo_start_date || row.start_date;
@@ -319,7 +320,7 @@ export class ExcelDriver implements ImportDriver {
       strikethrough_price: originalPrice > 0 ? originalPrice : undefined,
       discount_percentage: discountPct,
       // ✅ is_promo = true jika ada harga coret, promo_type, ATAU promo_badge diset
-      is_promo: hasStrikethrough || !!promoType || !!promoBadge || !!promoEndDate,
+      is_promo: hasPromoMetadata,
       promo_title: promoTitle,
       promo_start_date: promoStartDate,
       promo_end_date: promoEndDate,

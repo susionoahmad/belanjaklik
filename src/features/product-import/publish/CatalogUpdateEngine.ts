@@ -25,23 +25,24 @@ export class CatalogUpdateEngine {
         ? item.editedData.price 
         : (norm?.normalized_price ?? norm?.current_price ?? 0);
       const originalPrice = norm?.original_price || norm?.strikethrough_price;
-      const isPromo = item.editedData?.is_promo !== undefined 
+      const explicitlyNotPromo = (item.editedData?.promo_type as string) === 'NONE' || item.editedData?.is_promo === false;
+      const isPromo = explicitlyNotPromo ? false : item.editedData?.is_promo !== undefined 
         ? item.editedData.is_promo 
-        : (norm?.is_promo || norm?.has_strikethrough_price || (!!originalPrice && originalPrice > currentPrice) || !!norm?.promo_type || !!norm?.promo_badge || true);
+        : Boolean(norm?.is_promo || norm?.has_strikethrough_price || (!!originalPrice && originalPrice > currentPrice) || norm?.promo_badge || norm?.promo_title || norm?.promo_end_date);
 
       // Determine effective promo_type
-      const promoType = item.editedData?.promo_type 
+      const promoType = explicitlyNotPromo ? undefined : item.editedData?.promo_type 
         || norm?.promo_type 
         || (norm?.promo_badge?.toUpperCase().includes('GANTUNG') || norm?.promo_title?.toUpperCase().includes('GANTUNG') || norm?.promo_title?.toUpperCase().includes('GAJIAN') ? 'GANTUNG' : undefined)
         || (norm?.promo_badge?.toUpperCase().includes('FLASH') ? 'FLASHSALE' : undefined)
         || (norm?.promo_badge?.toUpperCase().includes('JSM') ? 'JSM' : undefined)
         || (isPromo ? 'REGULAR' : undefined);
 
-      const promoBadge = item.editedData?.promo_badge 
+      const promoBadge = explicitlyNotPromo ? undefined : item.editedData?.promo_badge 
         || norm?.promo_badge 
         || (promoType === 'GANTUNG' ? 'PROMO GANTUNG' : (promoType === 'JSM' ? 'PROMO JSM (3 HARI)' : (promoType === 'FLASHSALE' ? 'FLASHSALE' : (isPromo ? 'Diskon!' : undefined))));
 
-      const promoTitle = item.editedData?.promo_title 
+      const promoTitle = explicitlyNotPromo ? undefined : item.editedData?.promo_title 
         || norm?.promo_title 
         || (promoType === 'GANTUNG' ? 'Promo Gantung Alfamart (#GajianUntungAlfamart)' : (promoType === 'JSM' ? 'Promo Jumat Sabtu Minggu' : (promoType === 'FLASHSALE' ? 'Flash Sale Hari Ini' : (isPromo ? 'Diskon Spesial' : undefined))));
 

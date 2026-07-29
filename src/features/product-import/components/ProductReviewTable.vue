@@ -255,24 +255,13 @@ const updateItemCategory = (item: ReviewItem, categoryId: string) => {
 };
 
 const getSelectedPromoType = (item: ReviewItem): string => {
+  if ((item.editedData?.promo_type as string) === 'NONE') return 'NONE';
   if (item.editedData?.promo_type) return normalizePromoType(item.editedData.promo_type, item.editedData.promo_badge, item.editedData.promo_title);
   if (item.editedData?.is_promo === false) return 'NONE';
 
   const norm = item.card.normalizedData;
-  const type = normalizePromoType(norm?.promo_type, norm?.promo_badge, norm?.promo_title);
-
-  // Explicitly sync into item.editedData so publish engine reads it correctly
-  if (!item.editedData) item.editedData = {};
-  item.editedData.promo_type = type as any;
-  if (!item.editedData.promo_badge) {
-    item.editedData.promo_badge = type === 'GANTUNG' ? 'PROMO GANTUNG' : (type === 'JSM' ? 'PROMO JSM (3 HARI)' : (type === 'FLASHSALE' ? 'FLASHSALE' : 'Diskon!'));
-  }
-  if (!item.editedData.promo_title) {
-    item.editedData.promo_title = type === 'GANTUNG' ? 'Promo Gantung Alfamart (#GajianUntungAlfamart)' : (type === 'JSM' ? 'Promo Jumat Sabtu Minggu' : (type === 'FLASHSALE' ? 'Flash Sale Hari Ini' : 'Diskon Spesial'));
-  }
-  if (item.editedData.is_promo === undefined) {
-    item.editedData.is_promo = true;
-  }
+  const hasPromoMetadata = Boolean(norm?.is_promo || norm?.has_strikethrough_price || (norm?.original_price && norm.original_price > (norm.current_price || 0)) || norm?.promo_type || norm?.promo_badge || norm?.promo_title || norm?.promo_end_date);
+  const type = hasPromoMetadata ? normalizePromoType(norm?.promo_type, norm?.promo_badge, norm?.promo_title) : 'NONE';
 
   return type;
 };
