@@ -31,10 +31,10 @@ import BottomNav from './features/shared/components/BottomNav.vue';
 import CartDrawer from './features/cart/components/CartDrawer.vue';
 
 useHead({
-  title: 'Personal Shopping Assistant',
+  title: 'BelanjaKlik',
   meta: [
-    { name: 'description', content: 'Personal Shopping Assistant - Asisten belanja pribadi serba ada untuk pemesanan sembako & kebutuhan harian.' },
-    { property: 'og:title', content: 'Personal Shopping Assistant' },
+    { name: 'description', content: 'BelanjaKlik - Asisten belanja pribadi serba ada untuk pemesanan sembako & kebutuhan harian.' },
+    { property: 'og:title', content: 'BelanjaKlik' },
     { property: 'og:description', content: 'Pesan sembako & kebutuhan harian dengan cepat via WhatsApp.' },
     { property: 'og:type', content: 'website' },
     { property: 'og:image', content: '/icon-512.png' },

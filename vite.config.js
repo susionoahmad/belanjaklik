@@ -57,7 +57,7 @@ export default defineConfig(function (_a) {
                 registerType: 'autoUpdate',
                 includeAssets: ['favicon.svg', 'robots.txt', 'apple-touch-icon.png', 'icon-192.png', 'icon-512.png', 'maskable-icon-512.png'],
                 manifest: {
-                    name: 'Personal Shopping Assistant - BelanjaKlik',
+                    name: 'BelanjaKlik',
                     short_name: 'BelanjaKlik',
                     description: 'Asisten Belanja Pribadi Serba Ada - Alfamind Store',
                     theme_color: '#e11d48',
