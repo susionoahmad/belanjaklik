@@ -62,6 +62,10 @@
             {{ formatPrice(product.original_price) }}
           </span>
         </div>
+        <div v-if="hasDiscount && product.original_price" class="flex gap-2 text-[9px] font-semibold text-gray-400">
+          <span>Harga promo</span>
+          <span>Harga normal</span>
+        </div>
 
         <!-- Rating & Sales Count Badge -->
         <div v-if="productRating > 0 || productSold > 0" class="mt-1 flex items-center gap-1.5 text-[10px] font-bold text-gray-500 dark:text-gray-400 flex-wrap">
@@ -188,6 +192,13 @@ const merchantStyle = computed(() => {
       label: 'TikTok Shop',
       badgeClass: 'bg-gray-900 text-white dark:bg-black border-gray-800',
       icon: ExternalLink,
+    };
+  }
+  if (m.includes('blibli')) {
+    return {
+      label: 'Blibli',
+      badgeClass: 'bg-[#0B63CE] text-white border-[#0B63CE]',
+      icon: ShoppingBag,
     };
   }
   if (m.includes('tokopedia')) {

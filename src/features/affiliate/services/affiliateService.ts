@@ -40,6 +40,37 @@ export async function getActiveAffiliateProducts(options?: {
   try {
     const fetchLimit = options?.limit || 40;
 
+    if (options?.mixMerchants && options?.vertical && !options?.merchant) {
+      // Keep a marketplace landing balanced across the configured merchants.
+      const merchants = options.vertical === 'marketplace'
+        ? ['shopee', 'tokopedia', 'blibli']
+        : options.vertical === 'travel'
+          ? ['traveloka']
+          : [];
+      if (merchants.length > 0) {
+        const perMerchant = Math.ceil(fetchLimit / merchants.length);
+        const responses = await Promise.all(merchants.map(merchant =>
+          supabase
+            .from('affiliate_products')
+            .select('*')
+            .eq('is_active', true)
+            .eq('merchant', merchant)
+            .eq('vertical', options.vertical)
+            .order('last_synced_at', { ascending: false })
+            .limit(perMerchant)
+        ));
+        const lists = responses.map(response => response.data || []);
+        const combined: AffiliateProduct[] = [];
+        const maxLen = Math.max(...lists.map(list => list.length), 0);
+        for (let i = 0; i < maxLen; i++) {
+          for (const list of lists) {
+            if (i < list.length) combined.push(list[i]);
+          }
+        }
+        if (combined.length > 0) return combined.slice(0, fetchLimit);
+      }
+    }
+
     if (options?.mixMerchants || !options?.merchant) {
       // Landing page: mix all public MVP verticals instead of only Shopee/Tokopedia.
       const perVertical = Math.ceil(fetchLimit / 3);

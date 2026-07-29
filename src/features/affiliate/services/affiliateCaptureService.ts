@@ -21,7 +21,7 @@ const captureScript = `(() => {
     const discount = raw.match(/(\\d+(?:[.,]\\d+)?)\\s*%/);
     const commissionLine = raw.match(/(?:Up to|Komisi)[^%]{0,30}(\\d+(?:[.,]\\d+)?)\\s*%/i);
     const image = card.querySelector('img')?.src || '';
-    const productLink = [...card.querySelectorAll('a[href]')].map(a => a.href).find(h => /tokopedia|shopee|lazada|tiktok/i.test(h)) || '';
+    const productLink = [...card.querySelectorAll('a[href]')].map(a => a.href).find(h => /tokopedia|shopee|blibli|lazada|tiktok/i.test(h)) || '';
     const lines = (card.innerText || '').split(/\\n+/).map(v => v.trim()).filter(Boolean);
     const name = lines.find(v => !/^Rp|GET LINK|Up to|Earn|Tersedia|[\\d.,]+%/i.test(v) && v.length > 5) || '';
     const affiliateUrl = linkButton.href || linkButton.dataset.href || linkButton.getAttribute('data-url') || [...card.querySelectorAll('a[href]')].map(a => a.href).find(h => /atid|accesstrade/i.test(h)) || (productLink ? 'https://accesstrade.co.id/click?site_id=127950&url=' + encodeURIComponent(productLink) + '&sub_id=belanjaklik_app' : '');

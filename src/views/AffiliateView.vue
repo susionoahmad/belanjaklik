@@ -56,9 +56,17 @@
           </button>
         </div>
       </div>
+      <!-- Travel country filter: Indonesia is the primary Traveloka landing market. -->
+      <div v-if="selectedVertical === 'travel' && selectedMerchant === 'traveloka'" class="flex flex-col sm:flex-row sm:items-center gap-2">
+        <span class="text-xs font-bold text-gray-500 dark:text-gray-400 shrink-0">Negara:</span>
+        <div class="flex gap-1.5 overflow-x-auto pb-1">
+          <button v-for="country in travelCountryTabs" :key="country.id" @click="selectTravelCountry(country.id)" :class="['px-3 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-all border', selectedTravelCountry === country.id ? 'bg-brand-red text-white border-brand-red shadow-sm' : 'bg-gray-100 dark:bg-gray-700/60 text-gray-700 dark:text-gray-300 border-transparent hover:bg-gray-200 dark:hover:bg-gray-600']">{{ country.name }}</button>
+        </div>
+      </div>
+
       <!-- Marketplace Filter -->
-      <div v-if="selectedVertical === 'marketplace'" class="flex flex-col sm:flex-row sm:items-center gap-2">
-        <span class="text-xs font-bold text-gray-500 dark:text-gray-400 shrink-0">Marketplace:</span>
+      <div v-if="selectedVertical === 'marketplace' || selectedVertical === 'travel'" class="flex flex-col sm:flex-row sm:items-center gap-2">
+        <span class="text-xs font-bold text-gray-500 dark:text-gray-400 shrink-0">Merchant:</span>
         <div class="grid grid-cols-3 sm:flex gap-1.5 bg-gray-100/80 dark:bg-gray-700/50 p-1 sm:p-0 rounded-xl sm:rounded-none sm:bg-transparent sm:dark:bg-transparent">
           <button
             v-for="mp in merchantTabs"
@@ -195,6 +203,7 @@ const searchQuery = ref('');
 const selectedCategory = ref('all');
 const selectedVertical = ref('all');
 const selectedMerchant = ref('all');
+const selectedTravelCountry = ref('indonesia');
 const sortBy = ref('sold');
 const currentPage = ref(1);
 const PAGE_SIZE = 24;
@@ -210,18 +219,22 @@ const merchantTabs = [
   { id: 'all', name: 'Semua', icon: ShoppingBag },
   { id: 'shopee', name: 'Shopee', icon: Store },
   { id: 'tokopedia', name: 'Tokopedia', icon: Store },
+  { id: 'blibli', name: 'Blibli', icon: Store },
+  { id: 'traveloka', name: 'Traveloka', icon: Plane },
 ];
 let searchDebounceTimer: any = null;
 
 const categoryTabs = [
   { id: 'all', name: 'Semua Kategori', icon: Folder, kw: [] },
-  { id: 'gadget', name: 'Gadget & Elektronik', icon: Smartphone, kw: ['camera', 'earphone', 'headphone', 'speaker', 'lighting', 'electrical', 'household appliance', 'bulbs', 'steamer', 'powerline'] },
-  { id: 'baby', name: 'Ibu & Bayi', icon: HeartPulse, kw: ['baby', 'diapering', 'feeding', 'milk formula', 'nursery', 'toys', 'maternity', 'pacifier', 'potty'] },
-  { id: 'beauty', name: 'Kecantikan & Skincare', icon: HeartPulse, kw: ['skincare', 'makeup', 'beauty', 'fragrance', 'oral care', 'hair care', 'personal care', 'lipstick', 'serum', 'toner'] },
-  { id: 'kitchen', name: 'Dapur & Kuliner', icon: Utensils, kw: ['snack', 'food', 'cooking', 'beverage', 'dairy', 'chocolate', 'coffee', 'instant', 'cereal', 'sauce'] },
-  { id: 'home', name: 'Rumah Tangga', icon: Home, kw: ['home care', 'notebook', 'tissue', 'office', 'furniture', 'decoration', 'storage', 'curtain', 'bedding', 'tool'] },
-  { id: 'fashion', name: 'Fashion & Hijab', icon: Shirt, kw: ['hijab', 'muslim wear', 'dress', 'shirt', 'pants', 'underwear', 'bag', 'wallet', 'scarves', 'pashmina'] },
+  { id: 'gadget', name: 'Gadget & Elektronik', icon: Smartphone, kw: ['camera', 'earphone', 'headphone', 'speaker', 'lighting', 'electrical', 'elektronik', 'peralatan elektronik', 'peralatan listrik', 'household appliance', 'appliance', 'bulbs', 'steamer', 'powerline', 'toaster', 'kettle', 'rice cooker', 'microwave', 'air cooler'] },
+  { id: 'baby', name: 'Ibu & Bayi', icon: HeartPulse, kw: ['baby', 'bayi', 'ibu & bayi', 'diapering', 'popok', 'feeding', 'milk formula', 'nursery', 'toys', 'maternity', 'pacifier', 'potty'] },
+  { id: 'beauty', name: 'Kecantikan & Skincare', icon: HeartPulse, kw: ['kecantikan', 'skincare', 'makeup', 'beauty', 'fragrance', 'oral care', 'hair care', 'personal care', 'lipstick', 'serum', 'toner'] },
+  { id: 'kitchen', name: 'Dapur & Kuliner', icon: Utensils, kw: ['dapur', 'kuliner', 'snack', 'food', 'cooking', 'beverage', 'dairy', 'chocolate', 'coffee', 'instant', 'cereal', 'sauce'] },
+  { id: 'home', name: 'Rumah Tangga', icon: Home, kw: ['rumah tangga', 'peralatan rumah', 'home care', 'notebook', 'tissue', 'office', 'furniture', 'decoration', 'storage', 'curtain', 'bedding', 'tool'] },
+  { id: 'fashion', name: 'Fashion & Hijab', icon: Shirt, kw: ['fashion', 'hijab', 'muslim wear', 'dress', 'shirt', 'pants', 'underwear', 'bag', 'wallet', 'scarves', 'pashmina'] },
 ];
+const travelCountryTabs = [{ id: 'indonesia', name: 'Indonesia' }, { id: 'all', name: 'Semua Negara' }];
+
 const travelCategoryTabs = [
   { id: 'all', name: 'Semua Travel', icon: Folder, kw: [] },
   { id: 'hotel', name: 'Hotel', icon: Home, kw: [] },
@@ -244,7 +257,7 @@ const visibleCategoryTabs = computed(() => {
 });
 // Helper: build OR filter string from keywords
 const buildOrFilter = (kw: string[]) =>
-  kw.map(k => `category.ilike.%${k}%,name.ilike.%${k}%`).join(',');
+  kw.map(k => `category.ilike.%${k}%`).join(',');
 
 const loadProducts = async (resetPage = false) => {
   if (resetPage) currentPage.value = 1;
@@ -257,6 +270,9 @@ const loadProducts = async (resetPage = false) => {
     let q = supabase.from('affiliate_products').select('*').eq('is_active', true);
     if (selectedVertical.value !== 'all') q = q.eq('vertical', selectedVertical.value);
     if (selectedMerchant.value !== 'all') q = q.eq('merchant', selectedMerchant.value);
+    if (selectedVertical.value === 'travel' && selectedMerchant.value === 'traveloka' && selectedTravelCountry.value === 'indonesia') {
+      q = q.or('name.ilike.%indonesia%,category.ilike.%indonesia%,subcategory.ilike.%indonesia%');
+    }
     if (searchQuery.value.trim()) {
       const term = searchQuery.value.trim();
       q = q.or(`name.ilike.%${term}%,category.ilike.%${term}%,shop_name.ilike.%${term}%,subcategory.ilike.%${term}%`);
@@ -288,7 +304,13 @@ const handleSearch = () => {
 
 const selectVertical = (verticalId: string) => {
   selectedVertical.value = verticalId;
-  selectedMerchant.value = 'all';
+  selectedMerchant.value = verticalId === 'travel' ? 'traveloka' : 'all';
+  selectedTravelCountry.value = 'indonesia';
+  loadProducts(true);
+};
+
+const selectTravelCountry = (countryId: string) => {
+  selectedTravelCountry.value = countryId;
   loadProducts(true);
 };
 
@@ -310,6 +332,7 @@ const resetFilters = () => {
   searchQuery.value = '';
   selectedCategory.value = 'all';
   selectedMerchant.value = 'all';
+  selectedTravelCountry.value = 'indonesia';
   sortBy.value = 'sold';
   loadProducts(true);
 };

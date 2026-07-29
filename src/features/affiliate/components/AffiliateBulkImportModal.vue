@@ -85,6 +85,7 @@
             <select v-model="defaultMerchant" class="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-700 text-xs font-bold focus:ring-2 focus:ring-emerald-500 outline-none">
               <option value="shopee">Shopee</option>
               <option value="tokopedia">Tokopedia</option>
+              <option value="blibli">Blibli</option>
               <option value="lazada">Lazada</option>
               <option value="tiktok_shop">TikTok Shop</option>
               <option value="traveloka">Traveloka</option>
@@ -433,14 +434,20 @@ const parseAndNext = async () => {
     parsedRows.value = result.rows;
 
     const detected = autoDetectMapping(result.headers);
-    const exactHeader = (name: string) => result.headers.find(h => h.replace(/^\\uFEFF/, '').trim().toLowerCase() === name.toLowerCase()) || '';
+    const normalizeHeader = (value: string) => value.replace(/[\uFEFF\u00A0]/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
+    const exactHeader = (name: string) => result.headers.find(h => normalizeHeader(h) === name.toLowerCase()) || '';
+    const mainCategoryHeader = exactHeader('Main Category Name') || exactHeader('Main Category') || result.headers.find(h => {
+      const normalized = normalizeHeader(h);
+      return normalized.includes('main category') && !normalized.includes('id');
+    }) || '';
     mapping.value = {
       ...detected,
       name: exactHeader('Merchant Product Name') || detected.name,
       affiliate_url: exactHeader('Product URL Web (encoded)') || detected.affiliate_url,
       image_url: exactHeader('Image URL') || detected.image_url,
-      price: exactHeader('Discounted Price') || detected.price,
-      category: exactHeader('Sub category Name') || detected.category,
+      price: exactHeader('Discounted Price') || exactHeader('Sale Price') || detected.price,
+      original_price: exactHeader('Price') || exactHeader('Original Price') || exactHeader('Normal Price') || detected.original_price,
+      category: mainCategoryHeader || exactHeader('Main Category Name') || detected.category,
       description: exactHeader('Description') || detected.description,
       external_product_id: exactHeader('Merchant Product ID') || detected.external_product_id
     };

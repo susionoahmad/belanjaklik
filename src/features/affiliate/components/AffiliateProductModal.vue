@@ -56,6 +56,7 @@
             >
               <option value="shopee">Shopee</option>
               <option value="tokopedia">Tokopedia</option>
+              <option value="blibli">Blibli</option>
               <option value="lazada">Lazada</option>
               <option value="tiktok_shop">TikTok Shop</option>
               <option value="traveloka">Traveloka</option>
@@ -407,6 +408,7 @@ const handleMerchantImport = async () => {
       price: metadata.price || form.value.price,
       original_price: metadata.original_price || form.value.original_price,
       shop_name: metadata.shop_name || form.value.shop_name || '',
+      category: metadata.category || form.value.category || '',
       description: metadata.description || form.value.description || '',
       source: 'merchant_url_import',
       campaign_id: form.value.campaign_id || 'manual'

@@ -147,7 +147,13 @@ export function cleanNumeric(val: any): number | null {
       str = str.replace(/\./g, '');
     }
   } else if (str.includes(',') && !str.includes('.')) {
-    str = str.replace(',', '.');
+    const commaParts = str.split(',');
+    // 1,278,000 is a thousands-formatted value, not a decimal.
+    if (commaParts.length > 2 || commaParts.slice(1).every(part => part.length === 3)) {
+      str = str.replace(/,/g, '');
+    } else {
+      str = str.replace(',', '.');
+    }
   }
 
   const num = parseFloat(str);
@@ -203,9 +209,16 @@ export function autoDetectMapping(headers: string[]): ColumnMappingConfig {
     external_product_id: ''
   };
 
+  const normalizeHeader = (header: string): string =>
+    header.replace(/[\uFEFF\u00A0]/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
+
+  const findExactHeader = (names: string[]): string => {
+    return headers.find(h => names.includes(normalizeHeader(h))) || '';
+  };
+
   const findHeader = (keywords: string[]): string => {
     for (const h of headers) {
-      const lower = h.toLowerCase().trim();
+      const lower = normalizeHeader(h);
       if (keywords.some(k => lower.includes(k))) {
         return h;
       }
@@ -230,7 +243,10 @@ export function autoDetectMapping(headers: string[]): ColumnMappingConfig {
   mapping.original_price = findHeader(['original price', 'harga asli', 'harga coret', 'normal price']);
   mapping.commission_rate = findHeader(['commission', 'komisi', 'rate', 'commission_rate']);
   mapping.shop_name = findHeader(['shop name', 'nama toko', 'seller', 'shop_name', 'merchant name']);
-  mapping.category = findHeader(['sub category name', 'category name', 'kategori', 'category', 'sub_category']);
+  // Prefer the merchant's top-level category for consistent catalog grouping.
+  mapping.category = findExactHeader(['main category name', 'main category', 'main_category_name']) ||
+    headers.find(h => normalizeHeader(h).includes('main category')) ||
+    findHeader(['category name', 'kategori', 'category', 'sub_category', 'sub category name']);
   mapping.description = findHeader(['description', 'deskripsi', 'detail', 'desc']);
   mapping.external_product_id = findHeader(['merchant product id', 'product id', 'id produk', 'item_id', 'external_product_id', 'sku']);
 
@@ -245,12 +261,26 @@ export function autoDetectMapping(headers: string[]): ColumnMappingConfig {
 /**
  * Transform raw file rows into cleaned & validated preview items
  */
+function inferMarketplaceCategory(name: string): string | undefined {
+  const text = name.toLowerCase();
+  if (/peralatan elektronik|electronic appliance|mesin elektronik|kettle listrik|ketel listrik|toaster listrik|peralatan listrik|toaster|kettle|rice cooker|magic com|electric kettle|sandwich maker|air fryer|microwave|microwave oven|air cooler|water heater/.test(text)) return 'Peralatan Elektronik';
+  if (/panci|wajan|blender|rice cooker|magic com|toaster|sandwich|ketel|kettle|kompor|dapur|makanan|minuman|snack/.test(text)) return 'Dapur & Kuliner';
+  if (/mesin cuci|kulkas|vacuum|setrika|dispenser|tissue|sabun|deterjen|peralatan rumah|home care|cleaning/.test(text)) return 'Rumah Tangga';
+  if (/laptop|komputer|handphone|smartphone|tablet|televisi|tv |kamera|headphone|earphone|speaker|charger|gadget/.test(text)) return 'Gadget & Elektronik';
+  if (/makeup|skincare|kosmetik|parfum|shampoo|sabun wajah|beauty/.test(text)) return 'Kecantikan & Skincare';
+  if (/popok|bayi|baby|mainan anak|susu formula/.test(text)) return 'Ibu & Bayi';
+  if (/baju|kaos|sepatu|sandal|hijab|fashion|tas|dompet/.test(text)) return 'Fashion & Hijab';
+  return undefined;
+}
 function inferAffiliateClassification(input: { name?: string; category?: string; affiliate_url?: string; product_url?: string }, fallback: { merchant: string; vertical: 'marketplace' | 'travel' | 'digital'; subcategory?: string }) {
   const text = `${input.name || ''} ${input.category || ''} ${input.affiliate_url || ''} ${input.product_url || ''}`.toLowerCase();
   const isTraveloka = text.includes('traveloka') || text.includes('travel.prf.hn');
   if (isTraveloka || text.includes('attraction')) {
     const subcategory = text.includes('hotel') ? 'hotel' : text.includes('flight') || text.includes('pesawat') ? 'flight' : 'activity';
     return { merchant: 'traveloka', vertical: 'travel' as const, subcategory, offer_type: 'booking' };
+  }
+  if (text.includes('blibli')) {
+    return { merchant: 'blibli', vertical: 'marketplace' as const, subcategory: fallback.subcategory || undefined, offer_type: 'product' };
   }
   return { merchant: fallback.merchant, vertical: fallback.vertical, subcategory: fallback.subcategory || undefined, offer_type: fallback.vertical === 'digital' ? 'service' : 'product' };
 }
@@ -274,7 +304,8 @@ export function transformAndCleanRows(
     const original_price = mapping.original_price ? cleanNumeric(row[mapping.original_price]) : null;
     const commission_rate = mapping.commission_rate ? cleanNumeric(row[mapping.commission_rate]) : null;
     const shop_name = getValue(mapping.shop_name);
-    const category = getValue(mapping.category);
+    const rawCategory = getValue(mapping.category);
+    const category = rawCategory || inferMarketplaceCategory(cleanedName) || '';
     const external_product_id = getValue(mapping.external_product_id);
 
     let discount_percent: number | null = null;
@@ -329,7 +360,8 @@ export function transformAndCleanRows(
  * Bulk Upsert feed items to Supabase affiliate_products & local storage
  */
 function stableExternalProductId(url: string | undefined, name: string): string {
-  const input = String(url || '') + '|' + String(name || '');
+  // Prefer the stable product URL so title/name changes still update the same row.
+  const input = url ? String(url) : String(name || '');
   let hash = 2166136261;
   for (let i = 0; i < input.length; i++) {
     hash ^= input.charCodeAt(i);

@@ -53,7 +53,7 @@
             <ShoppingBag class="w-5 h-5 text-brand-red" />
             <span>Rekomendasi Belanja Marketplace</span>
           </h2>
-          <p class="text-xs text-gray-500">Penawaran harga promo Shopee & Tokopedia pilihan terbaik dari saringan AI</p>
+          <p class="text-xs text-gray-500">Penawaran harga promo Shopee, Tokopedia & Blibli pilihan terbaik dari saringan AI</p>
         </div>
         <router-link to="/affiliate" class="text-xs font-bold text-brand-red hover:underline self-start sm:self-auto">
           Lihat Semua Promo ({{ affiliateProducts.length }}+)
@@ -195,12 +195,12 @@ const activeAffiliateCategory = ref('all');
 
 const affiliateCategoryTabs = [
   { id: 'all', name: 'Semua Promo', icon: '🔥' },
-  { id: 'gadget', name: 'Gadget & Elektronik', icon: '📱', filterKeywords: ['gadget', 'electronic', 'phone', 'headphone', 'headset', 'earphone', 'camera', 'appliance', 'charger', 'cable', 'audio', 'kipas', 'vacuum', 'blender', 'rice cooker', 'speaker', 'lampu', 'lighting', 'tv'] },
-  { id: 'baby', name: 'Ibu & Bayi', icon: '👶', filterKeywords: ['baby', 'diaper', 'bayi', 'anak', 'feeding', 'diapering', 'potty', 'toy', 'girl clothes', 'boy', 'kid'] },
-  { id: 'beauty', name: 'Kecantikan', icon: '💄', filterKeywords: ['skincare', 'makeup', 'beauty', 'face', 'sunscreen', 'oral', 'tooth', 'body care', 'personal care', 'fragrance', 'perfume', 'lipstick', 'mouthwash', 'moisturizer', 'cream', 'cleanser', 'bath', 'shower'] },
+  { id: 'gadget', name: 'Gadget & Elektronik', icon: '📱', filterKeywords: ['gadget', 'electronic', 'elektronik', 'peralatan elektronik', 'consumer electronics', 'phone', 'handphone', 'smartphone', 'headphone', 'headset', 'earphone', 'camera', 'appliance', 'peralatan listrik', 'charger', 'cable', 'audio', 'kipas', 'vacuum', 'blender', 'rice cooker', 'toaster', 'kettle', 'microwave', 'air cooler', 'speaker', 'lampu', 'lighting', 'tv'] },
+  { id: 'baby', name: 'Ibu & Bayi', icon: '👶', filterKeywords: ['baby', 'ibu & bayi', 'diaper', 'popok', 'bayi', 'anak', 'feeding', 'diapering', 'potty', 'toy', 'girl clothes', 'boy', 'kid'] },
+  { id: 'beauty', name: 'Kecantikan', icon: '💄', filterKeywords: ['kecantikan', 'skincare', 'makeup', 'beauty', 'face', 'sunscreen', 'oral', 'tooth', 'body care', 'personal care', 'fragrance', 'perfume', 'lipstick', 'mouthwash', 'moisturizer', 'cream', 'cleanser', 'bath', 'shower'] },
   { id: 'kitchen', name: 'Dapur & Kuliner', icon: '🍳', filterKeywords: ['kitchen', 'cooking', 'masak', 'dapur', 'food', 'snack', 'beverage', 'drink', 'dairy', 'egg', 'cereal', 'sauce', 'crisp', 'spread', 'staple', 'ready-to-eat', 'lunch box', 'dinnerware', 'kitchenware'] },
-  { id: 'home', name: 'Rumah Tangga', icon: '🏠', filterKeywords: ['home', 'clean', 'supplies', 'toilet', 'sabun', 'tissue', 'paper', 'notebook', 'office', 'school', 'tool', 'lighting', 'cleaner', 'hanger', 'curtain'] },
-  { id: 'fashion', name: 'Fashion & Hijab', icon: '👗', filterKeywords: ['fashion', 'wear', 'clothes', 'muslim', 'baju', 'hijab', 'dress', 'shirt', 'pant', 'scarf', 'shawl', 'pashmina', 'wallet', 'bag', 'bracelet', 'jewelry', 'underwear', 'bra', 'short'] },
+  { id: 'home', name: 'Rumah Tangga', icon: '🏠', filterKeywords: ['rumah tangga', 'peralatan rumah', 'home', 'clean', 'supplies', 'toilet', 'sabun', 'tissue', 'paper', 'notebook', 'office', 'school', 'tool', 'lighting', 'cleaner', 'hanger', 'curtain'] },
+  { id: 'fashion', name: 'Fashion & Hijab', icon: '👗', filterKeywords: ['fashion', 'hijab', 'busana', 'wear', 'clothes', 'muslim', 'baju', 'hijab', 'dress', 'shirt', 'pant', 'scarf', 'shawl', 'pashmina', 'wallet', 'bag', 'bracelet', 'jewelry', 'underwear', 'bra', 'short'] },
 ];
 
 const filteredAffiliateProducts = computed(() => {
@@ -213,19 +213,49 @@ const filteredAffiliateProducts = computed(() => {
   const matches = affiliateProducts.value.filter(p => {
     const catLower = (p.category || '').toLowerCase();
     const nameLower = (p.name || '').toLowerCase();
-    return tab.filterKeywords!.some(kw => catLower.includes(kw) || nameLower.includes(kw));
+    const matchesKeywords = (value: string) => tab.filterKeywords!.some(kw => value.includes(kw));
+    // Use the stored category first; this prevents names like Bagless matching Fashion.
+    return catLower ? matchesKeywords(catLower) : matchesKeywords(nameLower);
   });
 
-  return matches.length > 0 ? matches.slice(0, 12) : affiliateProducts.value.slice(0, 12);
+  return matches.slice(0, 12);
 });
+
+const dailyHash = (value: string): number => {
+  let hash = 0;
+  for (let i = 0; i < value.length; i++) hash = ((hash << 5) - hash + value.charCodeAt(i)) | 0;
+  return Math.abs(hash);
+};
+
+const rotateMarketplaceProducts = (products: AffiliateProduct[]): AffiliateProduct[] => {
+  const dayKey = new Date().toISOString().slice(0, 10);
+  const groups = new Map<string, AffiliateProduct[]>();
+  for (const product of products) {
+    const key = (product.merchant || 'other').toLowerCase();
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(product);
+  }
+
+  for (const [merchant, list] of groups) {
+    list.sort((a, b) => dailyHash(dayKey + merchant + a.id) - dailyHash(dayKey + merchant + b.id));
+  }
+
+  const rotated: AffiliateProduct[] = [];
+  const lists = [...groups.values()];
+  const maxLength = Math.max(...lists.map(list => list.length), 0);
+  for (let i = 0; i < maxLength; i++) {
+    for (const list of lists) if (list[i]) rotated.push(list[i]);
+  }
+  return rotated;
+};
 
 const loadHomeData = async () => {
   await Promise.all([
     catalogStore.fetchCatalogData(),
     shoppingStore.fetchShoppingData(),
     promotionStore.loadCampaignBanners(),
-    getActiveAffiliateProducts({ limit: 60, mixMerchants: true }).then(res => {
-      affiliateProducts.value = res;
+    getActiveAffiliateProducts({ limit: 60, vertical: 'marketplace', mixMerchants: true }).then(res => {
+      affiliateProducts.value = rotateMarketplaceProducts(res);
     })
   ]);
 };

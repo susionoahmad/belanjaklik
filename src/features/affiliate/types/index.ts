@@ -4,6 +4,7 @@
   merchant: 'shopee' | 'tiktok_shop' | 'tokopedia' | string;
   vertical: 'marketplace' | 'travel' | 'digital' | string;
   subcategory?: string | null;
+  country?: string | null;
   offer_type?: 'product' | 'booking' | 'service' | 'application' | string;
   campaign_name?: string | null;
   advertiser_name?: string | null;

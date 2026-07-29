@@ -8,7 +8,7 @@
           <span>Kelola Produk Afiliasi Manual</span>
         </h2>
         <p class="text-xs text-gray-500 mt-0.5">
-          Manajemen katalog produk rekomendasi belanja dari Shopee, Tokopedia, Lazada & TikTok Shop via ACCESSTRADE
+          Manajemen katalog produk rekomendasi belanja dari Shopee, Tokopedia, Blibli, Lazada & TikTok Shop via ACCESSTRADE
         </p>
       </div>
 
@@ -105,6 +105,7 @@
           <option value="">Semua Merchant / Platform</option>
           <option value="shopee">Shopee</option>
           <option value="tokopedia">Tokopedia</option>
+          <option value="blibli">Blibli</option>
           <option value="lazada">Lazada</option>
           <option value="tiktok_shop">TikTok Shop</option>
           <option value="traveloka">Traveloka</option>
@@ -486,6 +487,7 @@ const getMerchantName = (merchant: string): string => {
   switch (merchant?.toLowerCase()) {
     case 'shopee': return 'Shopee';
     case 'tokopedia': return 'Tokopedia';
+    case 'blibli': return 'Blibli';
     case 'lazada': return 'Lazada';
     case 'tiktok_shop': return 'TikTok Shop';
     case 'traveloka': return 'Traveloka';

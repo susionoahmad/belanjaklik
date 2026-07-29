@@ -46,8 +46,21 @@ const parsePrice = (value?: string): number | undefined => {
   return parsed > 0 ? parsed : undefined
 }
 
+const inferCategory = (name?: string, description?: string): string | undefined => {
+  const text = (name || '') + ' ' + (description || '')
+  if (/mesin cuci|kulkas|vacuum|setrika|dispenser|peralatan rumah|cleaning|tissue|sabun|deterjen/i.test(text)) return 'Rumah Tangga'
+  if (/laptop|komputer|handphone|smartphone|tablet|televisi|tv |kamera|headphone|earphone|speaker|charger/i.test(text)) return 'Gadget & Elektronik'
+  if (/makeup|skincare|kosmetik|parfum|shampoo|sabun wajah|beauty/i.test(text)) return 'Kecantikan & Skincare'
+  if (/popok|bayi|baby|mainan anak|susu formula/i.test(text)) return 'Ibu & Bayi'
+  if (/peralatan elektronik|electronic appliance|mesin elektronik|kettle listrik|ketel listrik|toaster listrik|peralatan listrik|toaster|kettle|rice cooker|magic com|electric kettle|sandwich maker|air fryer|microwave|microwave oven|air cooler|water heater/i.test(text)) return 'Peralatan Elektronik'
+  if (/panci|wajan|blender|rice cooker|dapur|makanan|minuman|snack/i.test(text)) return 'Dapur & Kuliner'
+  if (/baju|kaos|sepatu|sandal|hijab|fashion|tas|dompet/i.test(text)) return 'Fashion & Hijab'
+  return undefined
+}
 const detectMerchant = (url: string): string => {
+  const source = url.toLowerCase()
   const host = new URL(url).hostname.toLowerCase()
+  if (source.includes('blibli')) return 'blibli'
   if (host.includes('shopee')) return 'shopee'
   if (host.includes('tokopedia')) return 'tokopedia'
   if (host.includes('lazada')) return 'lazada'
@@ -92,6 +105,7 @@ Deno.serve(async (req) => {
       price,
       shop_name: cleanText(jsonLd.brand?.name) || finalHost.replace(/^www\./, ''),
       merchant: detectMerchant(finalUrl),
+      category: inferCategory(name, description),
       currency,
     })
   } catch (error) {
