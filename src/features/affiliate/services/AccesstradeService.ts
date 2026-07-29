@@ -1,4 +1,4 @@
-/**
+﻿/**
  * AccesstradeService
  * Automatic Deep Link Transformer & Affiliate Tracking Engine for Accesstrade Indonesia
  */
@@ -53,7 +53,8 @@ export class AccesstradeEngine {
     }
 
     // Check if URL is already an Accesstrade tracking link
-    if (targetUrl.includes('accesstrade.co.id') || targetUrl.includes('at.accesstrade.co.id')) {
+    const lowerUrl = targetUrl.toLowerCase();
+    if (lowerUrl.includes('accesstrade.co.id') || lowerUrl.includes('at.accesstrade.co.id') || lowerUrl.includes('atid.me') || lowerUrl.includes('affiliate_id=')) {
       return targetUrl;
     }
 
@@ -70,3 +71,4 @@ export class AccesstradeEngine {
 }
 
 export const AccesstradeService = AccesstradeEngine;
+

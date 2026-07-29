@@ -3,6 +3,8 @@ export interface AffiliateProduct {
   source: string;
   merchant: 'shopee' | 'tiktok_shop' | 'tokopedia' | string;
   campaign_id: string;
+  site_id?: string | null;
+  site_url?: string | null;
   external_product_id?: string | null;
   name: string;
   slug?: string | null;

@@ -1,4 +1,4 @@
-"""
+﻿"""
 filter_product_feed.py
 
 Tujuan:
@@ -64,6 +64,11 @@ AUTO_UPLOAD_TO_SUPABASE = True
 SUPABASE_URL = os.getenv("VITE_SUPABASE_URL") or os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("VITE_SUPABASE_ANON_KEY") or os.getenv("SUPABASE_KEY")
 
+# Identitas property/site ACCESSTRADE tempat link ini dipublikasikan.
+ACCESSTRADE_SITE_ID = os.getenv('ACCESSTRADE_SITE_ID') or os.getenv('VITE_ACCESSTRADE_SITE_ID') or 'legacy'
+ACCESSTRADE_SITE_URL = os.getenv('ACCESSTRADE_SITE_URL') or os.getenv('VITE_SITE_URL') or ''
+ACCESSTRADE_CAMPAIGN_ID = os.getenv('ACCESSTRADE_CAMPAIGN_ID') or 'direct_csv'
+
 # Ambil berapa produk terbaik PER SUB KATEGORI.
 # Kenapa per sub kategori (bukan top N dari total): supaya variasi produk
 # tetap luas -- misal "Skincare", "Haircare", "Personal Care" masing-masing
@@ -95,6 +100,13 @@ COLUMN_MAPPING = {
     "Merchant Product Name": "name",
     "Image URL": "image_url",
     "Product URL Web (encoded)": "product_url",
+    "Affiliate URL": "affiliate_url",
+    "Tracking URL": "affiliate_url",
+    "Product URL": "product_url",
+    "Product URL Web": "product_url",
+    "Site ID": "site_id",
+    "Site URL": "site_url",
+
     "Description": "description",
     "Price": "price",
     "Discounted Price": "discounted_price",
@@ -325,6 +337,17 @@ def main():
     available_mapping = {k: v for k, v in COLUMN_MAPPING.items() if k in df_top.columns}
     df_output = df_top[list(available_mapping.keys())].rename(columns=available_mapping)
 
+    # ACCESSTRADE sering menaruh URL atid.me di kolom Product URL Web (encoded).
+    # URL tersebut adalah link affiliate dan wajib dipertahankan apa adanya.
+    if 'affiliate_url' not in df_output.columns:
+        affiliate_source = next((c for c in ['Affiliate URL', 'Tracking URL', 'Product URL Web (encoded)', 'Product URL Web'] if c in df_top.columns), None)
+        df_output['affiliate_url'] = df_top[affiliate_source] if affiliate_source else ''
+    if 'product_url' not in df_output.columns:
+        product_source = next((c for c in ['Product URL', 'Original URL', 'Product URL Mobile (encoded)'] if c in df_top.columns), None)
+        df_output['product_url'] = df_top[product_source] if product_source else ''
+    df_output['site_id'] = ACCESSTRADE_SITE_ID
+    df_output['site_url'] = ACCESSTRADE_SITE_URL
+
     # Bersihkan nama, deskripsi, dan format item_sold
     if "name" in df_output.columns:
         print("Pembersihan judul produk (menghapus tag bracket & keyword stuffing)...")
@@ -369,7 +392,7 @@ def generate_slug(name: str, ext_id: str, merchant: str = "shopee") -> str:
     return f"{s[:45]}-{merch_tag}-{clean_id}"
 
 
-def fetch_existing_products_map(supabase_url: str, supabase_key: str):
+def fetch_existing_products_map(supabase_url: str, supabase_key: str, site_id: str):
     """Mengambil peta ID produk yang sudah ada di Supabase berdasarkan product_url & external_product_id."""
     existing_map = {}
     headers = {
@@ -380,7 +403,7 @@ def fetch_existing_products_map(supabase_url: str, supabase_key: str):
     try:
         page = 0
         while True:
-            endpoint = f"{supabase_url.rstrip('/')}/rest/v1/affiliate_products?select=id,product_url,external_product_id,merchant,slug&limit=1000&offset={page*1000}"
+            endpoint = f"{supabase_url.rstrip('/')}/rest/v1/affiliate_products?select=id,product_url,external_product_id,merchant,slug,site_id&limit=1000&offset={page*1000}"
             req = urllib.request.Request(endpoint, headers=headers, method='GET')
             with urllib.request.urlopen(req) as resp:
                 rows = json.loads(resp.read().decode('utf-8'))
@@ -390,12 +413,12 @@ def fetch_existing_products_map(supabase_url: str, supabase_key: str):
                     p_url = str(r.get("product_url") or "").strip().lower()
                     raw_ext = str(r.get("external_product_id") or "").replace('\ufeff', '').strip().lower()
                     if p_url:
-                        existing_map[p_url] = r
+                        existing_map[(str(r.get("site_id") or "legacy"), p_url)] = r
                     if raw_ext and raw_ext != "null" and raw_ext != "nan":
-                        existing_map[raw_ext] = r
+                        existing_map[(str(r.get("site_id") or "legacy"), raw_ext)] = r
                 page += 1
     except Exception as e:
-        print(f"  ℹ Membaca data eksisting Supabase: {e}")
+        print(f"  â„¹ Membaca data eksisting Supabase: {e}")
 
     return existing_map
 
@@ -403,7 +426,7 @@ def fetch_existing_products_map(supabase_url: str, supabase_key: str):
 def upload_to_supabase(df: pd.DataFrame, supabase_url: str, supabase_key: str):
     """Mengunggah data hasil saringan langsung ke tabel affiliate_products di Supabase."""
     if not supabase_url or not supabase_key:
-        print("\n❌ [ERROR] Kredensial Supabase tidak ditemukan!")
+        print("\nâŒ [ERROR] Kredensial Supabase tidak ditemukan!")
         print("   Pastikan file .env berisi VITE_SUPABASE_URL dan VITE_SUPABASE_ANON_KEY.")
         return
 
@@ -413,7 +436,10 @@ def upload_to_supabase(df: pd.DataFrame, supabase_url: str, supabase_key: str):
 
     # Ambil pemetaan data eksisting dari Supabase agar produk dengan product_url/ID yang sama ter-UPDATE di tempat
     print("Membaca data produk eksisting di Supabase untuk pencocokan URL & ID...")
-    existing_map = fetch_existing_products_map(supabase_url, supabase_key)
+    site_id = str(ACCESSTRADE_SITE_ID or "legacy").strip() or "legacy"
+    site_url = str(ACCESSTRADE_SITE_URL or "").strip() or None
+    campaign_id = str(ACCESSTRADE_CAMPAIGN_ID or "direct_csv").strip() or "direct_csv"
+    existing_map = fetch_existing_products_map(supabase_url, supabase_key, site_id)
     print(f"Ditemukan {len(existing_map):,} URL/ID produk eksisting di Supabase.")
 
     endpoint = f"{supabase_url.rstrip('/')}/rest/v1/affiliate_products?on_conflict=id"
@@ -436,6 +462,11 @@ def upload_to_supabase(df: pd.DataFrame, supabase_url: str, supabase_key: str):
             continue
 
         product_url = str(row.get("product_url", "")).strip()
+        affiliate_url = str(row.get('affiliate_url', '')).strip()
+        if not affiliate_url or affiliate_url.lower() == 'nan':
+            affiliate_url = str(row.get('Product URL Web (encoded)', '')).strip()
+        if not product_url or product_url.lower() == 'nan':
+            product_url = ''
         raw_ext_id = str(row.get("external_product_id", "")).replace('\ufeff', '').strip()
 
         if not raw_ext_id or raw_ext_id.lower() == "nan":
@@ -487,14 +518,16 @@ def upload_to_supabase(df: pd.DataFrame, supabase_url: str, supabase_key: str):
         record = {
             "source": "accesstrade",
             "merchant": detected_merchant,
-            "campaign_id": "direct_csv",
+            "campaign_id": campaign_id,
+            "site_id": site_id,
+            "site_url": site_url,
             "external_product_id": ext_id,
             "name": name,
             "slug": generate_slug(name, ext_id, detected_merchant),
             "description": desc if desc and desc.lower() != "nan" else None,
             "image_url": img_url if img_url and img_url.lower() != "nan" else None,
             "product_url": product_url if product_url and product_url.lower() != "nan" else None,
-            "affiliate_url": product_url if product_url and product_url.lower() != "nan" else None,
+            "affiliate_url": affiliate_url if affiliate_url and affiliate_url.lower() != "nan" else None,
             "price": final_price,
             "original_price": orig_price,
             "discount_percent": disc_percent,
@@ -513,7 +546,7 @@ def upload_to_supabase(df: pd.DataFrame, supabase_url: str, supabase_key: str):
         # Pencocokan Produk Eksisting Berdasarkan product_url & external_product_id
         url_key = product_url.strip().lower()
         ext_key = ext_id.replace('\ufeff', '').strip().lower()
-        matched = existing_map.get(ext_key) or existing_map.get(url_key)
+        matched = existing_map.get((site_id, ext_key)) or existing_map.get((site_id, url_key))
 
         if matched:
             record["id"] = matched["id"]
@@ -532,7 +565,7 @@ def upload_to_supabase(df: pd.DataFrame, supabase_url: str, supabase_key: str):
     records = []
 
     for rec in raw_records:
-        key = (rec["merchant"], rec["campaign_id"], rec["external_product_id"])
+        key = (rec["merchant"], rec["campaign_id"], rec["external_product_id"], rec["site_id"])
         if key in seen_keys:
             continue
 
@@ -586,7 +619,7 @@ def upload_to_supabase(df: pd.DataFrame, supabase_url: str, supabase_key: str):
     # 2. Upload/Insert Batch untuk Produk Baru (on_conflict=merchant,campaign_id,external_product_id)
     if records_to_insert:
         print(f"\n[2/2] Meng-insert {len(records_to_insert):,} produk baru ke Supabase...")
-        endpoint_insert = f"{supabase_url.rstrip('/')}/rest/v1/affiliate_products?on_conflict=merchant,campaign_id,external_product_id"
+        endpoint_insert = f"{supabase_url.rstrip('/')}/rest/v1/affiliate_products?on_conflict=merchant,campaign_id,external_product_id,site_id"
         headers_insert = {
             "apikey": supabase_key,
             "Authorization": f"Bearer {supabase_key}",
@@ -613,3 +646,5 @@ def upload_to_supabase(df: pd.DataFrame, supabase_url: str, supabase_key: str):
 
 if __name__ == "__main__":
     main()
+
+

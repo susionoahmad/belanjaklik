@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <Modal :isOpen="isOpen" @close="$emit('close')">
     <div class="space-y-4 max-h-[85vh] overflow-y-auto pr-1">
       <div class="flex items-center justify-between border-b border-gray-100 dark:border-gray-700 pb-3">
@@ -72,6 +72,16 @@
           />
         </div>
 
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">ACCESSTRADE Site ID</label>
+            <input v-model="form.site_id" type="text" placeholder="127950" class="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700 text-xs font-mono font-semibold focus:ring-2 focus:ring-emerald-500 outline-none" />
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">URL Sumber Traffic</label>
+            <input v-model="form.site_url" type="url" placeholder="https://belanjaklik.my.id" class="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700 text-xs font-semibold focus:ring-2 focus:ring-emerald-500 outline-none" />
+          </div>
+        </div>
         <!-- URL Gambar & Live Preview -->
         <div>
           <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
@@ -254,7 +264,9 @@ const form = ref<Partial<AffiliateProduct>>({
   description: '',
   is_active: true,
   source: 'manual_link',
-  campaign_id: 'manual'
+  campaign_id: 'manual',
+  site_id: 'legacy',
+  site_url: ''
 });
 
 watch(() => props.product, (newVal) => {
@@ -274,7 +286,9 @@ watch(() => props.product, (newVal) => {
       description: newVal.description || '',
       is_active: newVal.is_active ?? true,
       source: newVal.source || 'manual_link',
-      campaign_id: newVal.campaign_id || 'manual'
+      campaign_id: newVal.campaign_id || 'manual',
+      site_id: newVal.site_id || 'legacy',
+      site_url: newVal.site_url || ''
     };
   } else {
     form.value = {
@@ -291,7 +305,9 @@ watch(() => props.product, (newVal) => {
       description: '',
       is_active: true,
       source: 'manual_link',
-      campaign_id: 'manual'
+      campaign_id: 'manual',
+  site_id: 'legacy',
+  site_url: ''
     };
   }
 }, { immediate: true });
@@ -307,3 +323,4 @@ const handleSubmit = async () => {
   }
 };
 </script>
+

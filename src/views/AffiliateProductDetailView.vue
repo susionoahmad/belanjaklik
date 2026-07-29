@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="max-w-4xl mx-auto px-4 sm:px-6 py-6 space-y-6 pb-20">
     <!-- Breadcrumb -->
     <nav class="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
@@ -183,6 +183,7 @@ import {
 import AffiliateProductCard from '@/features/affiliate/components/AffiliateProductCard.vue';
 import { formatRupiah } from '@/features/shared/utils/formatters';
 import { proxyImageUrl } from '@/features/tokosaya-sync/services/ImageProxyService';
+import { resolveProductAffiliateUrl } from '@/features/affiliate/services/dynamicAffiliateLinkService';
 
 const route = useRoute();
 const product = ref<AffiliateProduct | null>(null);
@@ -268,7 +269,7 @@ const truncatedDescription = computed(() => {
 });
 
 useHead({
-  title: computed(() => (product.value ? `${product.value.name} — BelanjaKlik` : 'Produk Affiliate — BelanjaKlik')),
+  title: computed(() => (product.value ? `${product.value.name} â€” BelanjaKlik` : 'Produk Affiliate â€” BelanjaKlik')),
   meta: [
     { name: 'description', content: computed(() => truncatedDescription.value) },
     { property: 'og:title', content: computed(() => (product.value ? product.value.name : 'Produk Affiliate BelanjaKlik')) },
@@ -306,12 +307,15 @@ const loadProductData = async () => {
   isLoading.value = false;
 };
 
-const handleAffiliateClick = () => {
+const handleAffiliateClick = async () => {
   if (!product.value?.affiliate_url) return;
   // Fire-and-forget click tracking
   trackAffiliateClick(product.value.id);
-  // Open affiliate URL in new tab
-  window.open(product.value.affiliate_url, '_blank', 'noopener,noreferrer');
+  // Site ID ditentukan berdasarkan domain yang sedang aktif.
+  const affiliateUrl = await resolveProductAffiliateUrl(product.value);
+  if (affiliateUrl) {
+    window.open(affiliateUrl, '_blank', 'noopener,noreferrer');
+  }
 };
 
 // SSG / SSR pre-fetch data before html snapshot
@@ -328,4 +332,5 @@ onMounted(async () => {
 
 watch(() => route.params.slug, loadProductData);
 </script>
+
 

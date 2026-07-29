@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="space-y-5">
     <!-- Top Toolbar Header -->
     <div class="flex flex-wrap items-center justify-between gap-3">
@@ -161,13 +161,16 @@
                   </div>
                   <div class="flex items-center gap-2 text-[10px] text-gray-400 mt-0.5">
                     <span v-if="p.shop_name" class="font-medium text-gray-500 dark:text-gray-400">
-                      🛒 {{ p.shop_name }}
+                      ðŸ›’ {{ p.shop_name }}
                     </span>
                     <span v-if="p.category" class="px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-700 font-mono">
                       {{ p.category }}
                     </span>
                     <span class="text-emerald-600 dark:text-emerald-400 font-mono">
                       Tag: {{ p.source || 'manual_link' }}
+                    </span>
+                    <span v-if="p.site_id" class="text-blue-600 dark:text-blue-400 font-mono">
+                      Site: {{ p.site_id }}
                     </span>
                   </div>
                 </div>
@@ -477,3 +480,4 @@ const handleBulkImported = async () => {
   await loadProducts();
 };
 </script>
+

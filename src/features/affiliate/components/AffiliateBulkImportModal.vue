@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <Modal :isOpen="isOpen" maxWidthClass="max-w-4xl" @close="handleClose">
     <div class="space-y-4 max-h-[82vh] overflow-y-auto pr-1">
       <!-- Modal Header & Wizard Steps -->
@@ -81,13 +81,8 @@
         <!-- Default Settings -->
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-gray-50 dark:bg-gray-800/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-700">
           <div>
-            <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
-              Merchant / Platform Default
-            </label>
-            <select 
-              v-model="defaultMerchant" 
-              class="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-700 text-xs font-bold focus:ring-2 focus:ring-emerald-500 outline-none"
-            >
+            <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Merchant / Platform Default</label>
+            <select v-model="defaultMerchant" class="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-700 text-xs font-bold focus:ring-2 focus:ring-emerald-500 outline-none">
               <option value="shopee">Shopee</option>
               <option value="tokopedia">Tokopedia</option>
               <option value="lazada">Lazada</option>
@@ -95,17 +90,17 @@
               <option value="other">Lainnya / Merchant Lain</option>
             </select>
           </div>
-
           <div>
-            <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
-              Campaign ID Default (Opsional)
-            </label>
-            <input 
-              v-model="defaultCampaignId" 
-              type="text" 
-              placeholder="manual_feed" 
-              class="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-700 text-xs font-mono font-bold focus:ring-2 focus:ring-emerald-500 outline-none" 
-            />
+            <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Campaign ID Default (Opsional)</label>
+            <input v-model="defaultCampaignId" type="text" placeholder="manual_feed" class="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-700 text-xs font-mono font-bold focus:ring-2 focus:ring-emerald-500 outline-none" />
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">ACCESSTRADE Site ID</label>
+            <input v-model="defaultSiteId" type="text" placeholder="contoh: 127950" class="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-700 text-xs font-mono font-bold focus:ring-2 focus:ring-emerald-500 outline-none" />
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">URL Sumber Traffic</label>
+            <input v-model="defaultSiteUrl" type="url" placeholder="https://belanjaklik.my.id" class="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-700 text-xs font-bold focus:ring-2 focus:ring-emerald-500 outline-none" />
           </div>
         </div>
 
@@ -125,7 +120,7 @@
             class="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs px-5 py-2.5 rounded-xl shadow-md flex items-center gap-1.5 disabled:opacity-50 cursor-pointer transition-all"
           >
             <span v-if="isParsing" class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-            <span>{{ isParsing ? 'Membaca File...' : 'Lanjut ke Pemetaan & Preview →' }}</span>
+            <span>{{ isParsing ? 'Membaca File...' : 'Lanjut ke Pemetaan & Preview â†’' }}</span>
           </button>
         </div>
       </div>
@@ -266,7 +261,7 @@
                       :class="item.isValid ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300'"
                       class="px-2 py-0.5 rounded text-[9px] font-bold"
                     >
-                      {{ item.isValid ? '✓ Valid' : item.validationError }}
+                      {{ item.isValid ? 'âœ“ Valid' : item.validationError }}
                     </span>
                   </td>
                 </tr>
@@ -281,7 +276,7 @@
             @click="step = 1" 
             class="px-4 py-2.5 rounded-xl text-xs font-bold border border-gray-200 dark:border-gray-700"
           >
-            ← Kembali
+            â† Kembali
           </button>
 
           <button 
@@ -291,7 +286,7 @@
             class="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs px-6 py-2.5 rounded-xl shadow-md flex items-center gap-1.5 disabled:opacity-50 cursor-pointer transition-all"
           >
             <span v-if="isImporting" class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-            <span>{{ isImporting ? `Meng-import (${progressText})...` : `Proses Import (${parsedRows.length} Produk) →` }}</span>
+            <span>{{ isImporting ? `Meng-import (${progressText})...` : `Proses Import (${parsedRows.length} Produk) â†’` }}</span>
           </button>
         </div>
       </div>
@@ -387,6 +382,8 @@ const progressText = ref('0/0');
 
 const defaultMerchant = ref('shopee');
 const defaultCampaignId = ref('manual_feed');
+const defaultSiteId = ref('');
+const defaultSiteUrl = ref(typeof window !== 'undefined' ? window.location.origin : '');
 
 const fileHeaders = ref<string[]>([]);
 const parsedRows = ref<Record<string, any>[]>([]);
@@ -460,6 +457,8 @@ const startImport = async () => {
     const summary = await bulkUpsertAffiliateFeed(previewItems.value, {
       merchant: defaultMerchant.value,
       campaignId: defaultCampaignId.value,
+      siteId: defaultSiteId.value,
+      siteUrl: defaultSiteUrl.value,
       source: 'manual_csv_import',
       onProgress: (processed, total) => {
         progressText.value = `${processed}/${total}`;
@@ -489,3 +488,4 @@ const handleClose = () => {
   emit('close');
 };
 </script>
+

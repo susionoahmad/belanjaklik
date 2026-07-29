@@ -1,4 +1,4 @@
--- Tabel produk affiliate (Shopee, TikTok Shop, Tokopedia, dll via Accesstrade)
+﻿-- Tabel produk affiliate (Shopee, TikTok Shop, Tokopedia, dll via Accesstrade)
 -- Jalankan di Supabase SQL Editor project belanjaklik kamu
 
 create extension if not exists "pgcrypto";
@@ -8,6 +8,8 @@ create table if not exists affiliate_products (
   source text not null default 'accesstrade',       -- accesstrade | manual | dst
   merchant text not null,                            -- 'shopee' | 'tiktok_shop' | 'tokopedia'
   campaign_id text not null,                         -- campaignId Accesstrade
+  site_id text not null default 'legacy',              -- approved ACCESSTRADE Site ID
+  site_url text,                                      -- approved traffic source URL
   external_product_id text,                          -- ID produk dari feed asal (untuk dedup)
   name text not null,
   description text,
@@ -26,7 +28,7 @@ create table if not exists affiliate_products (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
 
-  unique (merchant, campaign_id, external_product_id)
+  unique (merchant, campaign_id, external_product_id, site_id)
 );
 
 create index if not exists idx_affiliate_products_merchant on affiliate_products (merchant);
@@ -62,3 +64,5 @@ create policy "service role manage affiliate_sync_logs"
   on affiliate_sync_logs for all
   using (auth.role() = 'service_role')
   with check (auth.role() = 'service_role');
+
+

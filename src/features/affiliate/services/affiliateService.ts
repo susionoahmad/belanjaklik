@@ -1,5 +1,6 @@
-import { supabase, isSupabaseConfigured } from '@/features/shared/db/supabaseClient';
+﻿import { supabase, isSupabaseConfigured } from '@/features/shared/db/supabaseClient';
 import type { AffiliateProduct } from '../types';
+import { extractSiteIdFromAffiliateUrl, normaliseSiteId } from './affiliateLinkUtils';
 
 const OFFLINE_AFFILIATE_KEY = 'psa_offline_affiliate_products';
 
@@ -230,6 +231,8 @@ export async function saveAffiliateProduct(payload: Partial<AffiliateProduct>): 
     merchant: payload.merchant || 'other',
     source: payload.source || 'manual_link',
     campaign_id: payload.campaign_id?.trim() || 'manual',
+    site_id: normaliseSiteId(payload.site_id) || extractSiteIdFromAffiliateUrl(payload.affiliate_url) || 'legacy',
+    site_url: payload.site_url?.trim() || null,
     external_product_id: payload.external_product_id?.trim() || null,
     name: payload.name?.trim() || 'Produk Afiliasi',
     slug: slug || undefined,
@@ -338,3 +341,4 @@ export async function trackAffiliateClick(productId: string): Promise<void> {
     console.error('[AffiliateService] Failed to track affiliate click:', err);
   }
 }
+

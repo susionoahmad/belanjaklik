@@ -1,4 +1,4 @@
-// supabase/functions/accesstrade-sync/index.ts
+﻿// supabase/functions/accesstrade-sync/index.ts
 //
 // Sinkronisasi katalog produk affiliate dari Accesstrade ke tabel `affiliate_products`.
 //
@@ -18,7 +18,7 @@ const ACCESSTRADE_BASE = Deno.env.get('ACCESSTRADE_BASE_URL') || 'https://gurkha
 
 interface CampaignConfig {
   merchant: string // 'shopee' | 'tiktok_shop' | 'tokopedia' | dst
-  campaignId: string
+  campaignId: string,
 }
 
 function getCampaigns(): CampaignConfig[] {
@@ -306,7 +306,9 @@ function parseCsv(text: string): Record<string, string>[] {
 function mapCsvRowToProduct(
   row: Record<string, string>,
   merchant: string,
-  campaignId: string
+  campaignId: string,
+  siteId: string,
+  siteUrl?: string | null
 ) {
   let extId = String(
     row['Merchant Product ID'] ||
@@ -318,10 +320,10 @@ function mapCsvRowToProduct(
   ).trim()
 
   const productUrl =
-    row['Product URL Web (encoded)'] ||
-    row['Product URL Mobile (encoded)'] ||
     row['Product URL'] ||
     row['product_url'] ||
+    row['Original URL'] ||
+    row['Product URL Mobile (encoded)'] ||
     ''
 
   const rawName = row['Merchant Product Name'] || row['name'] || row['title'] || 'Produk Afiliasi'
@@ -343,9 +345,11 @@ function mapCsvRowToProduct(
   }
 
   const affiliateUrl =
+    row['Affiliate URL'] ||
+    row['Tracking URL'] ||
+    row['affiliate_url'] ||
     row['Product URL Web (encoded)'] ||
     row['Product URL Mobile (encoded)'] ||
-    row['affiliate_url'] ||
     productUrl
   const imageUrl = row['Image URL'] || row['image_url'] || row['Image URL Additional'] || ''
   const rawDesc = row['Description'] || row['description'] || ''
@@ -391,6 +395,8 @@ function mapCsvRowToProduct(
     source: 'accesstrade',
     merchant: detectedMerchant,
     campaign_id: campaignId || 'direct_csv',
+    site_id: siteId || 'legacy',
+    site_url: siteUrl || null,
     external_product_id: extId,
     name: cleanedName,
     slug: generateSlug(cleanedName, extId),
@@ -421,6 +427,8 @@ async function processCsvStreamResponse(
   campaignId: string,
   supabase: any,
   options: {
+    siteId: string
+    siteUrl?: string | null
     minItemSold: number
     minRating: number
     topNPerCategory: number
@@ -511,7 +519,7 @@ async function processCsvStreamResponse(
         const productName = cleanProductName(rowObj['Merchant Product Name'] || rowObj['name'] || '')
         if (!productName) continue
 
-        const productObj = mapCsvRowToProduct(rowObj, merchant, campaignId)
+        const productObj = mapCsvRowToProduct(rowObj, merchant, campaignId, options.siteId, options.siteUrl)
         if (!productObj.affiliate_url) continue
 
         const catKey = (productObj.category || 'Lainnya').toLowerCase().trim()
@@ -524,7 +532,7 @@ async function processCsvStreamResponse(
         if (validBatch.length >= options.batchSize) {
           const { error } = await supabase
             .from('affiliate_products')
-            .upsert(validBatch, { onConflict: 'merchant,campaign_id,external_product_id' })
+            .upsert(validBatch, { onConflict: 'merchant,campaign_id,external_product_id,site_id' })
           if (!error) {
             syncedInStream += validBatch.length
             options.addTotalSynced(validBatch.length)
@@ -560,7 +568,7 @@ async function processCsvStreamResponse(
         const productName = cleanProductName(rowObj['Merchant Product Name'] || rowObj['name'] || '')
 
         if (isAvailable && itemSold >= options.minItemSold && productName) {
-          const productObj = mapCsvRowToProduct(rowObj, merchant, campaignId)
+          const productObj = mapCsvRowToProduct(rowObj, merchant, campaignId, options.siteId, options.siteUrl)
           if (productObj.affiliate_url) {
             const catKey = (productObj.category || 'Lainnya').toLowerCase().trim()
             const currentCount = options.categoryCounts[catKey] || 0
@@ -576,7 +584,7 @@ async function processCsvStreamResponse(
     if (validBatch.length > 0) {
       const { error } = await supabase
         .from('affiliate_products')
-        .upsert(validBatch, { onConflict: 'merchant,campaign_id,external_product_id' })
+        .upsert(validBatch, { onConflict: 'merchant,campaign_id,external_product_id,site_id' })
       if (!error) {
         syncedInStream += validBatch.length
         options.addTotalSynced(validBatch.length)
@@ -615,7 +623,7 @@ Deno.serve(async (req) => {
 
   const userUid = Deno.env.get('ACCESSTRADE_USER_UID')!
   const secretKey = Deno.env.get('ACCESSTRADE_SECRET_KEY')!
-  const siteId = Deno.env.get('ACCESSTRADE_SITE_ID')!
+  const siteId = String(requestBody.siteId || urlObj.searchParams.get('siteId') || Deno.env.get('ACCESSTRADE_SITE_ID') || '').trim()
   const campaigns = getCampaigns()
 
   if (!userUid || !secretKey || !siteId) {
@@ -811,6 +819,8 @@ Deno.serve(async (req) => {
   }
 
   const streamOptions = {
+    siteId,
+    siteUrl: String(requestBody.siteUrl || urlObj.searchParams.get('siteUrl') || Deno.env.get('ACCESSTRADE_SITE_URL') || '').trim() || null,
     minItemSold: MIN_ITEM_SOLD,
     minRating: MIN_RATING,
     topNPerCategory: TOP_N_PER_CATEGORY,
@@ -925,3 +935,7 @@ Deno.serve(async (req) => {
     headers: { 'Content-Type': 'application/json' },
   })
 })
+
+
+
+

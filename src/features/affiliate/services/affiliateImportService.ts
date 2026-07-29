@@ -1,7 +1,8 @@
-import * as XLSX from 'xlsx';
+﻿import * as XLSX from 'xlsx';
 import { supabase, isSupabaseConfigured } from '@/features/shared/db/supabaseClient';
 import type { AffiliateProduct } from '../types';
 import { saveAffiliateProduct } from './affiliateService';
+import { extractSiteIdFromAffiliateUrl, normaliseSiteId, preserveAffiliateUrl } from './affiliateLinkUtils';
 
 export interface ColumnMappingConfig {
   name: string;
@@ -32,6 +33,8 @@ export interface ParsedFeedItem {
   category?: string;
   description?: string;
   external_product_id?: string;
+  site_id?: string | null;
+  site_url?: string | null;
   isValid: boolean;
   validationError?: string;
 }
@@ -207,8 +210,17 @@ export function autoDetectMapping(headers: string[]): ColumnMappingConfig {
   };
 
   mapping.name = findHeader(['merchant product name', 'product name', 'nama produk', 'title', 'judul', 'name']);
-  mapping.affiliate_url = findHeader(['affiliate url', 'tracking url', 'affiliate_url', 'product url web (encoded)', 'deeplink', 'url_affiliate']);
-  mapping.product_url = findHeader(['product url', 'link produk', 'url produk', 'product_url', 'original url']);
+  mapping.affiliate_url = findHeader(['affiliate url', 'tracking url', 'affiliate_url', 'deeplink', 'url_affiliate']);
+  if (!mapping.affiliate_url) {
+    mapping.affiliate_url = headers.find(h => h.toLowerCase().trim() === 'product url web (encoded)') || '';
+  }
+  mapping.product_url = headers.find(h => {
+    const lower = h.toLowerCase().trim();
+    return ['product url', 'link produk', 'url produk', 'product_url', 'original url'].some(k => lower === k || lower.includes(k))
+      && !lower.includes('affiliate')
+      && !lower.includes('tracking')
+      && !lower.includes('encoded');
+  }) || '';
   mapping.image_url = findHeader(['image url', 'gambar', 'image_url', 'image', 'photo', 'foto']);
   mapping.price = findHeader(['discounted price', 'harga promo', 'promo price', 'price', 'harga']);
   mapping.original_price = findHeader(['original price', 'harga asli', 'harga coret', 'normal price']);
@@ -239,7 +251,7 @@ export function transformAndCleanRows(
     const rawName = getValue(mapping.name);
     const cleanedName = cleanProductName(rawName);
 
-    const affiliate_url = getValue(mapping.affiliate_url) || getValue(mapping.product_url);
+    const affiliate_url = preserveAffiliateUrl(getValue(mapping.affiliate_url) || getValue(mapping.product_url));
     const product_url = getValue(mapping.product_url);
     const image_url = getValue(mapping.image_url);
     const rawDesc = getValue(mapping.description);
@@ -283,6 +295,8 @@ export function transformAndCleanRows(
       category: category || undefined,
       description: cleanedDesc || undefined,
       external_product_id: external_product_id || undefined,
+      site_id: extractSiteIdFromAffiliateUrl(affiliate_url),
+      site_url: null,
       isValid,
       validationError
     };
@@ -292,12 +306,23 @@ export function transformAndCleanRows(
 /**
  * Bulk Upsert feed items to Supabase affiliate_products & local storage
  */
+function stableExternalProductId(url: string | undefined, name: string): string {
+  const input = String(url || '') + '|' + String(name || '');
+  let hash = 2166136261;
+  for (let i = 0; i < input.length; i++) {
+    hash ^= input.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return 'generated_' + (hash >>> 0).toString(16);
+}
 export async function bulkUpsertAffiliateFeed(
   items: ParsedFeedItem[],
   options: {
     merchant: string;
     campaignId?: string;
     source?: string;
+    siteId?: string;
+    siteUrl?: string;
     onProgress?: (processed: number, total: number) => void;
   }
 ): Promise<ImportResultSummary> {
@@ -306,6 +331,8 @@ export async function bulkUpsertAffiliateFeed(
   const merchant = options.merchant || 'other';
   const campaign_id = options.campaignId?.trim() || 'manual_feed';
   const source = options.source || 'manual_csv_import';
+  const defaultSiteId = normaliseSiteId(options.siteId);
+  const defaultSiteUrl = options.siteUrl?.trim() || null;
 
   const summary: ImportResultSummary = {
     totalRows: items.length,
@@ -328,8 +355,12 @@ export async function bulkUpsertAffiliateFeed(
         .replace(/^-+|-+$/g, '');
       if (slug.length > 80) slug = slug.substring(0, 80).replace(/-+$/, '');
 
-      if (item.external_product_id) {
-        slug += '-' + item.external_product_id.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+      const external_product_id = item.external_product_id || stableExternalProductId(item.product_url || item.affiliate_url, item.name);
+      const site_id = item.site_id || defaultSiteId || extractSiteIdFromAffiliateUrl(item.affiliate_url) || 'legacy';
+      const site_url = item.site_url || defaultSiteUrl;
+
+      if (external_product_id) {
+        slug += '-' + external_product_id.toLowerCase().replace(/[^a-z0-9]+/g, '-');
       } else {
         slug += '-' + Math.random().toString(36).substring(2, 6);
       }
@@ -338,14 +369,16 @@ export async function bulkUpsertAffiliateFeed(
       return {
         merchant,
         campaign_id,
-        external_product_id: item.external_product_id || null,
+        external_product_id,
         source,
         name: item.name,
         slug,
         description: item.description || null,
         image_url: item.image_url || null,
         product_url: item.product_url || null,
-        affiliate_url: item.affiliate_url,
+        affiliate_url: preserveAffiliateUrl(item.affiliate_url),
+        site_id,
+        site_url,
         price: item.price ?? null,
         original_price: item.original_price ?? null,
         discount_percent: item.discount_percent ?? null,
@@ -363,7 +396,7 @@ export async function bulkUpsertAffiliateFeed(
         const { data, error } = await supabase
           .from('affiliate_products')
           .upsert(dbPayloads, {
-            onConflict: 'merchant,campaign_id,external_product_id',
+            onConflict: 'merchant,campaign_id,external_product_id,site_id',
             ignoreDuplicates: false
           })
           .select();
@@ -399,3 +432,12 @@ export async function bulkUpsertAffiliateFeed(
 
   return summary;
 }
+
+
+
+
+
+
+
+
+
