@@ -60,7 +60,7 @@ export function extractCleanMerchantProductUrl(inputUrl?: string | null): string
 
 /**
  * Resolves the final affiliate tracking URL for a product.
- * - Blibli: Uses cleaned blibli.pxf.io tracking link (with template tags removed) to ensure clicks ARE TRACKED in ACCESSTRADE dashboard without 404 errors.
+ * - Blibli: Resolves to direct clean Blibli product URL (e.g. https://www.blibli.com/p/...) to guarantee landing on Blibli and NEVER atid.me OK / 404.
  * - Shopee, Tokopedia, Lazada, TikTok Shop, Traveloka: Preserves original affiliate_url AS-IS.
  */
 export async function resolveProductAffiliateUrl(product: AffiliateProduct): Promise<string> {
@@ -68,13 +68,20 @@ export async function resolveProductAffiliateUrl(product: AffiliateProduct): Pro
   const prodUrl = product.product_url?.trim() || '';
   const affUrl = product.affiliate_url?.trim() || '';
 
+  const cleanMerchantUrl = extractCleanMerchantProductUrl(prodUrl) || extractCleanMerchantProductUrl(affUrl);
+
   const isBlibli = merchant === 'blibli' || 
     (prodUrl && prodUrl.toLowerCase().includes('blibli')) || 
     (affUrl && affUrl.toLowerCase().includes('blibli'));
 
   if (isBlibli) {
-    // 1. If affiliate_url is an ACCESSTRADE / Impact tracking link (blibli.pxf.io), clean template tags ({clickid}, {psn}).
-    // This ensures clicks ARE TRACKED in ACCESSTRADE dashboard and redirect to Blibli without 404!
+    // 1. Direct clean Blibli product page URL (https://www.blibli.com/p/...) is HIGHEST PRIORITY.
+    // This guarantees that the user opens the actual Blibli product page and NEVER gets stuck on atid.me OK!
+    if (cleanMerchantUrl) {
+      return cleanMerchantUrl;
+    }
+
+    // 2. If affUrl is a valid pxf.io link without template tags
     if (affUrl && (affUrl.includes('blibli.pxf.io') || affUrl.includes('pxf.io'))) {
       const cleanedAff = cleanTrackingUrl(affUrl);
       if (cleanedAff && cleanedAff.startsWith('http') && !cleanedAff.includes('{clickid}')) {
@@ -82,28 +89,30 @@ export async function resolveProductAffiliateUrl(product: AffiliateProduct): Pro
       }
     }
 
-    // 2. Cleaned affUrl fallback (if not atid.me)
+    // 3. Fallback to prodUrl if not atid.me
+    if (prodUrl && prodUrl.startsWith('http') && !prodUrl.toLowerCase().includes('atid.me')) {
+      return prodUrl;
+    }
+
+    // 4. Fallback to cleaned affUrl ONLY if it does NOT contain atid.me
     const cleanedAff = cleanTrackingUrl(affUrl);
     if (cleanedAff && !cleanedAff.toLowerCase().includes('atid.me')) {
       return cleanedAff;
     }
 
-    // 3. Fallback to clean merchant product URL
-    const cleanMerchantUrl = extractCleanMerchantProductUrl(prodUrl) || extractCleanMerchantProductUrl(affUrl);
-    if (cleanMerchantUrl) {
-      return cleanMerchantUrl;
-    }
-    if (prodUrl && prodUrl.startsWith('http') && !prodUrl.toLowerCase().includes('atid.me')) {
-      return prodUrl;
-    }
-    return affUrl;
+    // STRICT SAFETY: NEVER return atid.me!
+    return '';
   }
 
   // ALL OTHER MERCHANTS (Shopee, Tokopedia, Lazada, TikTok Shop, Traveloka, etc.):
   // Preserve affiliate_url AS-IS so native Shopee/Tokopedia/Lazada affiliate links NEVER break or 404!
-  if (affUrl) {
+  if (affUrl && !affUrl.toLowerCase().includes('atid.me')) {
     return cleanTrackingUrl(affUrl);
   }
 
-  return prodUrl;
+  if (cleanMerchantUrl) {
+    return cleanMerchantUrl;
+  }
+
+  return (prodUrl && !prodUrl.toLowerCase().includes('atid.me')) ? prodUrl : '';
 }
