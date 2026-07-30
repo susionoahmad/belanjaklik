@@ -380,6 +380,20 @@ def main():
 
 import hashlib
 
+def extract_clean_merchant_url(url_str: str) -> str:
+    if not url_str or str(url_str).lower() == 'nan':
+        return ""
+    try:
+        decoded = urllib.parse.unquote(urllib.parse.unquote(str(url_str).strip()))
+        match = re.search(r'https?://(?:www\.|m\.)?(?:blibli\.com|shopee\.co\.id|tokopedia\.com|lazada\.co\.id|tiktok\.com|traveloka\.com)/[^\s&"\'<>]+', decoded, re.IGNORECASE)
+        if match:
+            clean = match.group(0)
+            clean = re.sub(r'[\?&](?:subId1|sharedid|utm_campaign)=\{.*?\}.*', '', clean)
+            return clean
+    except Exception:
+        pass
+    return str(url_str).strip()
+
 def generate_slug(name: str, ext_id: str, merchant: str = "shopee") -> str:
     s = re.sub(r'[^a-zA-Z0-9\s-]', '', name.lower())
     s = re.sub(r'\s+', '-', s).strip('-')
@@ -485,12 +499,14 @@ def upload_to_supabase(df: pd.DataFrame, supabase_url: str, supabase_key: str):
         if not name:
             continue
 
-        product_url = str(row.get("product_url", "")).strip()
-        affiliate_url = str(row.get('affiliate_url', '')).strip()
-        if not affiliate_url or affiliate_url.lower() == 'nan':
-            affiliate_url = str(row.get('Product URL Web (encoded)', '')).strip()
-        if not product_url or product_url.lower() == 'nan':
-            product_url = ''
+        raw_product_url = str(row.get("product_url", "")).strip()
+        raw_affiliate_url = str(row.get('affiliate_url', '')).strip()
+        if not raw_affiliate_url or raw_affiliate_url.lower() == 'nan':
+            raw_affiliate_url = str(row.get('Product URL Web (encoded)', '')).strip()
+
+        clean_merchant_url = extract_clean_merchant_url(raw_product_url) or extract_clean_merchant_url(raw_affiliate_url)
+        product_url = clean_merchant_url if clean_merchant_url else (raw_product_url if raw_product_url.lower() != 'nan' else '')
+        affiliate_url = raw_affiliate_url if raw_affiliate_url.lower() != 'nan' else ''
         raw_ext_id = str(row.get("external_product_id", "")).replace('\ufeff', '').strip()
 
         if not raw_ext_id or raw_ext_id.lower() == "nan":
