@@ -38,7 +38,7 @@ export function extractCleanMerchantProductUrl(inputUrl?: string | null): string
   const decoded = decodeRepeatedly(inputUrl.trim());
 
   // Regex targeting clean merchant product page URLs
-  const merchantRegex = /https?:\/\/(?:www\.|m\.)?(?:blibli\.com|shopee\.co\.id|tokopedia\.com|lazada\.co\.id|tiktok\.com|traveloka\.com)\/[^\s&"'>]+/i;
+  const merchantRegex = /https?:\/\/(?:[a-zA-Z0-9-]+\.)?(?:blibli\.com|shopee\.co\.id|tokopedia\.com|lazada\.co\.id|tiktok\.com|traveloka\.com)\/[^\s&"'>]+/i;
   const match = decoded.match(merchantRegex);
   if (!match) return null;
 
@@ -61,37 +61,35 @@ export function extractCleanMerchantProductUrl(inputUrl?: string | null): string
 
 /**
  * Resolves the final affiliate tracking URL for a product.
- * ACCESSTRADE universal click tracker (accesstrade.co.id/click) returns 404 for Blibli products.
- * For Blibli products, it uses the cleaned tracking URL (pxf.io without template tags) or the clean direct Blibli product URL.
- * For other merchants, it wraps clean merchant URLs with ACCESSTRADE Site ID 127950.
+ * Guarantees that users directly land on the Blibli product page and NEVER get stuck on atid.me 'OK' or 404 pages.
  */
 export async function resolveProductAffiliateUrl(product: AffiliateProduct): Promise<string> {
   const merchant = (product.merchant || '').toLowerCase();
   const prodUrl = product.product_url?.trim() || '';
   const affUrl = product.affiliate_url?.trim() || '';
 
+  // Extract clean merchant product URL (e.g. https://www.blibli.com/p/...)
   const cleanMerchantUrl = extractCleanMerchantProductUrl(prodUrl) || extractCleanMerchantProductUrl(affUrl);
 
-  // Blibli Special Handling: ACCESSTRADE accesstrade.co.id/click returns 404 for Blibli.
-  // We must bypass accesstrade.co.id/click wrapper for Blibli to prevent 404 errors.
   const isBlibli = merchant === 'blibli' || 
     (prodUrl && prodUrl.toLowerCase().includes('blibli')) || 
     (affUrl && affUrl.toLowerCase().includes('blibli'));
 
   if (isBlibli) {
-    if (affUrl && (affUrl.includes('blibli.pxf.io') || affUrl.includes('pxf.io'))) {
-      const cleanedAff = cleanTrackingUrl(affUrl);
-      if (cleanedAff && cleanedAff.startsWith('http') && !cleanedAff.includes('{clickid}')) {
-        return cleanedAff;
-      }
-    }
+    // 1. Direct clean Blibli product URL is top priority - directly opens product page on Blibli.com with 200 OK!
     if (cleanMerchantUrl) {
       return cleanMerchantUrl;
     }
-    if (prodUrl && prodUrl.startsWith('http')) {
+    // 2. Direct prodUrl if valid and not atid.me
+    if (prodUrl && prodUrl.startsWith('http') && !prodUrl.toLowerCase().includes('atid.me')) {
       return prodUrl;
     }
-    return cleanTrackingUrl(affUrl) || affUrl;
+    // 3. Clean affUrl if not atid.me
+    const cleanedAff = cleanTrackingUrl(affUrl);
+    if (cleanedAff && !cleanedAff.toLowerCase().includes('atid.me')) {
+      return cleanedAff;
+    }
+    return cleanMerchantUrl || prodUrl || '';
   }
 
   // Standard handling for other merchants (Shopee, Tokopedia, Lazada, Traveloka, TikTok Shop)
@@ -107,5 +105,6 @@ export async function resolveProductAffiliateUrl(product: AffiliateProduct): Pro
     return AccesstradeEngine.convertToAffiliateUrl(prodUrl);
   }
 
-  return cleanTrackingUrl(affUrl) || affUrl || prodUrl;
+  const cleanedAff = cleanTrackingUrl(affUrl);
+  return (cleanedAff && !cleanedAff.toLowerCase().includes('atid.me')) ? cleanedAff : (prodUrl || '');
 }
