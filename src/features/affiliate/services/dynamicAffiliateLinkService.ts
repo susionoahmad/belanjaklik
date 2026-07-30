@@ -16,6 +16,20 @@ function decodeRepeatedly(value: string): string {
 }
 
 /**
+ * Clean out unparsed tracking template tags like {clickid}, {psn}, or trailing ampersands.
+ */
+export function cleanTrackingUrl(url: string): string {
+  if (!url) return '';
+  let cleaned = url.trim();
+  cleaned = cleaned.replace(/[\?&][^=]+=\{[^}]*\}/g, '');
+  cleaned = cleaned.replace(/[\?&]subId1=\{clickid\}/gi, '');
+  cleaned = cleaned.replace(/[\?&]sharedid=\{psn\}/gi, '');
+  cleaned = cleaned.replace(/[\?&]utm_campaign=\{psn\}/gi, '');
+  cleaned = cleaned.replace(/\?&/g, '?').replace(/&&/g, '&').replace(/[\?&]$/, '');
+  return cleaned;
+}
+
+/**
  * Extracts the true merchant product page URL (blibli.com, shopee.co.id, tokopedia.com, lazada.co.id, tiktok.com, traveloka.com)
  * from any raw URL, intermediate tracking redirect (atid.me, pxf.io, pxfl.io, etc.), or nested query parameters.
  */
@@ -30,7 +44,6 @@ export function extractCleanMerchantProductUrl(inputUrl?: string | null): string
 
   let cleanUrl = match[0];
 
-  // Clean out broken template tags like {clickid}, {psn}, or unparsed template query params
   try {
     const urlObj = new URL(cleanUrl);
     const paramsToClean: string[] = [];
@@ -48,30 +61,51 @@ export function extractCleanMerchantProductUrl(inputUrl?: string | null): string
 
 /**
  * Resolves the final affiliate tracking URL for a product.
- * If affiliate_url uses atid.me or pxf.io tracking redirects with unreplaced template parameters (which cause 404),
- * it extracts the clean merchant URL (e.g. blibli.com/p/...) and wraps it with ACCESSTRADE Site ID 127950.
+ * ACCESSTRADE universal click tracker (accesstrade.co.id/click) returns 404 for Blibli products.
+ * For Blibli products, it uses the cleaned tracking URL (pxf.io without template tags) or the clean direct Blibli product URL.
+ * For other merchants, it wraps clean merchant URLs with ACCESSTRADE Site ID 127950.
  */
 export async function resolveProductAffiliateUrl(product: AffiliateProduct): Promise<string> {
+  const merchant = (product.merchant || '').toLowerCase();
   const prodUrl = product.product_url?.trim() || '';
   const affUrl = product.affiliate_url?.trim() || '';
 
-  // 1. Try to extract clean merchant product URL from product_url or affiliate_url
   const cleanMerchantUrl = extractCleanMerchantProductUrl(prodUrl) || extractCleanMerchantProductUrl(affUrl);
 
+  // Blibli Special Handling: ACCESSTRADE accesstrade.co.id/click returns 404 for Blibli.
+  // We must bypass accesstrade.co.id/click wrapper for Blibli to prevent 404 errors.
+  const isBlibli = merchant === 'blibli' || 
+    (prodUrl && prodUrl.toLowerCase().includes('blibli')) || 
+    (affUrl && affUrl.toLowerCase().includes('blibli'));
+
+  if (isBlibli) {
+    if (affUrl && (affUrl.includes('blibli.pxf.io') || affUrl.includes('pxf.io'))) {
+      const cleanedAff = cleanTrackingUrl(affUrl);
+      if (cleanedAff && cleanedAff.startsWith('http') && !cleanedAff.includes('{clickid}')) {
+        return cleanedAff;
+      }
+    }
+    if (cleanMerchantUrl) {
+      return cleanMerchantUrl;
+    }
+    if (prodUrl && prodUrl.startsWith('http')) {
+      return prodUrl;
+    }
+    return cleanTrackingUrl(affUrl) || affUrl;
+  }
+
+  // Standard handling for other merchants (Shopee, Tokopedia, Lazada, Traveloka, TikTok Shop)
   if (cleanMerchantUrl) {
-    // Wrap clean merchant URL with ACCESSTRADE universal click tracker (site_id=127950)
     return AccesstradeEngine.convertToAffiliateUrl(cleanMerchantUrl);
   }
 
-  // 2. If affUrl is already a working direct accesstrade.co.id/click link without broken template tags, use it
-  if (affUrl && affUrl.toLowerCase().includes('accesstrade.co.id/click') && !affUrl.includes('%7Bclickid%7D') && !affUrl.includes('{clickid}')) {
+  if (affUrl && affUrl.toLowerCase().includes('accesstrade.co.id/click') && !affUrl.includes('{clickid}') && !affUrl.includes('%7Bclickid%7D')) {
     return affUrl;
   }
 
-  // 3. Fallback to product_url or affUrl converted
   if (prodUrl && prodUrl.startsWith('http')) {
     return AccesstradeEngine.convertToAffiliateUrl(prodUrl);
   }
 
-  return affUrl || prodUrl;
+  return cleanTrackingUrl(affUrl) || affUrl || prodUrl;
 }

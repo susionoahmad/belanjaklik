@@ -52,8 +52,8 @@ export class AccesstradeEngine {
 
     const lowerUrl = targetUrl.toLowerCase().trim();
 
-    // If targetUrl is already an official accesstrade.co.id/click URL, preserve it
-    if (lowerUrl.includes('accesstrade.co.id/click')) {
+    // Never wrap Blibli URLs or existing accesstrade.co.id/click links
+    if (lowerUrl.includes('blibli.com') || lowerUrl.includes('blibli.pxf.io') || lowerUrl.includes('accesstrade.co.id/click')) {
       return targetUrl;
     }
 

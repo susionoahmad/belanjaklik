@@ -1,8 +1,9 @@
-﻿import * as XLSX from 'xlsx';
+import * as XLSX from 'xlsx';
 import { supabase, isSupabaseConfigured } from '@/features/shared/db/supabaseClient';
 import type { AffiliateProduct } from '../types';
 import { saveAffiliateProduct } from './affiliateService';
 import { extractSiteIdFromAffiliateUrl, normaliseSiteId, preserveAffiliateUrl } from './affiliateLinkUtils';
+import { extractCleanMerchantProductUrl, cleanTrackingUrl } from './dynamicAffiliateLinkService';
 
 export interface ColumnMappingConfig {
   name: string;
@@ -294,8 +295,12 @@ export function transformAndCleanRows(
     const rawName = getValue(mapping.name);
     const cleanedName = cleanProductName(rawName);
 
-    const affiliate_url = preserveAffiliateUrl(getValue(mapping.affiliate_url) || getValue(mapping.product_url));
-    const product_url = getValue(mapping.product_url);
+    const rawAff = getValue(mapping.affiliate_url) || getValue(mapping.product_url);
+    const rawProd = getValue(mapping.product_url);
+
+    const cleanMerchantUrl = extractCleanMerchantProductUrl(rawProd) || extractCleanMerchantProductUrl(rawAff);
+    const product_url = cleanMerchantUrl || rawProd;
+    const affiliate_url = cleanTrackingUrl(preserveAffiliateUrl(rawAff));
     const image_url = getValue(mapping.image_url);
     const rawDesc = getValue(mapping.description);
     const cleanedDesc = cleanProductDescription(rawDesc);
