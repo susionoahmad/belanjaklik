@@ -60,7 +60,7 @@ export function extractCleanMerchantProductUrl(inputUrl?: string | null): string
 
 /**
  * Resolves the final affiliate tracking URL for a product.
- * - Blibli: Resolves to direct clean Blibli product URL (or clean tracking link) to avoid 404 / atid.me OK errors.
+ * - Blibli: Uses cleaned blibli.pxf.io tracking link (with template tags removed) to ensure clicks ARE TRACKED in ACCESSTRADE dashboard without 404 errors.
  * - Shopee, Tokopedia, Lazada, TikTok Shop, Traveloka: Preserves original affiliate_url AS-IS.
  */
 export async function resolveProductAffiliateUrl(product: AffiliateProduct): Promise<string> {
@@ -72,8 +72,23 @@ export async function resolveProductAffiliateUrl(product: AffiliateProduct): Pro
     (prodUrl && prodUrl.toLowerCase().includes('blibli')) || 
     (affUrl && affUrl.toLowerCase().includes('blibli'));
 
-  // Special handling ONLY for Blibli to fix atid.me / pxf.io 404 issues
   if (isBlibli) {
+    // 1. If affiliate_url is an ACCESSTRADE / Impact tracking link (blibli.pxf.io), clean template tags ({clickid}, {psn}).
+    // This ensures clicks ARE TRACKED in ACCESSTRADE dashboard and redirect to Blibli without 404!
+    if (affUrl && (affUrl.includes('blibli.pxf.io') || affUrl.includes('pxf.io'))) {
+      const cleanedAff = cleanTrackingUrl(affUrl);
+      if (cleanedAff && cleanedAff.startsWith('http') && !cleanedAff.includes('{clickid}')) {
+        return cleanedAff;
+      }
+    }
+
+    // 2. Cleaned affUrl fallback (if not atid.me)
+    const cleanedAff = cleanTrackingUrl(affUrl);
+    if (cleanedAff && !cleanedAff.toLowerCase().includes('atid.me')) {
+      return cleanedAff;
+    }
+
+    // 3. Fallback to clean merchant product URL
     const cleanMerchantUrl = extractCleanMerchantProductUrl(prodUrl) || extractCleanMerchantProductUrl(affUrl);
     if (cleanMerchantUrl) {
       return cleanMerchantUrl;
@@ -81,11 +96,7 @@ export async function resolveProductAffiliateUrl(product: AffiliateProduct): Pro
     if (prodUrl && prodUrl.startsWith('http') && !prodUrl.toLowerCase().includes('atid.me')) {
       return prodUrl;
     }
-    const cleanedAff = cleanTrackingUrl(affUrl);
-    if (cleanedAff && !cleanedAff.toLowerCase().includes('atid.me')) {
-      return cleanedAff;
-    }
-    return cleanMerchantUrl || prodUrl || affUrl;
+    return affUrl;
   }
 
   // ALL OTHER MERCHANTS (Shopee, Tokopedia, Lazada, TikTok Shop, Traveloka, etc.):
