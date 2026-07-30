@@ -50,12 +50,10 @@ export class AccesstradeEngine {
     const config = this.getConfig();
     const siteId = config.siteId || '127950';
 
-    // Check if URL is a bare or invalid atid.me root link (e.g. "https://atid.me" or "https://atid.me/")
     const lowerUrl = targetUrl.toLowerCase().trim();
-    const isBareAtid = lowerUrl === 'https://atid.me' || lowerUrl === 'https://atid.me/' || lowerUrl === 'http://atid.me' || lowerUrl === 'http://atid.me/';
 
-    // Check if URL is already a valid Accesstrade tracking click URL or specific tracking path
-    if (!isBareAtid && (lowerUrl.includes('accesstrade.co.id/click') || (lowerUrl.includes('atid.me/') && !lowerUrl.endsWith('atid.me/')))) {
+    // If targetUrl is already an official accesstrade.co.id/click URL, preserve it
+    if (lowerUrl.includes('accesstrade.co.id/click')) {
       return targetUrl;
     }
 

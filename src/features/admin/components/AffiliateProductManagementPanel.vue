@@ -232,7 +232,7 @@
                 <div class="flex items-center justify-end gap-1.5">
                   <!-- External Link Test -->
                   <a 
-                    :href="p.affiliate_url" 
+                    :href="getProductClickUrl(p)" 
                     target="_blank" 
                     rel="noopener noreferrer" 
                     title="Buka Link Affiliate" 
@@ -403,6 +403,7 @@ import type { AffiliateProduct } from '@/features/affiliate/types';
 import { formatRupiah } from '@/features/shared/utils/formatters';
 import { proxyImageUrl } from '@/features/tokosaya-sync/services/ImageProxyService';
 import { getAccesstradeCaptureBookmarklet, readCapturedAffiliateProducts, readAffiliateCaptureFromHash } from '@/features/affiliate/services/affiliateCaptureService';
+import { AccesstradeEngine } from '@/features/affiliate/services/AccesstradeService';
 import { 
   getAllAffiliateProductsAdmin, 
   getAffiliateProductByIdAdmin,
@@ -411,6 +412,18 @@ import {
   deleteAffiliateProduct, 
   toggleAffiliateProductStatus 
 } from '@/features/affiliate/services/affiliateService';
+
+const getProductClickUrl = (p: AffiliateProduct): string => {
+  const affUrl = p.affiliate_url?.trim() || '';
+  const prodUrl = p.product_url?.trim() || '';
+  if (prodUrl && prodUrl.startsWith('http')) {
+    if (affUrl.toLowerCase().includes('accesstrade.co.id/click')) {
+      return affUrl;
+    }
+    return AccesstradeEngine.convertToAffiliateUrl(prodUrl);
+  }
+  return affUrl || prodUrl;
+};
 
 const products = ref<AffiliateProduct[]>([]);
 const totalProducts = ref(0);
