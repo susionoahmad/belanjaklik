@@ -1,5 +1,4 @@
 import type { AffiliateProduct } from '../types';
-import { AccesstradeEngine } from './AccesstradeService';
 
 function decodeRepeatedly(value: string): string {
   let decoded = value;
@@ -61,50 +60,39 @@ export function extractCleanMerchantProductUrl(inputUrl?: string | null): string
 
 /**
  * Resolves the final affiliate tracking URL for a product.
- * Guarantees that users directly land on the Blibli product page and NEVER get stuck on atid.me 'OK' or 404 pages.
+ * - Blibli: Resolves to direct clean Blibli product URL (or clean tracking link) to avoid 404 / atid.me OK errors.
+ * - Shopee, Tokopedia, Lazada, TikTok Shop, Traveloka: Preserves original affiliate_url AS-IS.
  */
 export async function resolveProductAffiliateUrl(product: AffiliateProduct): Promise<string> {
   const merchant = (product.merchant || '').toLowerCase();
   const prodUrl = product.product_url?.trim() || '';
   const affUrl = product.affiliate_url?.trim() || '';
 
-  // Extract clean merchant product URL (e.g. https://www.blibli.com/p/...)
-  const cleanMerchantUrl = extractCleanMerchantProductUrl(prodUrl) || extractCleanMerchantProductUrl(affUrl);
-
   const isBlibli = merchant === 'blibli' || 
     (prodUrl && prodUrl.toLowerCase().includes('blibli')) || 
     (affUrl && affUrl.toLowerCase().includes('blibli'));
 
+  // Special handling ONLY for Blibli to fix atid.me / pxf.io 404 issues
   if (isBlibli) {
-    // 1. Direct clean Blibli product URL is top priority - directly opens product page on Blibli.com with 200 OK!
+    const cleanMerchantUrl = extractCleanMerchantProductUrl(prodUrl) || extractCleanMerchantProductUrl(affUrl);
     if (cleanMerchantUrl) {
       return cleanMerchantUrl;
     }
-    // 2. Direct prodUrl if valid and not atid.me
     if (prodUrl && prodUrl.startsWith('http') && !prodUrl.toLowerCase().includes('atid.me')) {
       return prodUrl;
     }
-    // 3. Clean affUrl if not atid.me
     const cleanedAff = cleanTrackingUrl(affUrl);
     if (cleanedAff && !cleanedAff.toLowerCase().includes('atid.me')) {
       return cleanedAff;
     }
-    return cleanMerchantUrl || prodUrl || '';
+    return cleanMerchantUrl || prodUrl || affUrl;
   }
 
-  // Standard handling for other merchants (Shopee, Tokopedia, Lazada, Traveloka, TikTok Shop)
-  if (cleanMerchantUrl) {
-    return AccesstradeEngine.convertToAffiliateUrl(cleanMerchantUrl);
+  // ALL OTHER MERCHANTS (Shopee, Tokopedia, Lazada, TikTok Shop, Traveloka, etc.):
+  // Preserve affiliate_url AS-IS so native Shopee/Tokopedia/Lazada affiliate links NEVER break or 404!
+  if (affUrl) {
+    return cleanTrackingUrl(affUrl);
   }
 
-  if (affUrl && affUrl.toLowerCase().includes('accesstrade.co.id/click') && !affUrl.includes('{clickid}') && !affUrl.includes('%7Bclickid%7D')) {
-    return affUrl;
-  }
-
-  if (prodUrl && prodUrl.startsWith('http')) {
-    return AccesstradeEngine.convertToAffiliateUrl(prodUrl);
-  }
-
-  const cleanedAff = cleanTrackingUrl(affUrl);
-  return (cleanedAff && !cleanedAff.toLowerCase().includes('atid.me')) ? cleanedAff : (prodUrl || '');
+  return prodUrl;
 }

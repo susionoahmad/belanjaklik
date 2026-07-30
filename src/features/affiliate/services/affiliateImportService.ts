@@ -298,9 +298,18 @@ export function transformAndCleanRows(
     const rawAff = getValue(mapping.affiliate_url) || getValue(mapping.product_url);
     const rawProd = getValue(mapping.product_url);
 
-    const cleanMerchantUrl = extractCleanMerchantProductUrl(rawProd) || extractCleanMerchantProductUrl(rawAff);
-    const product_url = cleanMerchantUrl || rawProd;
-    const affiliate_url = cleanTrackingUrl(preserveAffiliateUrl(rawAff));
+    const isBlibliOrAtid = rawAff.toLowerCase().includes('blibli') || rawProd.toLowerCase().includes('blibli') || rawAff.toLowerCase().includes('atid.me');
+
+    let product_url = rawProd;
+    let affiliate_url = preserveAffiliateUrl(rawAff);
+
+    if (isBlibliOrAtid) {
+      const cleanMerchantUrl = extractCleanMerchantProductUrl(rawProd) || extractCleanMerchantProductUrl(rawAff);
+      if (cleanMerchantUrl) {
+        product_url = cleanMerchantUrl;
+      }
+      affiliate_url = cleanTrackingUrl(affiliate_url);
+    }
     const image_url = getValue(mapping.image_url);
     const rawDesc = getValue(mapping.description);
     const cleanedDesc = cleanProductDescription(rawDesc);
