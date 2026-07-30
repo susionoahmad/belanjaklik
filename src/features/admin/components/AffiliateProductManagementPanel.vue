@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="space-y-5">
     <!-- Top Toolbar Header -->
     <div class="flex flex-wrap items-center justify-between gap-3">
@@ -56,7 +56,7 @@
         </div>
         <div>
           <div class="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Total Produk Afiliasi</div>
-          <div class="font-extrabold text-xl text-gray-900 dark:text-white">{{ products.length }}</div>
+          <div class="font-extrabold text-xl text-gray-900 dark:text-white">{{ totalProducts }}</div>
         </div>
       </div>
 
@@ -170,7 +170,7 @@
                   </div>
                   <div class="flex items-center gap-2 text-[10px] text-gray-400 mt-0.5">
                     <span v-if="p.shop_name" class="font-medium text-gray-500 dark:text-gray-400">
-                      Ã°Å¸â€ºâ€™ {{ p.shop_name }}
+                      🛍️ {{ p.shop_name }}
                     </span>
                     <span v-if="p.category" class="px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-700 font-mono">
                       {{ p.category }}
@@ -266,6 +266,52 @@
           </tbody>
         </table>
       </div>
+
+      <!-- Pagination Footer -->
+      <div class="p-4 border-t border-gray-100 dark:border-gray-700 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-gray-500 dark:text-gray-400 bg-gray-50/50 dark:bg-gray-800/50">
+        <div class="flex flex-wrap items-center gap-2">
+          <span>Tampilkan</span>
+          <select 
+            v-model="pageSize" 
+            @change="handlePageSizeChange" 
+            class="px-2.5 py-1 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-700 font-bold text-gray-800 dark:text-gray-200 outline-none"
+          >
+            <option :value="10">10</option>
+            <option :value="20">20</option>
+            <option :value="50">50</option>
+            <option :value="100">100</option>
+          </select>
+          <span>per halaman</span>
+          <span class="mx-1 text-gray-300 dark:text-gray-600">•</span>
+          <span class="font-medium text-gray-600 dark:text-gray-300">
+            Menampilkan {{ totalProducts > 0 ? (currentPage - 1) * pageSize + 1 : 0 }} - {{ Math.min(currentPage * pageSize, totalProducts) }} dari {{ totalProducts }} produk
+          </span>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <button 
+            @click="goToPage(currentPage - 1)" 
+            :disabled="currentPage <= 1 || isLoading" 
+            class="px-3 py-1.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed font-bold text-gray-700 dark:text-gray-200 transition-all flex items-center gap-1 cursor-pointer"
+          >
+            <ChevronLeft class="w-4 h-4" />
+            <span>Sebelumnya</span>
+          </button>
+
+          <span class="px-3 py-1.5 font-bold text-gray-800 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 rounded-xl">
+            {{ currentPage }} / {{ totalPages }}
+          </span>
+
+          <button 
+            @click="goToPage(currentPage + 1)" 
+            :disabled="currentPage >= totalPages || isLoading" 
+            class="px-3 py-1.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed font-bold text-gray-700 dark:text-gray-200 transition-all flex items-center gap-1 cursor-pointer"
+          >
+            <span>Berikutnya</span>
+            <ChevronRight class="w-4 h-4" />
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- Browser Capture Instructions -->
@@ -344,10 +390,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 import { 
   Share2, Plus, RefreshCw, Package, CheckCircle2, Percent, Search, Clipboard, Code2, 
-  ExternalLink, Edit3, Trash2, AlertTriangle, CheckCircle, UploadCloud, Store 
+  ExternalLink, Edit3, Trash2, AlertTriangle, CheckCircle, UploadCloud, Store,
+  ChevronLeft, ChevronRight
 } from 'lucide-vue-next';
 import Modal from '@/features/shared/components/Modal.vue';
 import AffiliateProductModal from '@/features/affiliate/components/AffiliateProductModal.vue';
@@ -358,16 +405,27 @@ import { proxyImageUrl } from '@/features/tokosaya-sync/services/ImageProxyServi
 import { getAccesstradeCaptureBookmarklet, readCapturedAffiliateProducts, readAffiliateCaptureFromHash } from '@/features/affiliate/services/affiliateCaptureService';
 import { 
   getAllAffiliateProductsAdmin, 
+  getAffiliateProductByIdAdmin,
+  getAffiliateProductsCount,
   saveAffiliateProduct, 
   deleteAffiliateProduct, 
   toggleAffiliateProductStatus 
 } from '@/features/affiliate/services/affiliateService';
 
 const products = ref<AffiliateProduct[]>([]);
+const totalProducts = ref(0);
+const activeProductsCount = ref(0);
 const isLoading = ref(false);
 const searchQuery = ref('');
 const selectedMerchantFilter = ref('');
 const selectedStatusFilter = ref('');
+
+const currentPage = ref(1);
+const pageSize = ref(20);
+
+const totalPages = computed(() => {
+  return Math.ceil(totalProducts.value / pageSize.value) || 1;
+});
 
 const isModalOpen = ref(false);
 const isCaptureOpen = ref(false);
@@ -434,21 +492,52 @@ const importFromClipboard = async () => {
     captureFailed.value = true;
   }
 };
+
 const loadProducts = async () => {
   isLoading.value = true;
   try {
-    products.value = await getAllAffiliateProductsAdmin();
+    const res = await getAllAffiliateProductsAdmin({
+      page: currentPage.value,
+      pageSize: pageSize.value,
+      search: searchQuery.value.trim() || undefined,
+      merchant: selectedMerchantFilter.value || undefined,
+    });
+    products.value = res.data;
+    totalProducts.value = res.total;
+
+    activeProductsCount.value = await getAffiliateProductsCount({ is_active: true });
   } finally {
     isLoading.value = false;
   }
 };
 
-onMounted(() => {
+let searchDebounceTimer: any = null;
+watch(searchQuery, () => {
+  clearTimeout(searchDebounceTimer);
+  searchDebounceTimer = setTimeout(() => {
+    currentPage.value = 1;
+    loadProducts();
+  }, 300);
+});
+
+watch(selectedMerchantFilter, () => {
+  currentPage.value = 1;
   loadProducts();
 });
 
-const activeProductsCount = computed(() => {
-  return products.value.filter(p => p.is_active).length;
+const goToPage = (page: number) => {
+  if (page < 1 || page > totalPages.value) return;
+  currentPage.value = page;
+  loadProducts();
+};
+
+const handlePageSizeChange = () => {
+  currentPage.value = 1;
+  loadProducts();
+};
+
+onMounted(() => {
+  loadProducts();
 });
 
 const averageCommission = computed(() => {
@@ -460,19 +549,6 @@ const averageCommission = computed(() => {
 
 const filteredProducts = computed(() => {
   let list = products.value;
-
-  if (searchQuery.value.trim()) {
-    const q = searchQuery.value.toLowerCase().trim();
-    list = list.filter(p => 
-      p.name.toLowerCase().includes(q) || 
-      (p.shop_name && p.shop_name.toLowerCase().includes(q)) || 
-      (p.category && p.category.toLowerCase().includes(q))
-    );
-  }
-
-  if (selectedMerchantFilter.value) {
-    list = list.filter(p => p.merchant === selectedMerchantFilter.value);
-  }
 
   if (selectedStatusFilter.value === 'active') {
     list = list.filter(p => p.is_active);
@@ -517,9 +593,14 @@ const openAddModal = () => {
   isModalOpen.value = true;
 };
 
-const openEditModal = (p: AffiliateProduct) => {
+const openEditModal = async (p: AffiliateProduct) => {
   selectedProduct.value = p;
   isModalOpen.value = true;
+  // Fetch full details (including description & raw_data) via single-row query
+  const fullProduct = await getAffiliateProductByIdAdmin(p.id);
+  if (fullProduct) {
+    selectedProduct.value = fullProduct;
+  }
 };
 
 const handleSaveProduct = async (payload: Partial<AffiliateProduct>) => {
@@ -563,6 +644,3 @@ const handleBulkImported = async () => {
   await loadProducts();
 };
 </script>
-
-
-

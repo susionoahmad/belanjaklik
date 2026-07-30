@@ -1,4 +1,4 @@
-﻿/**
+/**
  * AccesstradeService
  * Automatic Deep Link Transformer & Affiliate Tracking Engine for Accesstrade Indonesia
  */
@@ -48,13 +48,14 @@ export class AccesstradeEngine {
     if (!targetUrl || !targetUrl.startsWith('http')) return targetUrl;
 
     const config = this.getConfig();
-    if (!config.isEnabled || !config.siteId) {
-      return targetUrl; // Return raw URL if affiliate engine is disabled or no Site ID
-    }
+    const siteId = config.siteId || '127950';
 
-    // Check if URL is already an Accesstrade tracking link
-    const lowerUrl = targetUrl.toLowerCase();
-    if (lowerUrl.includes('accesstrade.co.id') || lowerUrl.includes('at.accesstrade.co.id') || lowerUrl.includes('atid.me') || lowerUrl.includes('affiliate_id=')) {
+    // Check if URL is a bare or invalid atid.me root link (e.g. "https://atid.me" or "https://atid.me/")
+    const lowerUrl = targetUrl.toLowerCase().trim();
+    const isBareAtid = lowerUrl === 'https://atid.me' || lowerUrl === 'https://atid.me/' || lowerUrl === 'http://atid.me' || lowerUrl === 'http://atid.me/';
+
+    // Check if URL is already a valid Accesstrade tracking click URL or specific tracking path
+    if (!isBareAtid && (lowerUrl.includes('accesstrade.co.id/click') || (lowerUrl.includes('atid.me/') && !lowerUrl.endsWith('atid.me/')))) {
       return targetUrl;
     }
 
@@ -63,7 +64,7 @@ export class AccesstradeEngine {
       const subId = customSubId || config.rkId || 'belanjaklik_app';
 
       // Official Accesstrade Universal Deep Link Redirection URL
-      return `https://accesstrade.co.id/click?site_id=${encodeURIComponent(config.siteId)}&url=${encodedUrl}&sub_id=${encodeURIComponent(subId)}`;
+      return `https://accesstrade.co.id/click?site_id=${encodeURIComponent(siteId)}&url=${encodedUrl}&sub_id=${encodeURIComponent(subId)}`;
     } catch (e) {
       return targetUrl;
     }

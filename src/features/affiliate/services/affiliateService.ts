@@ -1,4 +1,4 @@
-﻿import { supabase, isSupabaseConfigured } from '@/features/shared/db/supabaseClient';
+import { supabase, isSupabaseConfigured } from '@/features/shared/db/supabaseClient';
 import type { AffiliateProduct } from '../types';
 import { extractSiteIdFromAffiliateUrl, normaliseSiteId } from './affiliateLinkUtils';
 
@@ -41,7 +41,6 @@ export async function getActiveAffiliateProducts(options?: {
     const fetchLimit = options?.limit || 40;
 
     if (options?.mixMerchants && options?.vertical && !options?.merchant) {
-      // Keep a marketplace landing balanced across the configured merchants.
       const merchants = options.vertical === 'marketplace'
         ? ['shopee', 'tokopedia', 'blibli']
         : options.vertical === 'travel'
@@ -72,7 +71,6 @@ export async function getActiveAffiliateProducts(options?: {
     }
 
     if (options?.mixMerchants || !options?.merchant) {
-      // Landing page: mix all public MVP verticals instead of only Shopee/Tokopedia.
       const perVertical = Math.ceil(fetchLimit / 3);
       const verticals = ['marketplace', 'travel', 'digital'];
       const responses = await Promise.all(verticals.map(vertical => {
@@ -80,7 +78,6 @@ export async function getActiveAffiliateProducts(options?: {
           .from('affiliate_products')
           .select('*')
           .eq('is_active', true);
-        // Legacy affiliate rows without vertical are marketplace products.
         query = vertical === 'marketplace'
           ? query.or('vertical.eq.marketplace,vertical.is.null')
           : query.eq('vertical', vertical);
@@ -129,37 +126,55 @@ export async function getActiveAffiliateProducts(options?: {
   }
 }
 
-export async function getAllAffiliateProductsAdmin(): Promise<AffiliateProduct[]> {
-  const localList = getOfflineProducts();
-
+export async function getAffiliateProductByIdAdmin(id: string): Promise<AffiliateProduct | null> {
+  if (!id) return null;
+  const offline = getOfflineProducts().find(p => p.id === id) || null;
   if (!isSupabaseConfigured) {
-    return localList;
+    return offline;
   }
 
   try {
     const { data, error } = await supabase
       .from('affiliate_products')
       .select('*')
-      .order('created_at', { ascending: false });
+      .eq('id', id)
+      .single();
 
     if (error || !data) {
-      console.warn('[AffiliateService] Error fetching admin products from Supabase:', error);
-      return localList;
+      console.warn('[AffiliateService] Error fetching single admin product from Supabase:', error);
+      return offline;
     }
 
-    // Merge Supabase products with local items that haven't synced yet
-    const mergedMap = new Map<string, AffiliateProduct>();
-    data.forEach(p => mergedMap.set(p.id, p));
-    localList.forEach(p => {
-      if (!mergedMap.has(p.id)) {
-        mergedMap.set(p.id, p);
-      }
-    });
-
-    return Array.from(mergedMap.values());
+    return data as AffiliateProduct;
   } catch (err) {
-    console.warn('[AffiliateService] Exception fetching admin products:', err);
-    return localList;
+    console.warn('[AffiliateService] Exception fetching single admin product:', err);
+    return offline;
+  }
+}
+
+export async function getAffiliateProductsCount(options?: { is_active?: boolean }): Promise<number> {
+  if (!isSupabaseConfigured) {
+    let list = getOfflineProducts();
+    if (options?.is_active !== undefined) {
+      list = list.filter(p => p.is_active === options.is_active);
+    }
+    return list.length;
+  }
+
+  try {
+    let query = supabase.from('affiliate_products').select('*', { count: 'exact', head: true });
+    if (options?.is_active !== undefined) {
+      query = query.eq('is_active', options.is_active);
+    }
+    const { count, error } = await query;
+    if (error) {
+      console.warn('[AffiliateService] Error fetching product count:', error);
+      return 0;
+    }
+    return count ?? 0;
+  } catch (err) {
+    console.warn('[AffiliateService] Exception fetching product count:', err);
+    return 0;
   }
 }
 
@@ -232,16 +247,86 @@ export async function getRelatedAffiliateProducts(
   }
 }
 
+export async function getAllAffiliateProductsAdmin(options?: {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+  merchant?: string;
+  vertical?: string;
+  source?: string;
+}): Promise<{ data: AffiliateProduct[]; total: number }> {
+  const localList = getOfflineProducts();
+  const page = options?.page ?? 1;
+  const pageSize = options?.pageSize ?? 50;
+
+  if (!isSupabaseConfigured) {
+    let list = localList;
+    if (options?.merchant) list = list.filter(p => p.merchant === options.merchant);
+    if (options?.vertical) list = list.filter(p => p.vertical === options.vertical);
+    if (options?.source) list = list.filter(p => p.source === options.source);
+    if (options?.search) {
+      const s = options.search.toLowerCase();
+      list = list.filter(p => p.name?.toLowerCase().includes(s));
+    }
+    const start = (page - 1) * pageSize;
+    return { data: list.slice(start, start + pageSize), total: list.length };
+  }
+
+  try {
+    const ADMIN_LIST_COLUMNS = `
+      id, name, slug, image_url, merchant, vertical, subcategory,
+      category, price, original_price, discount_percent, item_sold,
+      item_rating, is_active, source, campaign_id, campaign_name,
+      advertiser_name, site_id, created_at, updated_at, last_synced_at
+    `;
+
+    let query = supabase
+      .from('affiliate_products')
+      .select(ADMIN_LIST_COLUMNS, { count: 'exact' })
+      .order('created_at', { ascending: false });
+
+    if (options?.merchant) query = query.eq('merchant', options.merchant);
+    if (options?.vertical) query = query.eq('vertical', options.vertical);
+    if (options?.source) query = query.eq('source', options.source);
+    if (options?.search) {
+      const s = options.search.trim();
+      query = query.or(`name.ilike.%${s}%,category.ilike.%${s}%,shop_name.ilike.%${s}%`);
+    }
+
+    const offset = (page - 1) * pageSize;
+    query = query.range(offset, offset + pageSize - 1);
+
+    const { data, error, count } = await query;
+
+    if (error || !data) {
+      console.warn('[AffiliateService] Error fetching admin products from Supabase:', error);
+      const start = (page - 1) * pageSize;
+      return { data: localList.slice(start, start + pageSize), total: localList.length };
+    }
+
+    let result = data as AffiliateProduct[];
+    if (page === 1 && localList.length > 0) {
+      const existingIds = new Set(result.map(p => p.id));
+      const unsyncedLocal = localList.filter(p => !existingIds.has(p.id));
+      result = [...unsyncedLocal, ...result];
+    }
+
+    return { data: result, total: count ?? result.length };
+  } catch (err) {
+    console.warn('[AffiliateService] Exception fetching admin products:', err);
+    const start = (page - 1) * pageSize;
+    return { data: localList.slice(start, start + pageSize), total: localList.length };
+  }
+}
+
 export async function saveAffiliateProduct(payload: Partial<AffiliateProduct>): Promise<AffiliateProduct | null> {
   const now = new Date().toISOString();
   
-  // Calculate discount_percent if price and original_price exist
   let discount_percent = payload.discount_percent;
   if (payload.original_price && payload.price && payload.original_price > payload.price) {
     discount_percent = Math.round(((payload.original_price - payload.price) / payload.original_price) * 100);
   }
 
-  // Generate & cap slug length (max 90 chars)
   let slug = payload.slug?.trim();
   if (slug && slug.length > 90) {
     slug = slug.substring(0, 90).replace(/-+$/, '');
@@ -285,7 +370,6 @@ export async function saveAffiliateProduct(payload: Partial<AffiliateProduct>): 
     last_synced_at: now
   };
 
-  // Helper to save offline
   const saveToLocal = (item: Partial<AffiliateProduct>): AffiliateProduct => {
     const list = getOfflineProducts();
     const savedItem: AffiliateProduct = {
@@ -340,7 +424,6 @@ export async function saveAffiliateProduct(payload: Partial<AffiliateProduct>): 
 export async function deleteAffiliateProduct(id: string): Promise<boolean> {
   if (!id) return false;
 
-  // Always sync local storage
   const list = getOfflineProducts().filter(p => p.id !== id);
   saveOfflineProducts(list);
 
@@ -375,6 +458,3 @@ export async function trackAffiliateClick(productId: string): Promise<void> {
     console.error('[AffiliateService] Failed to track affiliate click:', err);
   }
 }
-
-
-

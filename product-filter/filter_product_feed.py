@@ -1,4 +1,4 @@
-﻿"""
+"""
 filter_product_feed.py
 
 Tujuan:
@@ -392,18 +392,26 @@ def generate_slug(name: str, ext_id: str, merchant: str = "shopee") -> str:
     return f"{s[:45]}-{merch_tag}-{clean_id}"
 
 
-def fetch_existing_products_map(supabase_url: str, supabase_key: str, site_id: str):
-    """Mengambil peta ID produk yang sudah ada di Supabase berdasarkan product_url & external_product_id."""
+def fetch_existing_products_map(supabase_url: str, supabase_key: str, site_id: str, merchant_filter: str = None):
+    """Mengambil peta ID produk yang sudah ada di Supabase, DIFILTER per merchant
+    di level query -- supaya tidak menarik seluruh tabel tiap kali script
+    dijalankan (hemat bandwidth)."""
     existing_map = {}
     headers = {
         "apikey": supabase_key,
         "Authorization": f"Bearer {supabase_key}"
     }
 
+    merchant_query = f"&merchant=eq.{merchant_filter}" if merchant_filter else ""
+
     try:
         page = 0
         while True:
-            endpoint = f"{supabase_url.rstrip('/')}/rest/v1/affiliate_products?select=id,product_url,external_product_id,merchant,slug,site_id&limit=1000&offset={page*1000}"
+            endpoint = (
+                f"{supabase_url.rstrip('/')}/rest/v1/affiliate_products"
+                f"?select=id,product_url,external_product_id,merchant,slug,site_id"
+                f"{merchant_query}&limit=1000&offset={page*1000}"
+            )
             req = urllib.request.Request(endpoint, headers=headers, method='GET')
             with urllib.request.urlopen(req) as resp:
                 rows = json.loads(resp.read().decode('utf-8'))
@@ -418,10 +426,9 @@ def fetch_existing_products_map(supabase_url: str, supabase_key: str, site_id: s
                         existing_map[(str(r.get("site_id") or "legacy"), raw_ext)] = r
                 page += 1
     except Exception as e:
-        print(f"  â„¹ Membaca data eksisting Supabase: {e}")
+        print(f"  ℹ Membaca data eksisting Supabase: {e}")
 
     return existing_map
-
 
 def upload_to_supabase(df: pd.DataFrame, supabase_url: str, supabase_key: str):
     """Mengunggah data hasil saringan langsung ke tabel affiliate_products di Supabase."""
@@ -439,9 +446,26 @@ def upload_to_supabase(df: pd.DataFrame, supabase_url: str, supabase_key: str):
     site_id = str(ACCESSTRADE_SITE_ID or "legacy").strip() or "legacy"
     site_url = str(ACCESSTRADE_SITE_URL or "").strip() or None
     campaign_id = str(ACCESSTRADE_CAMPAIGN_ID or "direct_csv").strip() or "direct_csv"
-    existing_map = fetch_existing_products_map(supabase_url, supabase_key, site_id)
-    print(f"Ditemukan {len(existing_map):,} URL/ID produk eksisting di Supabase.")
 
+    # Deteksi merchant dari nama file SEBELUM fetch existing map, biar query
+    # bisa difilter -- hemat bandwidth karena tidak tarik semua ~30rb baris.
+    file_lower = str(INPUT_FILE).lower()
+    if "tokopedia" in file_lower or "tokope" in file_lower:
+        merchant_hint = "tokopedia"
+    elif "shopee" in file_lower:
+        merchant_hint = "shopee"
+    elif "lazada" in file_lower:
+        merchant_hint = "lazada"
+    elif "blibli" in file_lower:
+        merchant_hint = "blibli"
+    else:
+        merchant_hint = None
+        print("  ⚠ Nama file tidak mengandung nama merchant yang dikenali -- "
+              "fetch SEMUA data existing (lebih boros bandwidth). Pertimbangkan "
+              "beri nama file yang mengandung 'shopee'/'tokopedia'/'lazada'/'blibli'.")
+
+    existing_map = fetch_existing_products_map(supabase_url, supabase_key, site_id, merchant_hint)
+    print(f"Ditemukan {len(existing_map):,} URL/ID produk eksisting di Supabase.")
     endpoint = f"{supabase_url.rstrip('/')}/rest/v1/affiliate_products?on_conflict=id"
     headers = {
         "apikey": supabase_key,
@@ -512,6 +536,8 @@ def upload_to_supabase(df: pd.DataFrame, supabase_url: str, supabase_key: str):
             detected_merchant = "shopee"
         elif "lazada" in url_lower or "lazada" in file_lower:
             detected_merchant = "lazada"
+        elif "blibli" in url_lower or "blibli" in file_lower:
+            detected_merchant = "blibli"
         else:
             detected_merchant = "accesstrade"
 

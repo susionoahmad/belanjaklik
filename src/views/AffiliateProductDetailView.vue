@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="max-w-4xl mx-auto px-4 sm:px-6 py-6 space-y-6 pb-20">
     <!-- Breadcrumb -->
     <nav class="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
@@ -315,7 +315,7 @@ const loadProductData = async () => {
 };
 
 const handleAffiliateClick = async () => {
-  if (!product.value?.affiliate_url) return;
+  if (!product.value) return;
   // Fire-and-forget click tracking
   trackAffiliateClick(product.value.id);
   // Site ID ditentukan berdasarkan domain yang sedang aktif.
