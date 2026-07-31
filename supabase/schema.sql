@@ -234,3 +234,63 @@ CREATE POLICY "Public Insert Shopping Request Items" ON shopping_request_items F
 CREATE POLICY "Public Read Shopping Templates" ON shopping_templates FOR SELECT USING (is_active = true);
 CREATE POLICY "Public Read Active Promo Files" ON promo_files FOR SELECT USING (status = 'active');
 CREATE POLICY "Public Read Settings" ON settings FOR SELECT USING (true);
+
+-- 13. PROMOTION CAMPAIGN ENGINE TABLES
+CREATE TABLE IF NOT EXISTS promotion_campaigns (
+  id TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  slug TEXT UNIQUE NOT NULL,
+  subtitle TEXT,
+  theme TEXT,
+  description TEXT,
+  terms_conditions TEXT,
+  banner_image TEXT,
+  mobile_banner TEXT,
+  desktop_banner TEXT,
+  start_date TEXT,
+  end_date TEXT,
+  campaign_type TEXT NOT NULL DEFAULT 'FAIR',
+  priority INT NOT NULL DEFAULT 10,
+  status TEXT NOT NULL DEFAULT 'ACTIVE',
+  primary_color TEXT,
+  secondary_color TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS promotion_products (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  campaign_id TEXT REFERENCES promotion_campaigns(id) ON DELETE CASCADE,
+  product_id TEXT,
+  base_price NUMERIC,
+  promo_price NUMERIC,
+  discount_amount NUMERIC,
+  discount_percentage NUMERIC,
+  badge TEXT,
+  display_order INT DEFAULT 0,
+  is_active BOOLEAN DEFAULT TRUE,
+  product_name TEXT,
+  product_brand TEXT,
+  product_image TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS promotion_banners (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  campaign_id TEXT REFERENCES promotion_campaigns(id) ON DELETE CASCADE,
+  banner_type TEXT NOT NULL DEFAULT 'HOMEPAGE_SLIDER',
+  image TEXT NOT NULL,
+  alt_text TEXT,
+  target_url TEXT,
+  display_order INT DEFAULT 0,
+  is_active BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE promotion_campaigns ENABLE ROW LEVEL SECURITY;
+ALTER TABLE promotion_products ENABLE ROW LEVEL SECURITY;
+ALTER TABLE promotion_banners ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Public Read Promotion Campaigns" ON promotion_campaigns FOR SELECT USING (true);
+CREATE POLICY "Public Read Promotion Products" ON promotion_products FOR SELECT USING (true);
+CREATE POLICY "Public Read Promotion Banners" ON promotion_banners FOR SELECT USING (true);
+
