@@ -80,6 +80,7 @@ CREATE POLICY "Public Upload Product Images" ON storage.objects FOR INSERT TO pu
 CREATE INDEX IF NOT EXISTS idx_products_category ON products(category_id);
 CREATE INDEX IF NOT EXISTS idx_products_channel ON products(channel_id);
 CREATE INDEX IF NOT EXISTS idx_products_purchase_method ON products(purchase_method);
+CREATE INDEX IF NOT EXISTS idx_products_active_created_at_desc ON products(created_at DESC) WHERE deleted_at IS NULL;
 
 -- 4. SHOPPING REQUESTS
 CREATE TABLE IF NOT EXISTS shopping_requests (
@@ -136,7 +137,58 @@ CREATE TABLE IF NOT EXISTS promo_files (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 8. SETTINGS
+-- 8. PROMOTION CAMPAIGN ENGINE TABLES
+CREATE TABLE IF NOT EXISTS promotion_campaigns (
+  id TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  slug TEXT UNIQUE NOT NULL,
+  subtitle TEXT,
+  theme TEXT,
+  description TEXT,
+  terms_conditions TEXT,
+  banner_image TEXT,
+  mobile_banner TEXT,
+  desktop_banner TEXT,
+  start_date TEXT,
+  end_date TEXT,
+  campaign_type TEXT NOT NULL DEFAULT 'FAIR',
+  priority INT NOT NULL DEFAULT 10,
+  status TEXT NOT NULL DEFAULT 'ACTIVE',
+  primary_color TEXT,
+  secondary_color TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS promotion_products (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  campaign_id TEXT REFERENCES promotion_campaigns(id) ON DELETE CASCADE,
+  product_id TEXT,
+  base_price NUMERIC,
+  promo_price NUMERIC,
+  discount_amount NUMERIC,
+  discount_percentage NUMERIC,
+  badge TEXT,
+  display_order INT DEFAULT 0,
+  is_active BOOLEAN DEFAULT TRUE,
+  product_name TEXT,
+  product_brand TEXT,
+  product_image TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS promotion_banners (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  campaign_id TEXT REFERENCES promotion_campaigns(id) ON DELETE CASCADE,
+  banner_type TEXT NOT NULL DEFAULT 'HOMEPAGE_SLIDER',
+  image TEXT NOT NULL,
+  alt_text TEXT,
+  target_url TEXT,
+  display_order INT DEFAULT 0,
+  is_active BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- 9. SETTINGS
 CREATE TABLE IF NOT EXISTS settings (
   key VARCHAR(100) PRIMARY KEY,
   value JSONB NOT NULL,
@@ -197,6 +249,9 @@ CREATE POLICY "Public Read Fulfillment Channels" ON fulfillment_channels FOR SEL
 CREATE POLICY "Public Read Active Products" ON products FOR SELECT TO public USING (deleted_at IS NULL);
 CREATE POLICY "Public Read Shopping Templates" ON shopping_templates FOR SELECT TO public USING (is_active = true);
 CREATE POLICY "Public Read Active Promo Files" ON promo_files FOR SELECT TO public USING (status = 'active');
+CREATE POLICY "Public Read Promotion Campaigns" ON promotion_campaigns FOR SELECT TO public USING (true);
+CREATE POLICY "Public Read Promotion Products" ON promotion_products FOR SELECT TO public USING (true);
+CREATE POLICY "Public Read Promotion Banners" ON promotion_banners FOR SELECT TO public USING (true);
 CREATE POLICY "Public Read Settings" ON settings FOR SELECT TO public USING (true);
 CREATE POLICY "Public Insert Shopping Requests" ON shopping_requests FOR INSERT TO public WITH CHECK (true);
 CREATE POLICY "Public Insert Shopping Request Items" ON shopping_request_items FOR INSERT TO public WITH CHECK (true);
@@ -204,6 +259,9 @@ CREATE POLICY "Public Insert Analytics Events" ON analytics_events FOR INSERT TO
 
 -- ADMIN FULL ACCESS
 CREATE POLICY "Admin Full Access Products" ON products FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "Admin Full Access Promotion Campaigns" ON promotion_campaigns FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "Admin Full Access Promotion Products" ON promotion_products FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "Admin Full Access Promotion Banners" ON promotion_banners FOR ALL TO authenticated USING (true) WITH CHECK (true);
 CREATE POLICY "Admin Full Access Categories" ON categories FOR ALL TO authenticated USING (true) WITH CHECK (true);
 CREATE POLICY "Admin Full Access Fulfillment Channels" ON fulfillment_channels FOR ALL TO authenticated USING (true) WITH CHECK (true);
 CREATE POLICY "Admin Full Access Shopping Templates" ON shopping_templates FOR ALL TO authenticated USING (true) WITH CHECK (true);

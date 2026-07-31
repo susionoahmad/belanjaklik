@@ -69,6 +69,7 @@ ALTER TABLE products ADD COLUMN IF NOT EXISTS promo_type VARCHAR(50);
 
 -- Indexes for products
 CREATE INDEX IF NOT EXISTS idx_products_category ON products(category_id);
+CREATE INDEX IF NOT EXISTS idx_products_active_created_at_desc ON products(created_at DESC) WHERE deleted_at IS NULL;
 
 CREATE INDEX IF NOT EXISTS idx_products_brand ON products(brand);
 CREATE INDEX IF NOT EXISTS idx_products_barcode ON products(barcode);

@@ -466,12 +466,18 @@ export const dataService = {
 
     if (isSupabaseConfigured && !isCacheValid) {
       try {
-        const { data, error } = await supabase
+        const timeoutPromise = new Promise<{ data: any; error: any }>((_, reject) =>
+          setTimeout(() => reject(new Error('Fetch products query timeout (3s limit)')), 3000)
+        );
+
+        const fetchPromise = supabase
           .from('products')
           .select('id, category_id, name, slug, brand, description, barcode, unit, price, promo_price, is_promo, is_featured, is_popular, is_available, stock_status, thumbnail_url, image_url, weight, notes, promo_title, promo_start_date, promo_end_date, promo_badge, promo_type, purchase_method, external_product_code')
           .is('deleted_at', null)
           .order('created_at', { ascending: false })
           .limit(1000);
+
+        const { data, error } = await Promise.race([fetchPromise, timeoutPromise]);
 
         if (!error && data && data.length > 0) {
           baseList = data as Product[];
@@ -481,7 +487,7 @@ export const dataService = {
         }
 
       } catch (err) {
-        console.warn('Supabase fetchProducts failed or quota restricted, falling back to local offline DB', err);
+        console.warn('Supabase fetchProducts failed or timed out, falling back to local offline DB:', err);
       }
     }
 

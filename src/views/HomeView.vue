@@ -250,10 +250,11 @@ const rotateMarketplaceProducts = (products: AffiliateProduct[]): AffiliateProdu
 };
 
 const loadHomeData = async () => {
+  catalogStore.fetchCatalogData().catch(e => console.warn('[HomeView] catalogStore fetch error:', e));
+  shoppingStore.fetchShoppingData().catch(e => console.warn('[HomeView] shoppingStore fetch error:', e));
+
   await Promise.all([
-    catalogStore.fetchCatalogData(),
-    shoppingStore.fetchShoppingData(),
-    promotionStore.loadCampaignBanners(),
+    promotionStore.loadCampaignBanners().catch(e => console.warn('[HomeView] promotionStore load error:', e)),
     getActiveAffiliateProducts({ limit: 60, vertical: 'marketplace', mixMerchants: true }).then(res => {
       affiliateProducts.value = rotateMarketplaceProducts(res);
     })
