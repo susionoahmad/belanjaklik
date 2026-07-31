@@ -52,6 +52,7 @@ export default defineConfig(({ mode }) => {
         workbox: {
           maximumFileSizeToCacheInBytes: 30 * 1024 * 1024,
           globPatterns: ['**/*.{js,css,html,ico,png,svg,json}'],
+          navigateFallbackDenylist: [/^\/api\//, /^https:\/\/.*\.supabase\.co/],
           runtimeCaching: [
             {
               urlPattern: /^https:\/\/images\.unsplash\.com\/.*/i,
@@ -61,20 +62,6 @@ export default defineConfig(({ mode }) => {
                 expiration: {
                   maxEntries: 60,
                   maxAgeSeconds: 30 * 24 * 60 * 60 // 30 Days
-                },
-                cacheableResponse: {
-                  statuses: [0, 200]
-                }
-              }
-            },
-            {
-              urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
-              handler: 'NetworkFirst',
-              options: {
-                cacheName: 'supabase-api-cache',
-                expiration: {
-                  maxEntries: 100,
-                  maxAgeSeconds: 24 * 60 * 60 // 24 hours
                 },
                 cacheableResponse: {
                   statuses: [0, 200]
