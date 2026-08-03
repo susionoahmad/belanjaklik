@@ -184,6 +184,7 @@ import AffiliateProductCard from '@/features/affiliate/components/AffiliateProdu
 import { formatRupiah } from '@/features/shared/utils/formatters';
 import { proxyImageUrl } from '@/features/tokosaya-sync/services/ImageProxyService';
 import { resolveProductAffiliateUrl } from '@/features/affiliate/services/dynamicAffiliateLinkService';
+import { openUrlAsync } from '@/features/shared/utils/openUrl';
 
 const route = useRoute();
 const product = ref<AffiliateProduct | null>(null);
@@ -318,11 +319,10 @@ const handleAffiliateClick = async () => {
   if (!product.value) return;
   // Fire-and-forget click tracking
   trackAffiliateClick(product.value.id);
-  // Site ID ditentukan berdasarkan domain yang sedang aktif.
-  const affiliateUrl = await resolveProductAffiliateUrl(product.value);
-  if (affiliateUrl) {
-    window.open(affiliateUrl, '_blank', 'noopener,noreferrer');
-  }
+
+  await openUrlAsync(async () => {
+    return (await resolveProductAffiliateUrl(product.value!)) || '';
+  });
 };
 
 // SSG / SSR pre-fetch data before html snapshot

@@ -1,6 +1,7 @@
 import type { ChannelDriver } from './ChannelDriver';
 import type { Product, FulfillmentChannel } from '../../shared/types';
 import { AccesstradeService } from '../../affiliate/services/AccesstradeService';
+import { openUrl } from '../../shared/utils/openUrl';
 
 export class MarketplaceDriver implements ChannelDriver {
   channelSlug = 'marketplace';
@@ -26,6 +27,6 @@ export class MarketplaceDriver implements ChannelDriver {
 
   openExternal(product: Product, channel?: FulfillmentChannel): void {
     const targetUrl = this.generateUrl(product, channel);
-    window.open(targetUrl, '_blank', 'noopener,noreferrer');
+    openUrl(targetUrl);
   }
 }

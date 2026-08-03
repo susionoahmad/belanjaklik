@@ -52,7 +52,7 @@
         </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-mono">
           <div>📧 Email: <a href="mailto:susiono.ahmad@gmail.com" class="font-bold underline hover:text-brand-red">susiono.ahmad@gmail.com</a></div>
-          <div>📱 WhatsApp / HP: <a href="https://wa.me/6281392156513" target="_blank" class="font-bold underline hover:text-emerald-500">081392156513</a></div>
+          <div>📱 WhatsApp / HP: <a href="https://wa.me/6281392156513" target="_blank" rel="noopener noreferrer" class="font-bold underline hover:text-emerald-500">081392156513</a></div>
         </div>
       </div>
 

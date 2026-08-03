@@ -1,5 +1,6 @@
 import type { ChannelDriver } from './ChannelDriver';
 import type { Product, FulfillmentChannel } from '../../shared/types';
+import { openUrl } from '../../shared/utils/openUrl';
 
 export class AlfamindDriver implements ChannelDriver {
   channelSlug = 'alfamind-official';
@@ -19,6 +20,6 @@ export class AlfamindDriver implements ChannelDriver {
 
   openExternal(product: Product, channel?: FulfillmentChannel): void {
     const targetUrl = this.generateUrl(product, channel);
-    window.open(targetUrl, '_blank', 'noopener,noreferrer');
+    openUrl(targetUrl);
   }
 }

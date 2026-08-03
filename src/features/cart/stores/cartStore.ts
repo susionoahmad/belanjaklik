@@ -4,6 +4,7 @@ import type { CartItem, Product, CustomerDetails, FulfillmentChannel } from '../
 import { offlineDb } from '../../shared/db/offlineDb';
 import { dataService } from '../../shared/db/dataService';
 import { buildWhatsAppMessage } from '../services/whatsappService';
+import { openUrlAsync } from '../../shared/utils/openUrl';
 
 export const useCartStore = defineStore('cart', () => {
   const items = ref<CartItem[]>([]);
@@ -117,39 +118,40 @@ export const useCartStore = defineStore('cart', () => {
   const checkoutWhatsApp = async (overridePhone?: string) => {
     if (items.value.length === 0) return;
 
-    const storeProfile = await dataService.fetchStoreProfile();
-    const targetPhone = overridePhone || storeProfile.phone || '6281234567890';
+    await openUrlAsync(async () => {
+      const storeProfile = await dataService.fetchStoreProfile();
+      const targetPhone = overridePhone || storeProfile.phone || '6281234567890';
 
-    // Save request record to database & local history
-    const requestItems = items.value.map(i => ({
-      product_id: i.product.id,
-      product_name: i.product.name,
-      brand: i.product.brand || '',
-      price: i.product.promo_price || i.product.price,
-      quantity: i.quantity,
-      unit: i.product.unit,
-      notes: i.item_notes
-    }));
+      // Save request record to database & local history
+      const requestItems = items.value.map(i => ({
+        product_id: i.product.id,
+        product_name: i.product.name,
+        brand: i.product.brand || '',
+        price: i.product.promo_price || i.product.price,
+        quantity: i.quantity,
+        unit: i.product.unit,
+        notes: i.item_notes
+      }));
 
-    await dataService.saveShoppingRequest({
-      customer_name: customer.value.customer_name,
-      customer_phone: customer.value.customer_phone,
-      delivery_address: customer.value.delivery_address,
-      delivery_notes: customer.value.delivery_notes,
-      preferred_delivery_time: customer.value.preferred_delivery_time,
-      subtotal: subtotal.value,
-      estimated_total: subtotal.value,
-      fulfillment_channel_id: customer.value.fulfillment_channel_id
-    }, requestItems);
+      await dataService.saveShoppingRequest({
+        customer_name: customer.value.customer_name,
+        customer_phone: customer.value.customer_phone,
+        delivery_address: customer.value.delivery_address,
+        delivery_notes: customer.value.delivery_notes,
+        preferred_delivery_time: customer.value.preferred_delivery_time,
+        subtotal: subtotal.value,
+        estimated_total: subtotal.value,
+        fulfillment_channel_id: customer.value.fulfillment_channel_id
+      }, requestItems);
 
-    const { link } = buildWhatsAppMessage(items.value, customer.value, selectedChannel.value || undefined, targetPhone);
+      const { link } = buildWhatsAppMessage(items.value, customer.value, selectedChannel.value || undefined, targetPhone);
 
-    // Automatically clear cart items & close drawer BEFORE opening WhatsApp so persistence is guaranteed
-    await clearCart();
-    isDrawerOpen.value = false;
+      // Automatically clear cart items & close drawer BEFORE opening WhatsApp so persistence is guaranteed
+      await clearCart();
+      isDrawerOpen.value = false;
 
-    // Open WhatsApp
-    window.open(link, '_blank');
+      return link;
+    });
   };
 
 
