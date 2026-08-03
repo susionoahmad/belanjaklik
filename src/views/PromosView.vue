@@ -41,7 +41,7 @@
       </div>
 
       <div class="space-y-2.5">
-        <div v-for="file in promotionStore.promoFiles" :key="file.id" class="flex flex-col sm:flex-row sm:items-center justify-between p-3.5 bg-gray-50 dark:bg-gray-700/50 rounded-2xl gap-3">
+        <div v-for="file in promotionStore.activePromoFiles" :key="file.id" class="flex flex-col sm:flex-row sm:items-center justify-between p-3.5 bg-gray-50 dark:bg-gray-700/50 rounded-2xl gap-3">
           <div class="flex items-center gap-3">
             <div class="w-10 h-10 rounded-xl bg-red-100 dark:bg-red-950/60 text-brand-red flex items-center justify-center shrink-0">
               <FileText class="w-5 h-5" />

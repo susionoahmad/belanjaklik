@@ -22,7 +22,7 @@
             <span>🎁 PROMO GANTUNG (#GajianUntungAlfamart)</span>
           </div>
           <h3 class="font-extrabold text-base sm:text-xl leading-tight text-white">Promo Gantung Alfamart</h3>
-          <p class="text-xs text-yellow-100 font-medium">Spesial diskon hemat gajian periode 28 Juli - 03 Agustus 2026</p>
+          <p class="text-xs text-yellow-100 font-medium">Spesial diskon hemat gajian periode {{ gantungDateRange }}</p>
         </div>
       </div>
 
@@ -48,7 +48,7 @@
 
         <div class="hidden sm:flex items-center gap-2 bg-black/40 backdrop-blur-md px-3.5 py-2 rounded-2xl border border-white/20 text-xs font-mono font-extrabold text-yellow-300 shrink-0">
           <Calendar class="w-4 h-4 text-yellow-300" />
-          <span>28 Jul - 03 Ags 2026</span>
+          <span>{{ gantungDateRange }}</span>
         </div>
       </div>
     </div>
@@ -192,6 +192,15 @@ onUnmounted(() => {
 
 const gantungProducts = computed(() => {
   return JsmPromoService.filterActiveGantungProducts(catalogStore.products);
+});
+
+const gantungDateRange = computed(() => {
+  const firstProd = gantungProducts.value[0];
+  if (firstProd && firstProd.promo_start_date && firstProd.promo_end_date) {
+    return JsmPromoService.formatJsmDateRange(firstProd.promo_start_date, firstProd.promo_end_date);
+  }
+  const cfg = JsmPromoService.getJsmConfig();
+  return JsmPromoService.formatJsmDateRange(cfg.startDate, cfg.endDate);
 });
 
 const getButtonConfig = (product: Product) => {

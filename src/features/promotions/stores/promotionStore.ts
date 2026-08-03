@@ -1,14 +1,17 @@
 import { defineStore } from 'pinia';
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import type { PromoFile } from '../../shared/types';
 import { dataService } from '../../shared/db/dataService';
 import { CampaignLifecycleService } from '../services/CampaignLifecycleService';
 
 export const usePromotionStore = defineStore('promotions', () => {
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const futureIso = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
   const banners = ref<any[]>([
     {
       id: 'b1',
-      title: 'Body Care Fair Special 2026',
+      title: 'Body Care Fair Special',
       slug: 'body-care-fair',
       image_url: 'https://images.unsplash.com/photo-1540555700478-4be289fbecef?w=1200',
       subtitle: 'Hemat hingga 35% untuk produk perawatan tubuh & mandi',
@@ -27,26 +30,20 @@ export const usePromotionStore = defineStore('promotions', () => {
   const promoFiles = ref<PromoFile[]>([
     {
       id: 'pf1',
-      title: 'Katalog Brosur Promo Mingguan Juli 2026.pdf',
-      file_url: '/katalog-brosur-promo-juli-2026.pdf',
+      title: 'Katalog Brosur Promo Spesial Alfamart.pdf',
+      file_url: '/katalog-brosur-promo-sembako-alfamart.pdf',
       file_type: 'pdf',
-      start_date: '2026-07-20',
-      end_date: '2026-07-27',
-      status: 'active',
-      ocr_status: 'completed'
-    },
-    {
-      id: 'pf2',
-      title: 'Brosur Special Diskon Sembako Alfamart.pdf',
-      file_url: '/brosur-promo-sembako-alfamart.pdf',
-      file_type: 'pdf',
-      start_date: '2026-07-16',
-      end_date: '2026-07-31',
+      start_date: todayIso,
+      end_date: futureIso,
       status: 'active',
       ocr_status: 'completed'
     }
   ]);
 
+  const activePromoFiles = computed(() => {
+    const today = new Date().toISOString().slice(0, 10);
+    return promoFiles.value.filter(file => file.status === 'active' && (!file.end_date || file.end_date >= today));
+  });
 
   const loadCampaignBanners = async () => {
     // Sync active campaign lifecycles
@@ -71,6 +68,7 @@ export const usePromotionStore = defineStore('promotions', () => {
   return {
     banners,
     promoFiles,
+    activePromoFiles,
     loadCampaignBanners
   };
 });

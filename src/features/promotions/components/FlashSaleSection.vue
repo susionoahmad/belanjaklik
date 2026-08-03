@@ -95,6 +95,7 @@ import { formatRupiah } from '../../shared/utils/formatters';
 import { useCatalogStore } from '../../catalog/stores/catalogStore';
 import { PurchaseService } from '../../purchase/services/PurchaseService';
 import { proxyImageUrl } from '../../tokosaya-sync/services/ImageProxyService';
+import { JsmPromoService } from '../services/JsmPromoService';
 import type { Product } from '../../shared/types';
 
 defineEmits(['select']);
@@ -155,14 +156,15 @@ onUnmounted(() => {
 
 const flashSaleProducts = computed(() => {
   return catalogStore.products.filter(p => {
-    // 1. Must be active promo with promo_price strictly lower than normal price
-    if (!p.is_promo) return false;
+    // 1. Must be active promo with valid promo_price strictly lower than normal price
+    if (!JsmPromoService.isProductPromoActive(p)) return false;
     if (!p.promo_price || p.promo_price >= p.price) return false;
 
-    // 2. Exclude JSM promos
-    if (p.promo_type === 'JSM' || 
+    // 2. Exclude JSM / GANTUNG promos
+    if (p.promo_type === 'JSM' || p.promo_type === 'GANTUNG' || 
         String(p.promo_badge || '').toUpperCase().includes('JSM') || 
-        String(p.promo_title || '').toUpperCase().includes('JSM')) {
+        String(p.promo_title || '').toUpperCase().includes('JSM') ||
+        String(p.promo_badge || '').toUpperCase().includes('GANTUNG')) {
       return false;
     }
 

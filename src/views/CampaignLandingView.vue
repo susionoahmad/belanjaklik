@@ -133,6 +133,7 @@ import ProductDetailModal from '../features/catalog/components/ProductDetailModa
 import { useCatalogStore } from '../features/catalog/stores/catalogStore';
 
 import { SEOMarketingGenerator } from '../features/promotions/engine/SEOMarketingGenerator';
+import { JsmPromoService } from '../features/promotions/services/JsmPromoService';
 
 const route = useRoute();
 const catalogStore = useCatalogStore();
@@ -188,7 +189,7 @@ onMounted(async () => {
     const prodIds = pProducts.map((p: any) => p.product_id);
     
     // Filter matching catalog products
-    promoProducts.value = catalogStore.products.filter(p => prodIds.includes(p.id) || p.is_promo);
+    promoProducts.value = catalogStore.products.filter(p => (prodIds.includes(p.id) || p.is_promo) && JsmPromoService.isProductPromoActive(p));
   }
 });
 

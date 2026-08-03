@@ -24,10 +24,10 @@ export const useCatalogStore = defineStore('catalog', () => {
       categories.value = await dataService.fetchCategories();
       channels.value = await dataService.fetchFulfillmentChannels();
       products.value = await dataService.fetchProducts();
-      // Auto-expire JSM promo products if period has ended and revert price to normal
-      const jsmResult = await JsmPromoService.processJsmExpirations(products.value);
-      if (jsmResult.expiredCount > 0) {
-        products.value = jsmResult.updatedProducts;
+      // Auto-expire all promo products if period has ended and revert price to normal
+      const expResult = await JsmPromoService.processAllExpirations(products.value);
+      if (expResult.expiredCount > 0) {
+        products.value = expResult.updatedProducts;
       }
     } catch (e) {
       console.error('Failed to load catalog', e);
@@ -91,7 +91,7 @@ export const useCatalogStore = defineStore('catalog', () => {
     } else if (sortBy.value === 'price_high') {
       result.sort((a, b) => (b.promo_price || b.price) - (a.promo_price || a.price));
     } else if (sortBy.value === 'promo') {
-      result.sort((a, b) => (b.is_promo ? 1 : 0) - (a.is_promo ? 1 : 0));
+      result.sort((a, b) => (JsmPromoService.isProductPromoActive(b) ? 1 : 0) - (JsmPromoService.isProductPromoActive(a) ? 1 : 0));
     }
 
     return result;
@@ -133,8 +133,7 @@ export const useCatalogStore = defineStore('catalog', () => {
     return list.length > 0 ? list : products.value;
   });
   const promoProducts = computed(() => {
-    const list = products.value.filter(p => p.is_promo);
-    return list.length > 0 ? list : products.value.filter(p => p.promo_price);
+    return products.value.filter(p => JsmPromoService.isProductPromoActive(p));
   });
   const popularProducts = computed(() => {
     const list = products.value.filter(p => p.is_popular);

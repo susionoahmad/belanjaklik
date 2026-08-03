@@ -1,5 +1,6 @@
 import type { Product } from '../../shared/types';
 import type { ShoppingAssistantQueryResult } from '../types';
+import { JsmPromoService } from '../../promotions/services/JsmPromoService';
 
 export class ShoppingAssistantContext {
   static resolveQuery(query: string, catalog: Product[]): ShoppingAssistantQueryResult {
@@ -24,7 +25,7 @@ export class ShoppingAssistantContext {
     }
 
     if (q.includes('promo') || q.includes('diskon')) {
-      const promos = catalog.filter(p => p.is_promo || p.promo_price);
+      const promos = catalog.filter(p => JsmPromoService.isProductPromoActive(p));
       return {
         query,
         matchedProducts: promos.slice(0, 5),
