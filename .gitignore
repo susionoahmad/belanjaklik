@@ -3,14 +3,17 @@ logs
 *.log
 npm-debug.log*
 yarn-debug.log*
-yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Node & Build artifacts
 node_modules
 dist
 dist-ssr
 *.local
+.vite-ssg-temp
+.next
+.output
 
 # Editor directories and files
 .vscode/*
@@ -30,20 +33,29 @@ dist-ssr
 !.env.example
 
 # OCR Temporary Outputs & Test Crops
-ocr/master_images/
-ocr/*.xlsx
-ocr/__pycache__/
-ocr/temp_thumbnails/
-ocr/test_16_cards/
-ocr/test_crops/
-ocr/test_jsm6_exact/
-ocr/test_pure_packs/
+**/master_images/
+**/*.xlsx
+**/__pycache__/
+**/temp_thumbnails/
+**/test_16_cards/
+**/test_crops/
+**/test_jsm6_exact/
+**/test_pure_packs/
+**/produk_import_crops/
+**/.temp/
+**/.env.secrets
 
 supabase/.env.secrets
 supabase/.temp/
 *.tsbuildinfo
 
-# Data / CSV files
+# Data, Executables & Large CSV/Database files
 *.csv
 *.CSV
-.vite-ssg-temp
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+*.db-wal
+*.db-shm
+*.exe

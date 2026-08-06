@@ -1,0 +1,306 @@
+<template>
+  <div class="space-y-6 pb-20">
+    <!-- PWA Install Banner -->
+    <PwaInstallBanner />
+
+    <!-- Offline Status Indicator -->
+    <OfflineBanner />
+
+    <!-- Promo Banner Slider -->
+    <BannerSlider />
+
+    <!-- Quick Category Grid -->
+    <section>
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="font-extrabold text-base text-gray-900 dark:text-white flex items-center gap-2">
+          <Grid class="w-5 h-5 text-brand-red" />
+          <span>Kategori Pilihan</span>
+        </h2>
+        <router-link to="/catalog" class="text-xs font-bold text-brand-red hover:underline">
+          Lihat Semua
+        </router-link>
+      </div>
+
+      <div class="grid grid-cols-3 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-2.5">
+        <button
+          v-for="cat in catalogStore.categoriesWithProducts"
+          :key="cat.id"
+          @click="selectCategory(cat.slug)"
+          class="bg-white dark:bg-gray-800 p-3 rounded-2xl border border-gray-100 dark:border-gray-700/80 shadow-soft hover:border-brand-red transition-all flex flex-col items-center text-center group"
+        >
+          <div class="w-10 h-10 rounded-xl bg-brand-red/10 text-brand-red group-hover:bg-brand-red group-hover:text-white transition-colors flex items-center justify-center mb-2">
+            <ShoppingBag class="w-5 h-5" />
+          </div>
+          <span class="text-xs font-bold text-gray-800 dark:text-gray-200 line-clamp-2 leading-tight">{{ cat.name }}</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- Promo Gantung (#GajianUntungAlfamart) Section -->
+    <GantungPromoSection @select="openProductDetail" />
+
+    <!-- Promo JSM Section -->
+    <JsmPromoSection @select="openProductDetail" />
+
+    <!-- Flash Sale Countdown Section -->
+    <FlashSaleSection @select="openProductDetail" />
+
+    <!-- Rekomendasi Belanja Marketplace (Affiliate Products Section) -->
+    <section v-if="affiliateProducts.length > 0">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+        <div>
+          <h2 class="font-extrabold text-base text-gray-900 dark:text-white flex items-center gap-2">
+            <ShoppingBag class="w-5 h-5 text-brand-red" />
+            <span>Rekomendasi Belanja Marketplace</span>
+          </h2>
+          <p class="text-xs text-gray-500">Penawaran harga promo Shopee, Tokopedia & Blibli pilihan terbaik dari saringan AI</p>
+        </div>
+        <router-link to="/affiliate" class="text-xs font-bold text-brand-red hover:underline self-start sm:self-auto">
+          Lihat Semua Promo ({{ affiliateProducts.length }}+)
+        </router-link>
+      </div>
+
+      <!-- Tab Filter Kategori Populer -->
+      <div class="flex items-center gap-2 overflow-x-auto pb-2.5 mb-3 scrollbar-none">
+        <button
+          v-for="tab in affiliateCategoryTabs"
+          :key="tab.id"
+          @click="activeAffiliateCategory = tab.id"
+          :class="[
+            'px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer',
+            activeAffiliateCategory === tab.id
+              ? 'bg-brand-red text-white shadow-sm'
+              : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-brand-red'
+          ]"
+        >
+          <span>{{ tab.icon }}</span>
+          <span>{{ tab.name }}</span>
+        </button>
+      </div>
+
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+        <AffiliateProductCard
+          v-for="affProd in filteredAffiliateProducts"
+          :key="affProd.id"
+          :product="affProd"
+        />
+      </div>
+    </section>
+
+    <!-- Quick Shopping Packages / Bundles -->
+
+    <section>
+      <div class="flex items-center justify-between mb-3">
+        <div>
+          <h2 class="font-extrabold text-base text-gray-900 dark:text-white flex items-center gap-2">
+            <Package class="w-5 h-5 text-brand-yellow-dark" />
+            <span>Paket Belanja Hemat</span>
+          </h2>
+          <p class="text-xs text-gray-500">Sekali klik langsung isi keranjang kebutuhan Anda</p>
+        </div>
+        <router-link to="/packages" class="text-xs font-bold text-brand-red hover:underline">
+          Semua Paket
+        </router-link>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <PackageCard 
+          v-for="template in shoppingStore.templates.slice(0, 3)" 
+          :key="template.id" 
+          :template="template" 
+        />
+      </div>
+    </section>
+
+    <!-- Featured Products -->
+    <section>
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="font-extrabold text-base text-gray-900 dark:text-white flex items-center gap-2">
+          <Sparkles class="w-5 h-5 text-brand-red" />
+          <span>Produk Terlaris & Unggulan</span>
+        </h2>
+        <router-link to="/catalog" class="text-xs font-bold text-brand-red hover:underline">
+          Lihat Semua
+        </router-link>
+      </div>
+
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+        <ProductCard
+          v-for="product in catalogStore.featuredProducts"
+          :key="product.id"
+          :product="product"
+          @select="openProductDetail"
+        />
+      </div>
+    </section>
+
+    <!-- Recently Viewed Products -->
+    <section v-if="catalogStore.recentlyViewedProducts.length > 0">
+      <h2 class="font-extrabold text-base text-gray-900 dark:text-white mb-3 flex items-center gap-2">
+        <Clock class="w-5 h-5 text-gray-400" />
+        <span>Terakhir Dilihat</span>
+      </h2>
+
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <ProductCard
+          v-for="product in catalogStore.recentlyViewedProducts"
+          :key="product.id"
+          :product="product"
+          @select="openProductDetail"
+        />
+      </div>
+    </section>
+
+    <!-- Product Detail Modal -->
+    <ProductDetailModal
+      :isOpen="!!selectedProduct"
+      :product="selectedProduct"
+      @close="selectedProduct = null"
+    />
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, onMounted, onServerPrefetch } from 'vue';
+import { useRouter } from 'vue-router';
+import { Grid, ShoppingBag, Package, Sparkles, Clock } from 'lucide-vue-next';
+import type { Product } from '../features/shared/types';
+import { updatePageSeo } from '../features/shared/utils/seo';
+import OfflineBanner from '../features/shared/components/OfflineBanner.vue';
+import PwaInstallBanner from '../features/shared/components/PwaInstallBanner.vue';
+import BannerSlider from '../features/promotions/components/BannerSlider.vue';
+import FlashSaleSection from '../features/promotions/components/FlashSaleSection.vue';
+import JsmPromoSection from '../features/promotions/components/JsmPromoSection.vue';
+import GantungPromoSection from '../features/promotions/components/GantungPromoSection.vue';
+
+import PackageCard from '../features/shopping/components/PackageCard.vue';
+import ProductCard from '../features/catalog/components/ProductCard.vue';
+import ProductDetailModal from '../features/catalog/components/ProductDetailModal.vue';
+import AffiliateProductCard from '../features/affiliate/components/AffiliateProductCard.vue';
+import type { AffiliateProduct } from '../features/affiliate/types';
+import { getActiveAffiliateProducts } from '../features/affiliate/services/affiliateService';
+import { useCatalogStore } from '../features/catalog/stores/catalogStore';
+import { useShoppingStore } from '../features/shopping/stores/shoppingStore';
+
+import { usePromotionStore } from '../features/promotions/stores/promotionStore';
+
+const router = useRouter();
+const catalogStore = useCatalogStore();
+const shoppingStore = useShoppingStore();
+const promotionStore = usePromotionStore();
+
+const selectedProduct = ref<Product | null>(null);
+const affiliateProducts = ref<AffiliateProduct[]>([]);
+const activeAffiliateCategory = ref('all');
+
+const affiliateCategoryTabs = [
+  { id: 'all', name: 'Semua Promo', icon: '🔥' },
+  { id: 'gadget', name: 'Gadget & Elektronik', icon: '📱', filterKeywords: ['gadget', 'electronic', 'elektronik', 'peralatan elektronik', 'consumer electronics', 'phone', 'handphone', 'smartphone', 'headphone', 'headset', 'earphone', 'camera', 'appliance', 'peralatan listrik', 'charger', 'cable', 'audio', 'kipas', 'vacuum', 'blender', 'rice cooker', 'toaster', 'kettle', 'microwave', 'air cooler', 'speaker', 'lampu', 'lighting', 'tv'] },
+  { id: 'baby', name: 'Ibu & Bayi', icon: '👶', filterKeywords: ['baby', 'ibu & bayi', 'diaper', 'popok', 'bayi', 'anak', 'feeding', 'diapering', 'potty', 'toy', 'girl clothes', 'boy', 'kid'] },
+  { id: 'beauty', name: 'Kecantikan', icon: '💄', filterKeywords: ['kecantikan', 'skincare', 'makeup', 'beauty', 'face', 'sunscreen', 'oral', 'tooth', 'body care', 'personal care', 'fragrance', 'perfume', 'lipstick', 'mouthwash', 'moisturizer', 'cream', 'cleanser', 'bath', 'shower'] },
+  { id: 'kitchen', name: 'Dapur & Kuliner', icon: '🍳', filterKeywords: ['kitchen', 'cooking', 'masak', 'dapur', 'food', 'snack', 'beverage', 'drink', 'dairy', 'egg', 'cereal', 'sauce', 'crisp', 'spread', 'staple', 'ready-to-eat', 'lunch box', 'dinnerware', 'kitchenware'] },
+  { id: 'home', name: 'Rumah Tangga', icon: '🏠', filterKeywords: ['rumah tangga', 'peralatan rumah', 'home', 'clean', 'supplies', 'toilet', 'sabun', 'tissue', 'paper', 'notebook', 'office', 'school', 'tool', 'lighting', 'cleaner', 'hanger', 'curtain'] },
+  { id: 'fashion', name: 'Fashion & Hijab', icon: '👗', filterKeywords: ['fashion', 'hijab', 'busana', 'wear', 'clothes', 'muslim', 'baju', 'hijab', 'dress', 'shirt', 'pant', 'scarf', 'shawl', 'pashmina', 'wallet', 'bag', 'bracelet', 'jewelry', 'underwear', 'bra', 'short'] },
+];
+
+const filteredAffiliateProducts = computed(() => {
+  if (activeAffiliateCategory.value === 'all') {
+    return affiliateProducts.value.slice(0, 12);
+  }
+  const tab = affiliateCategoryTabs.find(t => t.id === activeAffiliateCategory.value);
+  if (!tab || !tab.filterKeywords) return affiliateProducts.value.slice(0, 12);
+
+  const matches = affiliateProducts.value.filter(p => {
+    const catLower = (p.category || '').toLowerCase();
+    const nameLower = (p.name || '').toLowerCase();
+    const matchesKeywords = (value: string) => tab.filterKeywords!.some(kw => value.includes(kw));
+    // Use the stored category first; this prevents names like Bagless matching Fashion.
+    return catLower ? matchesKeywords(catLower) : matchesKeywords(nameLower);
+  });
+
+  return matches.slice(0, 12);
+});
+
+const dailyHash = (value: string): number => {
+  let hash = 0;
+  for (let i = 0; i < value.length; i++) hash = ((hash << 5) - hash + value.charCodeAt(i)) | 0;
+  return Math.abs(hash);
+};
+
+const rotateMarketplaceProducts = (products: AffiliateProduct[]): AffiliateProduct[] => {
+  const dayKey = new Date().toISOString().slice(0, 10);
+  const groups = new Map<string, AffiliateProduct[]>();
+  for (const product of products) {
+    const key = (product.merchant || 'other').toLowerCase();
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(product);
+  }
+
+  for (const [merchant, list] of groups) {
+    list.sort((a, b) => dailyHash(dayKey + merchant + a.id) - dailyHash(dayKey + merchant + b.id));
+  }
+
+  const rotated: AffiliateProduct[] = [];
+  const lists = [...groups.values()];
+  const maxLength = Math.max(...lists.map(list => list.length), 0);
+  for (let i = 0; i < maxLength; i++) {
+    for (const list of lists) if (list[i]) rotated.push(list[i]);
+  }
+  return rotated;
+};
+
+const loadHomeData = async () => {
+  catalogStore.fetchCatalogData().catch(e => console.warn('[HomeView] catalogStore fetch error:', e));
+  shoppingStore.fetchShoppingData().catch(e => console.warn('[HomeView] shoppingStore fetch error:', e));
+
+  await Promise.all([
+    promotionStore.loadCampaignBanners().catch(e => console.warn('[HomeView] promotionStore load error:', e)),
+    getActiveAffiliateProducts({ limit: 60, vertical: 'marketplace', mixMerchants: true }).then(res => {
+      affiliateProducts.value = rotateMarketplaceProducts(res);
+    })
+  ]);
+};
+
+onServerPrefetch(async () => {
+  await loadHomeData();
+});
+
+onMounted(async () => {
+  updatePageSeo('Beranda', 'Personal Shopping Assistant - Asisten Belanja Pribadi Serba Ada');
+  if (
+    catalogStore.products.length === 0 ||
+    shoppingStore.templates.length === 0 ||
+    affiliateProducts.value.length === 0
+  ) {
+    await loadHomeData();
+  }
+});
+
+
+onMounted(async () => {
+  updatePageSeo('Beranda', 'Personal Shopping Assistant - Asisten Belanja Pribadi Serba Ada');
+  if (
+    catalogStore.products.length === 0 ||
+    shoppingStore.templates.length === 0 ||
+    affiliateProducts.value.length === 0
+  ) {
+    await loadHomeData();
+  }
+});
+
+
+const selectCategory = (slug: string) => {
+  catalogStore.selectedCategorySlug = slug;
+  router.push('/catalog');
+};
+
+const openProductDetail = (product: Product) => {
+  const targetSlug = product.slug || (product.name ? product.name.toLowerCase().replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '-') : product.id);
+  if ((product as any).product_type === 'affiliate' || product.purchase_method === 'coming_soon' || product.affiliate_url || targetSlug) {
+    router.push(`/produk/${targetSlug}`);
+    return;
+  }
+  selectedProduct.value = product;
+  catalogStore.trackRecentlyViewed(product.id);
+};
+</script>
