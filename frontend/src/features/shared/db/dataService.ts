@@ -1055,7 +1055,12 @@ export const dataService = {
     try {
       const response = await fetch(`${getApiBaseUrl()}/api/v1/store-profile`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(typeof window !== 'undefined' && localStorage.getItem('psa_admin_token')
+            ? { Authorization: `Bearer ${localStorage.getItem('psa_admin_token')}` }
+            : {})
+        },
         body: JSON.stringify(profile)
       });
       if (response.ok) {

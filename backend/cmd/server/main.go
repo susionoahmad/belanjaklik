@@ -2,7 +2,11 @@ package main
 
 import (
 	"compress/gzip"
+	"crypto/rand"
+	"crypto/sha256"
+	"crypto/subtle"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -56,6 +60,16 @@ type StoreProfile struct {
 	DeliveryInfo  string `json:"delivery_info"`
 }
 
+type AdminUser struct {
+	ID       string `json:"id"`
+	Email    string `json:"email"`
+	Role     string `json:"role"`
+	IsActive bool   `json:"is_active"`
+}
+
+const passwordIterations = 120000
+const adminSessionDays = 7
+
 // APIResponse represents standard pagination metadata response
 type APIResponse struct {
 	Status     string        `json:"status"`
@@ -98,6 +112,30 @@ func main() {
 		log.Fatalf("Failed to initialize settings table: %v", err)
 	}
 
+	if _, err := db.Exec(`CREATE TABLE IF NOT EXISTS admin_users (
+		id TEXT PRIMARY KEY,
+		email TEXT NOT NULL UNIQUE COLLATE NOCASE,
+		password_hash TEXT NOT NULL,
+		role TEXT NOT NULL DEFAULT 'admin',
+		is_active INTEGER NOT NULL DEFAULT 1,
+		created_at TEXT NOT NULL,
+		updated_at TEXT NOT NULL
+	)`); err != nil {
+		log.Fatalf("Failed to initialize admin_users table: %v", err)
+	}
+	if _, err := db.Exec(`CREATE TABLE IF NOT EXISTS admin_sessions (
+		token_hash TEXT PRIMARY KEY,
+		user_id TEXT NOT NULL,
+		expires_at TEXT NOT NULL,
+		created_at TEXT NOT NULL,
+		last_seen_at TEXT NOT NULL
+	)`); err != nil {
+		log.Fatalf("Failed to initialize admin_sessions table: %v", err)
+	}
+	if err := ensureDefaultAdmin(); err != nil {
+		log.Fatalf("Failed to initialize default admin: %v", err)
+	}
+
 	// Router setup
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", handleRoot)
@@ -108,6 +146,9 @@ func main() {
 	mux.HandleFunc("/api/v1/affiliate-product", handleAffiliateProducts)
 	mux.HandleFunc("/api/v1/categories", handleCategories)
 	mux.HandleFunc("/api/v1/store-profile", handleStoreProfile)
+	mux.HandleFunc("/api/v1/admin/login", handleAdminLogin)
+	mux.HandleFunc("/api/v1/admin/logout", handleAdminLogout)
+	mux.HandleFunc("/api/v1/admin/me", handleAdminMe)
 
 	// Apply Middlewares: CORS -> Gzip -> Cache Headers
 	handler := middlewareCORS(middlewareCacheControl(middlewareGzip(mux)))
@@ -157,6 +198,152 @@ func handleRoot(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func hashPassword(password string) (string, error) {
+	salt := make([]byte, 16)
+	if _, err := rand.Read(salt); err != nil {
+		return "", err
+	}
+	digest := sha256.Sum256(append(salt, []byte(password)...))
+	result := digest[:]
+	for i := 1; i < passwordIterations; i++ {
+		next := sha256.Sum256(append(append([]byte{}, result...), append(salt, []byte(password)...)...))
+		result = next[:]
+	}
+	return fmt.Sprintf("sha256$%d$%s$%s", passwordIterations, hex.EncodeToString(salt), hex.EncodeToString(result)), nil
+}
+
+func verifyPassword(password, encoded string) bool {
+	parts := strings.Split(encoded, "$")
+	if len(parts) != 4 || parts[0] != "sha256" {
+		return false
+	}
+	iterations, err := strconv.Atoi(parts[1])
+	salt, errSalt := hex.DecodeString(parts[2])
+	expected, errExpected := hex.DecodeString(parts[3])
+	if err != nil || errSalt != nil || errExpected != nil || iterations < 10000 || len(expected) != sha256.Size {
+		return false
+	}
+	digest := sha256.Sum256(append(salt, []byte(password)...))
+	result := digest[:]
+	for i := 1; i < iterations; i++ {
+		next := sha256.Sum256(append(append([]byte{}, result...), append(salt, []byte(password)...)...))
+		result = next[:]
+	}
+	return subtle.ConstantTimeCompare(result, expected) == 1
+}
+
+func hashSessionToken(token string) string {
+	hash := sha256.Sum256([]byte(token))
+	return hex.EncodeToString(hash[:])
+}
+
+func newSessionToken() (string, error) {
+	buf := make([]byte, 32)
+	if _, err := rand.Read(buf); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(buf), nil
+}
+
+func ensureDefaultAdmin() error {
+	var count int
+	if err := db.QueryRow("SELECT COUNT(*) FROM admin_users").Scan(&count); err != nil {
+		return err
+	}
+	if count > 0 {
+		return nil
+	}
+	email := strings.TrimSpace(strings.ToLower(os.Getenv("ADMIN_EMAIL")))
+	password := os.Getenv("ADMIN_PASSWORD")
+	if email == "" || len(password) < 12 {
+		log.Printf("[API-SERVER] No default admin created. Set ADMIN_EMAIL and ADMIN_PASSWORD (minimum 12 characters) before first production start.")
+		return nil
+	}
+	hash, err := hashPassword(password)
+	if err != nil {
+		return err
+	}
+	now := time.Now().UTC().Format(time.RFC3339)
+	_, err = db.Exec("INSERT INTO admin_users (id, email, password_hash, role, is_active, created_at, updated_at) VALUES (?, ?, ?, 'admin', 1, ?, ?)", "admin-"+hashSessionToken(email)[:16], email, hash, now, now)
+	if err == nil {
+		log.Printf("[API-SERVER] Default admin created for %s", email)
+	}
+	return err
+}
+
+func authenticatedAdmin(r *http.Request) (AdminUser, bool) {
+	var empty AdminUser
+	auth := strings.TrimSpace(r.Header.Get("Authorization"))
+	if !strings.HasPrefix(auth, "Bearer ") {
+		return empty, false
+	}
+	tokenHash := hashSessionToken(strings.TrimSpace(strings.TrimPrefix(auth, "Bearer ")))
+	var user AdminUser
+	var expires string
+	err := db.QueryRow(`SELECT u.id, u.email, u.role, u.is_active, s.expires_at
+		FROM admin_sessions s JOIN admin_users u ON u.id = s.user_id
+		WHERE s.token_hash = ?`, tokenHash).Scan(&user.ID, &user.Email, &user.Role, &user.IsActive, &expires)
+	if err != nil || !user.IsActive {
+		return empty, false
+	}
+	expiresAt, err := time.Parse(time.RFC3339, expires)
+	if err != nil || time.Now().UTC().After(expiresAt) {
+		return empty, false
+	}
+	_, _ = db.Exec("UPDATE admin_sessions SET last_seen_at = ? WHERE token_hash = ?", time.Now().UTC().Format(time.RFC3339), tokenHash)
+	return user, true
+}
+
+func handleAdminLogin(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		respondJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
+		return
+	}
+	var input struct {
+		Email    string `json:"email"`
+		Password string `json:"password"`
+	}
+	if err := json.NewDecoder(io.LimitReader(r.Body, 64*1024)).Decode(&input); err != nil {
+		respondJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid login payload"})
+		return
+	}
+	var user AdminUser
+	var passwordHash string
+	err := db.QueryRow("SELECT id, email, role, is_active, password_hash FROM admin_users WHERE email = ?", strings.TrimSpace(strings.ToLower(input.Email))).Scan(&user.ID, &user.Email, &user.Role, &user.IsActive, &passwordHash)
+	if err != nil || !user.IsActive || !verifyPassword(input.Password, passwordHash) {
+		respondJSON(w, http.StatusUnauthorized, map[string]string{"error": "email atau password salah"})
+		return
+	}
+	token, err := newSessionToken()
+	if err != nil {
+		respondJSON(w, http.StatusInternalServerError, map[string]string{"error": "gagal membuat sesi"})
+		return
+	}
+	now := time.Now().UTC()
+	_, err = db.Exec("INSERT INTO admin_sessions (token_hash, user_id, expires_at, created_at, last_seen_at) VALUES (?, ?, ?, ?, ?)", hashSessionToken(token), user.ID, now.AddDate(0, 0, adminSessionDays).Format(time.RFC3339), now.Format(time.RFC3339), now.Format(time.RFC3339))
+	if err != nil {
+		respondJSON(w, http.StatusInternalServerError, map[string]string{"error": "gagal menyimpan sesi"})
+		return
+	}
+	respondJSON(w, http.StatusOK, map[string]interface{}{"status": "success", "token": token, "user": user})
+}
+
+func handleAdminLogout(w http.ResponseWriter, r *http.Request) {
+	if auth := strings.TrimSpace(strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")); auth != "" {
+		_, _ = db.Exec("DELETE FROM admin_sessions WHERE token_hash = ?", hashSessionToken(auth))
+	}
+	respondJSON(w, http.StatusOK, map[string]string{"status": "success"})
+}
+
+func handleAdminMe(w http.ResponseWriter, r *http.Request) {
+	user, ok := authenticatedAdmin(r)
+	if !ok {
+		respondJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
+		return
+	}
+	respondJSON(w, http.StatusOK, map[string]interface{}{"status": "success", "user": user})
+}
+
 func defaultStoreProfile() StoreProfile {
 	return StoreProfile{
 		Name:          "BelanjaKlik Marketplace",
@@ -185,6 +372,10 @@ func handleStoreProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if _, ok := authenticatedAdmin(r); !ok {
+		respondJSON(w, http.StatusUnauthorized, map[string]string{"error": "admin authentication required"})
+		return
+	}
 	if r.Method != http.MethodPut && r.Method != http.MethodPost {
 		w.Header().Set("Allow", "GET, PUT, POST, OPTIONS")
 		respondJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})

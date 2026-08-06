@@ -2,15 +2,15 @@ import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import type { Product, StoreProfile } from '../../shared/types';
 import { dataService } from '../../shared/db/dataService';
-import { supabase, isSupabaseConfigured } from '../../shared/db/supabaseClient';
+import { getApiBaseUrl } from '../../shared/db/localApi';
 
 export const useAdminStore = defineStore('admin', () => {
   const isClient = typeof window !== 'undefined';
-  const storedAuth = isClient ? localStorage.getItem('psa_store_auth') === 'true' : false;
+  const storedToken = isClient ? localStorage.getItem('psa_admin_token') : null;
   const storedUser = isClient ? localStorage.getItem('psa_store_user') : null;
 
-  const isAuthenticated = ref(storedAuth);
-  const user = ref<any>(storedUser ? JSON.parse(storedUser) : (storedAuth ? { email: 'admin@belanjaklik.my.id' } : null));
+  const isAuthenticated = ref(false);
+  const user = ref<any>(storedToken && storedUser ? JSON.parse(storedUser) : null);
   const email = ref('');
   const password = ref('');
   const isLoading = ref(false);
@@ -25,66 +25,73 @@ export const useAdminStore = defineStore('admin', () => {
     delivery_info: 'Pengiriman gratis radius 3 km dengan minimal pemesanan Rp 50.000'
   });
 
-  // Check initial Supabase session
+  // Validate the server-side session on every app start.
   const checkSession = async () => {
-    if (!isSupabaseConfigured || !isClient) return;
+    if (!isClient || !storedToken) return;
     try {
-      const { data } = await supabase.auth.getSession();
-      if (data.session?.user) {
-        user.value = data.session.user;
-        isAuthenticated.value = true;
-        localStorage.setItem('psa_store_auth', 'true');
-        localStorage.setItem('psa_store_user', JSON.stringify(data.session.user));
-      }
-    } catch (e) {}
+      const response = await fetch(`${getApiBaseUrl()}/api/v1/admin/me`, {
+        headers: { Authorization: `Bearer ${storedToken}` }
+      });
+      if (!response.ok) throw new Error('Session expired');
+      const json = await response.json();
+      user.value = json.user;
+      isAuthenticated.value = true;
+      localStorage.setItem('psa_store_user', JSON.stringify(json.user));
+      localStorage.setItem('psa_store_auth', 'true');
+    } catch (e) {
+      localStorage.removeItem('psa_admin_token');
+      localStorage.removeItem('psa_store_auth');
+      localStorage.removeItem('psa_store_user');
+      user.value = null;
+      isAuthenticated.value = false;
+    }
   };
 
-  if (isClient) {
-    checkSession();
-  }
+  if (isClient) void checkSession();
 
   const login = async (inputEmail: string, inputPass: string): Promise<boolean> => {
     errorMessage.value = '';
     isLoading.value = true;
     try {
-      let loggedUser = { email: inputEmail || 'admin@belanjaklik.my.id' };
-
-      if (isSupabaseConfigured && inputEmail && inputPass) {
-        try {
-          const { data, error } = await supabase.auth.signInWithPassword({
-            email: inputEmail,
-            password: inputPass
-          });
-          if (!error && data.user) {
-            loggedUser = { email: data.user.email || inputEmail };
-          }
-        } catch (e) {}
+      const response = await fetch(`${getApiBaseUrl()}/api/v1/admin/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: inputEmail, password: inputPass })
+      });
+      const json = await response.json().catch(() => ({}));
+      if (!response.ok || !json.token || !json.user) {
+        throw new Error(json.error || 'Email atau password salah.');
       }
-
       isAuthenticated.value = true;
-      user.value = loggedUser;
+      user.value = json.user;
       if (isClient) {
+        localStorage.setItem('psa_admin_token', json.token);
         localStorage.setItem('psa_store_auth', 'true');
-        localStorage.setItem('psa_store_user', JSON.stringify(loggedUser));
+        localStorage.setItem('psa_store_user', JSON.stringify(json.user));
       }
       return true;
     } catch (err: any) {
-      errorMessage.value = err.message || 'Gagal masuk ke sistem.';
+      errorMessage.value = err.message || 'Gagal terhubung ke server autentikasi.';
+      return false;
     } finally {
       isLoading.value = false;
     }
-    return false;
   };
 
   const logout = async () => {
-    if (isSupabaseConfigured) {
+    const token = isClient ? localStorage.getItem('psa_admin_token') : null;
+    if (token) {
       try {
-        await supabase.auth.signOut();
+        await fetch(`${getApiBaseUrl()}/api/v1/admin/logout`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` }
+        });
       } catch (e) {}
     }
     isAuthenticated.value = false;
     user.value = null;
     if (isClient) {
+      localStorage.removeItem('psa_admin_token');
       localStorage.removeItem('psa_store_auth');
       localStorage.removeItem('psa_store_user');
     }
