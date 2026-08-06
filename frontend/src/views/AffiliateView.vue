@@ -271,7 +271,7 @@ const loadProducts = async (resetPage = false) => {
       sort: sortBy.value as 'latest' | 'sold' | 'discount' | 'price_low' | 'price_high',
       vertical: selectedVertical.value !== 'all' ? selectedVertical.value : undefined,
       merchant: selectedMerchant.value !== 'all' ? selectedMerchant.value : undefined,
-      category: selectedCategory.value !== 'all' ? (tab?.kw?.[0] || selectedCategory.value) : undefined,
+      category: selectedCategory.value !== 'all' ? (tab?.kw?.length ? tab.kw.join(',') : selectedCategory.value) : undefined,
       search: term || undefined,
     });
     products.value = result as AffiliateProduct[];

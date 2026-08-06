@@ -658,6 +658,20 @@ func handleAffiliateProducts(w http.ResponseWriter, r *http.Request) {
 			if field == "merchant" {
 				where = append(where, "LOWER(TRIM(COALESCE(merchant, ''))) LIKE ?")
 				args = append(args, "%"+strings.ToLower(value)+"%")
+			} else if field == "category" {
+				parts := strings.Split(value, ",")
+				var catClauses []string
+				for _, p := range parts {
+					p = strings.TrimSpace(p)
+					if p != "" {
+						catClauses = append(catClauses, "LOWER(category) LIKE ? OR LOWER(name) LIKE ?")
+						term := "%" + strings.ToLower(p) + "%"
+						args = append(args, term, term)
+					}
+				}
+				if len(catClauses) > 0 {
+					where = append(where, "("+strings.Join(catClauses, " OR ")+")")
+				}
 			} else {
 				where = append(where, field+" = ?")
 				args = append(args, value)
