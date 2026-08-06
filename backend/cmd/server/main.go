@@ -86,9 +86,12 @@ func main() {
 
 	// Router setup
 	mux := http.NewServeMux()
+	mux.HandleFunc("/", handleRoot)
 	mux.HandleFunc("/health", handleHealth)
+	mux.HandleFunc("/api/v1/health", handleHealth)
 	mux.HandleFunc("/api/v1/products", handleProductsRouter)
 	mux.HandleFunc("/api/v1/affiliate-products", handleAffiliateProducts)
+	mux.HandleFunc("/api/v1/categories", handleCategories)
 
 	// Apply Middlewares: CORS -> Gzip -> Cache Headers
 	handler := middlewareCORS(middlewareCacheControl(middlewareGzip(mux)))
@@ -124,6 +127,28 @@ func main() {
 // -------------------------------------------------------------
 // HTTP HANDLERS
 // -------------------------------------------------------------
+
+func handleRoot(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path != "/" {
+		respondJSON(w, http.StatusNotFound, map[string]string{"error": "Endpoint not found"})
+		return
+	}
+	respondJSON(w, http.StatusOK, map[string]interface{}{
+		"status":    "online",
+		"service":   "BelanjaKlik High-Performance Go Backend API",
+		"version":   "1.0.0",
+		"endpoints": []string{"/health", "/api/v1/health", "/api/v1/products", "/api/v1/affiliate-products", "/api/v1/categories"},
+	})
+}
+
+func handleHealth(w http.ResponseWriter, r *http.Request) {
+	uptimeSeconds := int(time.Since(startTime).Seconds())
+	respondJSON(w, http.StatusOK, map[string]interface{}{
+		"status":         "ok",
+		"timestamp":      time.Now().Format(time.RFC3339),
+		"uptime_seconds": uptimeSeconds,
+	})
+}
 
 func handleAffiliateProducts(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
