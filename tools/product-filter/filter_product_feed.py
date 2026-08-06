@@ -63,6 +63,10 @@ OUTPUT_FILE = "product_list_966_20260804_FILTERED.csv"
 AUTO_SYNC_TO_LOCAL_DB = True
 LOCAL_DB_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "backend", "katalog.db"))
 
+# Set True jika ingin hasil saringan LANGSUNG diupload ke Live Server GCP VM (Go API)!
+AUTO_UPLOAD_TO_GO_API = True
+GO_API_URL = os.getenv("VITE_API_BASE_URL") or "https://api.belanjaklik.my.id"
+
 # Set True jika ingin hasil saringan LANGSUNG diupload ke Supabase!
 AUTO_UPLOAD_TO_SUPABASE = False
 
@@ -797,6 +801,35 @@ def upload_to_supabase(df: pd.DataFrame, supabase_url: str, supabase_key: str):
                 print(f"  [FAIL] Error insert batch: {e}")
 
     print(f"\nSelesai! Total {total_uploaded:,} produk berhasil diproses ke Supabase.")
+
+    if AUTO_UPLOAD_TO_GO_API:
+        upload_to_go_api(records, GO_API_URL)
+
+
+def upload_to_go_api(records, api_url):
+    """Upload/Upsert filtered records directly to Go Backend API on GCP VM."""
+    if not records:
+        return
+    endpoint = f"{api_url.rstrip('/')}/api/v1/affiliate-products"
+    print(f"\n============================================================")
+    print(f"[Go API Sync] Meng-upload {len(records):,} produk ter-filter ke Live Server GCP VM ({endpoint})...")
+    print(f"============================================================")
+    batch_size = 200
+    total_success = 0
+    for i in range(0, len(records), batch_size):
+        batch = records[i:i + batch_size]
+        data_json = json.dumps(batch).encode('utf-8')
+        req = urllib.request.Request(endpoint, data=data_json, headers={"Content-Type": "application/json"}, method='POST')
+        try:
+            with urllib.request.urlopen(req) as resp:
+                if resp.status in (200, 201):
+                    res_body = json.loads(resp.read().decode('utf-8'))
+                    sc = res_body.get('success_count', len(batch))
+                    total_success += sc
+                    print(f"  [OK] Batch {i // batch_size + 1} ({len(batch)} produk) berhasil di-sync ke Go API GCP VM!")
+        except Exception as e:
+            print(f"  [FAIL] Error sync Go API batch {i // batch_size + 1}: {e}")
+    print(f"[Go API Sync] Selesai! Total {total_success:,} produk berhasil di-upsert ke Live Server GCP VM!")
 
 
 if __name__ == "__main__":
