@@ -664,9 +664,8 @@ func handleAffiliateProducts(w http.ResponseWriter, r *http.Request) {
 				for _, p := range parts {
 					p = strings.TrimSpace(p)
 					if p != "" {
-						catClauses = append(catClauses, "LOWER(category) LIKE ? OR LOWER(name) LIKE ?")
-						term := "%" + strings.ToLower(p) + "%"
-						args = append(args, term, term)
+						catClauses = append(catClauses, "LOWER(category) LIKE ?")
+						args = append(args, "%"+strings.ToLower(p)+"%")
 					}
 				}
 				if len(catClauses) > 0 {
