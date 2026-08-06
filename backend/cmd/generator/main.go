@@ -160,7 +160,10 @@ func loadEnv() map[string]string {
 
 func createTables(db *sql.DB) {
 	schema := `
-	CREATE TABLE IF NOT EXISTS products (
+	DROP TABLE IF EXISTS products;
+	DROP TABLE IF EXISTS affiliate_products;
+
+	CREATE TABLE products (
 		id TEXT PRIMARY KEY,
 		name TEXT NOT NULL,
 		slug TEXT,
@@ -236,7 +239,8 @@ func createTables(db *sql.DB) {
 
 func createUnifiedView(db *sql.DB) {
 	viewSQL := `
-	CREATE VIEW IF NOT EXISTS all_products AS
+	DROP VIEW IF EXISTS all_products;
+	CREATE VIEW all_products AS
 	SELECT
 		id,
 		'own' AS product_type,
