@@ -192,8 +192,13 @@ func handleAffiliateProducts(w http.ResponseWriter, r *http.Request) {
 
 	for _, field := range []string{"merchant", "category", "brand"} {
 		if value := q.Get(field); value != "" && value != "all" {
-			where = append(where, field+" = ?")
-			args = append(args, value)
+			if field == "merchant" {
+				where = append(where, "LOWER(merchant) LIKE ?")
+				args = append(args, "%"+strings.ToLower(value)+"%")
+			} else {
+				where = append(where, field+" = ?")
+				args = append(args, value)
+			}
 		}
 	}
 	if value := q.Get("search"); value != "" {

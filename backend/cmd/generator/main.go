@@ -932,8 +932,19 @@ func parseAffiliateCSV(filePath string) []AffiliateProduct {
 			id = fmt.Sprintf("aff-%d", idCounter)
 		}
 
-		merchant := getVal("merchant", "source")
-		if merchant == "" {
+		merchant := strings.ToLower(getVal("merchant", "merchant_name", "merchant name", "advertiser_name", "advertiser name", "campaign_name", "campaign name", "source"))
+		urlLower := strings.ToLower(affURL + " " + prodURL + " " + name + " " + merchant)
+		if strings.Contains(urlLower, "traveloka") {
+			merchant = "traveloka"
+		} else if strings.Contains(urlLower, "blibli") {
+			merchant = "blibli"
+		} else if strings.Contains(urlLower, "tokopedia") || strings.Contains(urlLower, "tokope") {
+			merchant = "tokopedia"
+		} else if strings.Contains(urlLower, "lazada") {
+			merchant = "lazada"
+		} else if strings.Contains(urlLower, "tiktok") {
+			merchant = "tiktok_shop"
+		} else if merchant == "" {
 			merchant = "shopee"
 		}
 
