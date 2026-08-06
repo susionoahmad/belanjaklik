@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"compress/gzip"
 	"crypto/rand"
 	"crypto/sha256"
@@ -644,8 +645,8 @@ func handleAffiliateProducts(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if value := q.Get("slug"); value != "" {
-		where = append(where, "slug = ?")
-		args = append(args, value)
+		where = append(where, "(slug = ? OR LOWER(slug) = ? OR id = ? OR slug LIKE ?)")
+		args = append(args, value, strings.ToLower(value), value, "%"+value+"%")
 	}
 	if value := q.Get("search"); value != "" {
 		where = append(where, "(name LIKE ? OR category LIKE ? OR shop_name LIKE ?)")

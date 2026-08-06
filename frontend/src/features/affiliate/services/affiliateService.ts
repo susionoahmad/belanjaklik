@@ -260,7 +260,7 @@ export async function getAffiliateProductBySlug(slug: string): Promise<Affiliate
     let res = await fetch(`${apiBase}/api/v1/affiliate-products?slug=${encodeURIComponent(slug)}&active=all&limit=1`);
     if (res.ok) {
       const json = await res.json();
-      if (json.data && Array.isArray(json.data) && json.data.length > 0 && json.data[0].slug === slug) {
+      if (json.data && Array.isArray(json.data) && json.data.length > 0) {
         return mapItem(json.data[0]);
       }
     }
