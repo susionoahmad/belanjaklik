@@ -24,7 +24,9 @@ function saveOfflineProducts(products: AffiliateProduct[]): void {
 }
 
 export async function getActiveAffiliateProducts(options?: {
+  page?: number;
   limit?: number;
+  sort?: 'latest' | 'sold' | 'discount' | 'price_low' | 'price_high';
   category?: string;
   merchant?: string;
   vertical?: string;
@@ -32,7 +34,7 @@ export async function getActiveAffiliateProducts(options?: {
   search?: string;
   mixMerchants?: boolean;
 }): Promise<AffiliateProduct[]> {  try {
-    const local = await fetchLocalAffiliateProducts({ page: 1, limit: options?.limit || 40, merchant: options?.merchant, vertical: options?.vertical, category: options?.category, search: options?.search });
+    const local = await fetchLocalAffiliateProducts({ page: options?.page || 1, limit: options?.limit || 40, merchant: options?.merchant, vertical: options?.vertical, category: options?.category, search: options?.search, sort: options?.sort });
     if (local.data?.length) return local.data as AffiliateProduct[];
   } catch (err) {
     console.warn('[AffiliateService] Local API unavailable, using fallback:', err);

@@ -43,7 +43,7 @@ export async function fetchLocalProducts(options: {
 }
 
 export async function fetchLocalAffiliateProducts(options: {
-  page?: number; limit?: number; merchant?: string; vertical?: string; category?: string; search?: string; active?: "all" | "active";
+  page?: number; limit?: number; merchant?: string; vertical?: string; category?: string; search?: string; sort?: string; active?: "all" | "active";
 } = {}): Promise<{ data: any[]; total: number; total_pages: number }> {
   const params = new URLSearchParams({ page: String(options.page || 1), limit: String(options.limit || 50) });
   for (const [key, value] of Object.entries(options)) if (value) params.set(key, String(value));

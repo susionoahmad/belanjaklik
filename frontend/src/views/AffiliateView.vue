@@ -266,7 +266,9 @@ const loadProducts = async (resetPage = false) => {
     const tab = visibleCategoryTabs.value.find(t => t.id === selectedCategory.value);
     const term = searchQuery.value.trim();
     const result = await getActiveAffiliateProducts({
+      page: currentPage.value,
       limit: PAGE_SIZE,
+      sort: sortBy.value as 'latest' | 'sold' | 'discount' | 'price_low' | 'price_high',
       vertical: selectedVertical.value !== 'all' ? selectedVertical.value : undefined,
       merchant: selectedMerchant.value !== 'all' ? selectedMerchant.value : undefined,
       category: selectedCategory.value !== 'all' ? (tab?.kw?.[0] || selectedCategory.value) : undefined,

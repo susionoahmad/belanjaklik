@@ -296,6 +296,16 @@ func handleAffiliateProducts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	orderBy := "ORDER BY created_at DESC, id DESC"
+	switch q.Get("sort") {
+	case "sold":
+		orderBy = "ORDER BY COALESCE(item_sold, 0) DESC, created_at DESC, id DESC"
+	case "discount":
+		orderBy = "ORDER BY COALESCE(discount_percent, 0) DESC, created_at DESC, id DESC"
+	case "price_low":
+		orderBy = "ORDER BY COALESCE(price, 0) ASC, created_at DESC, id DESC"
+	case "price_high":
+		orderBy = "ORDER BY COALESCE(price, 0) DESC, created_at DESC, id DESC"
+	}
 	query := "SELECT * FROM affiliate_products" + whereSQL + " " + orderBy + " LIMIT ? OFFSET ?"
 	queryArgs := append(args, limit, (page-1)*limit)
 	rows, err := db.Query(query, queryArgs...)
