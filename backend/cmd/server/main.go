@@ -137,6 +137,13 @@ func main() {
 		log.Fatalf("Failed to initialize default admin: %v", err)
 	}
 
+	// Clean duplicate affiliate products if any exist from previous test runs
+	if _, err := db.Exec(`DELETE FROM affiliate_products WHERE rowid NOT IN (
+		SELECT MIN(rowid) FROM affiliate_products GROUP BY merchant, COALESCE(NULLIF(external_product_id, ''), slug, id)
+	)`); err != nil {
+		log.Printf("[API-SERVER] Warning: duplicate cleanup failed: %v", err)
+	}
+
 	// Router setup
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", handleRoot)
@@ -510,10 +517,6 @@ func handleAffiliateProducts(w http.ResponseWriter, r *http.Request) {
 				return 0
 			}
 
-			id := getStr("id")
-			if id == "" {
-				id = "aff-" + strconv.FormatInt(time.Now().UnixNano(), 36)
-			}
 			name := getStr("name")
 			if name == "" {
 				continue
@@ -537,6 +540,22 @@ func handleAffiliateProducts(w http.ResponseWriter, r *http.Request) {
 				merchant = "tiktok_shop"
 			} else if merchant == "" {
 				merchant = "shopee"
+			}
+
+			extID := strings.TrimSpace(getStr("external_product_id"))
+			slug := strings.TrimSpace(getStr("slug"))
+			id := strings.TrimSpace(getStr("id"))
+			if id == "" {
+				if extID != "" {
+					id = "aff-" + merchant + "-" + extID
+				} else if slug != "" {
+					id = "aff-" + slug
+				} else {
+					id = "aff-" + merchant + "-" + strconv.FormatInt(time.Now().UnixNano(), 36)
+				}
+			}
+			if len(id) > 90 {
+				id = id[:90]
 			}
 
 			createdAt := getStr("created_at")
