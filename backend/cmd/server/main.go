@@ -137,6 +137,12 @@ func main() {
 		log.Fatalf("Failed to initialize default admin: %v", err)
 	}
 
+	// Create B-Tree indexes for instant query performance on 31,000+ products
+	db.Exec(`CREATE INDEX IF NOT EXISTS idx_aff_active_merchant ON affiliate_products(is_active, merchant)`)
+	db.Exec(`CREATE INDEX IF NOT EXISTS idx_aff_active_vertical ON affiliate_products(is_active, vertical)`)
+	db.Exec(`CREATE INDEX IF NOT EXISTS idx_aff_slug ON affiliate_products(slug)`)
+	db.Exec(`CREATE INDEX IF NOT EXISTS idx_aff_created ON affiliate_products(created_at, id)`)
+
 	// Clean duplicate affiliate products if any exist from previous test runs
 	if _, err := db.Exec(`DELETE FROM affiliate_products WHERE rowid NOT IN (
 		SELECT MAX(rowid) FROM affiliate_products GROUP BY LOWER(TRIM(COALESCE(merchant, ''))), LOWER(TRIM(name))

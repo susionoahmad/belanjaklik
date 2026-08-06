@@ -54,10 +54,10 @@ load_env_file()
 
 # Path file mentah hasil download dari ACCESSTRADE.
 # Bisa .csv atau .xlsx -- script ini otomatis mendeteksi dari ekstensi.
-INPUT_FILE = "product_list_966_20260806-fashion.CSV"
+INPUT_FILE = "product_list_966_20260806-others.CSV"
 
 # Nama file hasil filter (akan dibuat / ditimpa).
-OUTPUT_FILE = "product_list_966_20260806-fashion_FILTERED.csv"
+OUTPUT_FILE = "product_list_966_20260806-others_FILTERED.csv"
 
 # Sinkronkan otomatis hasil filter ke database SQLite lokal.
 AUTO_SYNC_TO_LOCAL_DB = True
