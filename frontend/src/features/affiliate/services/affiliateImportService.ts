@@ -464,6 +464,27 @@ export async function bulkUpsertAffiliateFeed(
       };
     });
 
+    const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080').replace(/\/$/, '');
+    if (apiBaseUrl) {
+      try {
+        const res = await fetch(`${apiBaseUrl}/api/v1/affiliate-products`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(dbPayloads)
+        });
+        if (res.ok) {
+          const resJson = await res.json();
+          summary.successCount += resJson.success_count || dbPayloads.length;
+          if (options.onProgress) {
+            options.onProgress(Math.min(i + BATCH_SIZE, validItems.length), validItems.length);
+          }
+          continue;
+        }
+      } catch (err) {
+        console.warn('[AffiliateImportService] Go API bulk upsert error, attempting fallback:', err);
+      }
+    }
+
     if (isSupabaseConfigured) {
       try {
         const { data, error } = await supabase

@@ -508,6 +508,22 @@ export async function saveAffiliateProduct(payload: Partial<AffiliateProduct>): 
     return savedItem;
   };
 
+  const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080').replace(/\/$/, '');
+  if (apiBaseUrl) {
+    try {
+      const res = await fetch(`${apiBaseUrl}/api/v1/affiliate-products`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(cleanData)
+      });
+      if (res.ok) {
+        return saveToLocal(cleanData);
+      }
+    } catch (err) {
+      console.warn('[AffiliateService] Go API save error, using fallback:', err);
+    }
+  }
+
   if (!isSupabaseConfigured) {
     return saveToLocal(payload);
   }

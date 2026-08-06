@@ -427,7 +427,183 @@ func handleCategories(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleAffiliateProducts(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodPost || r.Method == http.MethodPut {
+		var items []map[string]interface{}
+		bodyBytes, err := io.ReadAll(io.LimitReader(r.Body, 10*1024*1024))
+		if err != nil {
+			respondJSON(w, http.StatusBadRequest, map[string]string{"error": "failed reading request body"})
+			return
+		}
+		bodyBytes = bytes.TrimSpace(bodyBytes)
+		if len(bodyBytes) == 0 {
+			respondJSON(w, http.StatusBadRequest, map[string]string{"error": "empty payload"})
+			return
+		}
+
+		if bodyBytes[0] == '[' {
+			if err := json.Unmarshal(bodyBytes, &items); err != nil {
+				respondJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid json array: " + err.Error()})
+				return
+			}
+		} else {
+			var single map[string]interface{}
+			if err := json.Unmarshal(bodyBytes, &single); err != nil {
+				respondJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid json object: " + err.Error()})
+				return
+			}
+			items = append(items, single)
+		}
+
+		tx, err := db.Begin()
+		if err != nil {
+			respondJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+			return
+		}
+		stmt, err := tx.Prepare(`
+			INSERT OR REPLACE INTO affiliate_products (
+				id, source, merchant, campaign_id, site_id, site_url, external_product_id,
+				name, slug, description, image_url, product_url, affiliate_url, price,
+				original_price, discount_percent, commission_rate, shop_name, category,
+				brand, item_sold, item_rating, is_active, created_at, updated_at
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		`)
+		if err != nil {
+			tx.Rollback()
+			respondJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+			return
+		}
+		defer stmt.Close()
+
+		now := time.Now().UTC().Format(time.RFC3339)
+		successCount := 0
+
+		for _, item := range items {
+			getStr := func(k string) string {
+				if v, ok := item[k]; ok && v != nil {
+					return fmt.Sprintf("%v", v)
+				}
+				return ""
+			}
+			getFloat := func(k string) float64 {
+				if v, ok := item[k]; ok && v != nil {
+					switch val := v.(type) {
+					case float64:
+						return val
+					case string:
+						f, _ := strconv.ParseFloat(val, 64)
+						return f
+					}
+				}
+				return 0.0
+			}
+			getInt := func(k string) int {
+				if v, ok := item[k]; ok && v != nil {
+					switch val := v.(type) {
+					case float64:
+						return int(val)
+					case string:
+						i, _ := strconv.Atoi(val)
+						return i
+					}
+				}
+				return 0
+			}
+
+			id := getStr("id")
+			if id == "" {
+				id = "aff-" + strconv.FormatInt(time.Now().UnixNano(), 36)
+			}
+			name := getStr("name")
+			if name == "" {
+				continue
+			}
+			affURL := getStr("affiliate_url")
+			if affURL == "" {
+				affURL = getStr("product_url")
+			}
+
+			merchant := strings.ToLower(getStr("merchant"))
+			urlLower := strings.ToLower(affURL + " " + getStr("product_url") + " " + name + " " + merchant)
+			if strings.Contains(urlLower, "traveloka") {
+				merchant = "traveloka"
+			} else if strings.Contains(urlLower, "blibli") {
+				merchant = "blibli"
+			} else if strings.Contains(urlLower, "tokopedia") || strings.Contains(urlLower, "tokope") {
+				merchant = "tokopedia"
+			} else if strings.Contains(urlLower, "lazada") {
+				merchant = "lazada"
+			} else if strings.Contains(urlLower, "tiktok") {
+				merchant = "tiktok_shop"
+			} else if merchant == "" {
+				merchant = "shopee"
+			}
+
+			createdAt := getStr("created_at")
+			if createdAt == "" {
+				createdAt = now
+			}
+
+			_, err := stmt.Exec(
+				id,
+				getStr("source"),
+				merchant,
+				getStr("campaign_id"),
+				getStr("site_id"),
+				getStr("site_url"),
+				getStr("external_product_id"),
+				name,
+				getStr("slug"),
+				getStr("description"),
+				getStr("image_url"),
+				getStr("product_url"),
+				affURL,
+				getFloat("price"),
+				getFloat("original_price"),
+				getFloat("discount_percent"),
+				getFloat("commission_rate"),
+				getStr("shop_name"),
+				getStr("category"),
+				getStr("brand"),
+				getInt("item_sold"),
+				getFloat("item_rating"),
+				1,
+				createdAt,
+				now,
+			)
+			if err == nil {
+				successCount++
+			}
+		}
+
+		if err := tx.Commit(); err != nil {
+			respondJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+			return
+		}
+
+		respondJSON(w, http.StatusOK, map[string]interface{}{
+			"status":        "success",
+			"success_count": successCount,
+			"total":         len(items),
+		})
+		return
+	}
+
 	q := r.URL.Query()
+	if r.Method == http.MethodDelete {
+		id := q.Get("id")
+		if id == "" {
+			respondJSON(w, http.StatusBadRequest, map[string]string{"error": "id parameter required"})
+			return
+		}
+		_, err := db.Exec("DELETE FROM affiliate_products WHERE id = ?", id)
+		if err != nil {
+			respondJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+			return
+		}
+		respondJSON(w, http.StatusOK, map[string]interface{}{"status": "success", "deleted_id": id})
+		return
+	}
+
 	page, _ := strconv.Atoi(q.Get("page"))
 	if page < 1 {
 		page = 1
@@ -776,7 +952,9 @@ func middlewareCORS(next http.Handler) http.Handler {
 func middlewareCacheControl(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Static/Read-only product catalog is highly cacheable
-		if r.Method == http.MethodGet && r.URL.Path != "/health" && r.URL.Path != "/api/v1/store-profile" {
+		if r.Method == http.MethodGet && r.URL.Path == "/api/v1/affiliate-products" {
+			w.Header().Set("Cache-Control", "public, max-age=300, s-maxage=900, stale-while-revalidate=60")
+		} else if r.Method == http.MethodGet && r.URL.Path != "/health" && r.URL.Path != "/api/v1/store-profile" {
 			w.Header().Set("Cache-Control", "public, max-age=3600, s-maxage=86400")
 		} else {
 			w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
