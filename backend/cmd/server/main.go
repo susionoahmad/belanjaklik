@@ -139,7 +139,7 @@ func main() {
 
 	// Clean duplicate affiliate products if any exist from previous test runs
 	if _, err := db.Exec(`DELETE FROM affiliate_products WHERE rowid NOT IN (
-		SELECT MIN(rowid) FROM affiliate_products GROUP BY merchant, COALESCE(NULLIF(external_product_id, ''), slug, id)
+		SELECT MAX(rowid) FROM affiliate_products GROUP BY LOWER(TRIM(COALESCE(merchant, ''))), LOWER(TRIM(name))
 	)`); err != nil {
 		log.Printf("[API-SERVER] Warning: duplicate cleanup failed: %v", err)
 	}
@@ -551,7 +551,8 @@ func handleAffiliateProducts(w http.ResponseWriter, r *http.Request) {
 				} else if slug != "" {
 					id = "aff-" + slug
 				} else {
-					id = "aff-" + merchant + "-" + strconv.FormatInt(time.Now().UnixNano(), 36)
+					h := sha256.Sum256([]byte(merchant + "|" + name + "|" + affURL))
+					id = "aff-" + merchant + "-" + hex.EncodeToString(h[:8])
 				}
 			}
 			if len(id) > 90 {
