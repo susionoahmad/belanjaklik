@@ -54,10 +54,10 @@ load_env_file()
 
 # Path file mentah hasil download dari ACCESSTRADE.
 # Bisa .csv atau .xlsx -- script ini otomatis mendeteksi dari ekstensi.
-INPUT_FILE = "product_list_966_20260804.CSV"
+INPUT_FILE = "product_list_966_20260806-fashion.CSV"
 
 # Nama file hasil filter (akan dibuat / ditimpa).
-OUTPUT_FILE = "product_list_966_20260804_FILTERED.csv"
+OUTPUT_FILE = "product_list_966_20260806-fashion_FILTERED.csv"
 
 # Sinkronkan otomatis hasil filter ke database SQLite lokal.
 AUTO_SYNC_TO_LOCAL_DB = True
@@ -387,6 +387,9 @@ def main():
 
     if AUTO_SYNC_TO_LOCAL_DB:
         sync_to_local_db(df_output, LOCAL_DB_PATH)
+
+    if AUTO_UPLOAD_TO_GO_API:
+        upload_to_go_api(df_output, GO_API_URL)
 
     if AUTO_UPLOAD_TO_SUPABASE:
         upload_to_supabase(df_output, SUPABASE_URL, SUPABASE_KEY)
@@ -802,14 +805,27 @@ def upload_to_supabase(df: pd.DataFrame, supabase_url: str, supabase_key: str):
 
     print(f"\nSelesai! Total {total_uploaded:,} produk berhasil diproses ke Supabase.")
 
-    if AUTO_UPLOAD_TO_GO_API:
-        upload_to_go_api(records, GO_API_URL)
-
-
-def upload_to_go_api(records, api_url):
+def upload_to_go_api(data_input, api_url: str):
     """Upload/Upsert filtered records directly to Go Backend API on GCP VM."""
-    if not records:
+    if data_input is None:
         return
+    if isinstance(data_input, pd.DataFrame):
+        if len(data_input) == 0:
+            return
+        records = data_input.to_dict(orient="records")
+    elif isinstance(data_input, list):
+        if len(data_input) == 0:
+            return
+        records = data_input
+    else:
+        return
+
+    # Clean NaNs for clean JSON serialization
+    for rec in records:
+        for k, v in list(rec.items()):
+            if pd.isna(v):
+                rec[k] = None
+
     endpoint = f"{api_url.rstrip('/')}/api/v1/affiliate-products"
     print(f"\n============================================================")
     print(f"[Go API Sync] Meng-upload {len(records):,} produk ter-filter ke Live Server GCP VM ({endpoint})...")
@@ -818,7 +834,7 @@ def upload_to_go_api(records, api_url):
     total_success = 0
     for i in range(0, len(records), batch_size):
         batch = records[i:i + batch_size]
-        data_json = json.dumps(batch).encode('utf-8')
+        data_json = json.dumps(batch, ensure_ascii=False).encode('utf-8')
         req = urllib.request.Request(endpoint, data=data_json, headers={"Content-Type": "application/json"}, method='POST')
         try:
             with urllib.request.urlopen(req) as resp:
