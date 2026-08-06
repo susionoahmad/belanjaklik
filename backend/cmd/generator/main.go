@@ -160,10 +160,7 @@ func loadEnv() map[string]string {
 
 func createTables(db *sql.DB) {
 	schema := `
-	DROP TABLE IF EXISTS products;
-	DROP TABLE IF EXISTS affiliate_products;
-
-	CREATE TABLE products (
+	CREATE TABLE IF NOT EXISTS products (
 		id TEXT PRIMARY KEY,
 		name TEXT NOT NULL,
 		slug TEXT,
