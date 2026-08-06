@@ -55,9 +55,9 @@
           </h2>
           <p class="text-xs text-gray-500">Penawaran harga promo Shopee, Tokopedia & Blibli pilihan terbaik dari saringan AI</p>
         </div>
-        <router-link to="/affiliate" class="text-xs font-bold text-brand-red hover:underline self-start sm:self-auto">
+        <a href="/affiliate" class="text-xs font-bold text-brand-red hover:underline self-start sm:self-auto">
           Lihat Semua Promo ({{ affiliateProducts.length }}+)
-        </router-link>
+        </a>
       </div>
 
       <!-- Tab Filter Kategori Populer -->
