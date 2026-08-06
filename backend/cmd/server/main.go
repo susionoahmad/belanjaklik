@@ -276,6 +276,10 @@ func handleAffiliateProducts(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
+	if value := q.Get("slug"); value != "" {
+		where = append(where, "slug = ?")
+		args = append(args, value)
+	}
 	if value := q.Get("search"); value != "" {
 		where = append(where, "(name LIKE ? OR category LIKE ? OR shop_name LIKE ?)")
 		term := "%" + value + "%"

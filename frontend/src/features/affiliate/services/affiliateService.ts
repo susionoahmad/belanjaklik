@@ -239,7 +239,15 @@ export async function getAffiliateProductBySlug(slug: string): Promise<Affiliate
   // 1. Try Go Backend API (Local / GCP VM) by exact slug
   try {
     const apiBase = getApiBaseUrl();
-    let res = await fetch(`${apiBase}/api/v1/products?slug=${encodeURIComponent(slug)}`);
+    let res = await fetch(`${apiBase}/api/v1/affiliate-products?slug=${encodeURIComponent(slug)}&active=all&limit=1`);
+    if (res.ok) {
+      const json = await res.json();
+      if (json.data && Array.isArray(json.data) && json.data.length > 0 && json.data[0].slug === slug) {
+        return mapItem(json.data[0]);
+      }
+    }
+
+    res = await fetch(`${apiBase}/api/v1/products?slug=${encodeURIComponent(slug)}`);
     if (res.ok) {
       const json = await res.json();
       if (json.data && Array.isArray(json.data) && json.data.length > 0) {
