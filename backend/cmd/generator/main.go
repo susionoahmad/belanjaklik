@@ -159,6 +159,12 @@ func loadEnv() map[string]string {
 }
 
 func createTables(db *sql.DB) {
+	// Auto-migrate missing columns for legacy database files
+	db.Exec("ALTER TABLE products ADD COLUMN brand TEXT;")
+	db.Exec("ALTER TABLE products ADD COLUMN purchase_method TEXT DEFAULT 'owner_checkout';")
+	db.Exec("ALTER TABLE affiliate_products ADD COLUMN brand TEXT;")
+	db.Exec("ALTER TABLE affiliate_products ADD COLUMN purchase_method TEXT DEFAULT 'coming_soon';")
+
 	schema := `
 	CREATE TABLE IF NOT EXISTS products (
 		id TEXT PRIMARY KEY,
