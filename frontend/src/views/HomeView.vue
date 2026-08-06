@@ -192,6 +192,8 @@ const promotionStore = usePromotionStore();
 const selectedProduct = ref<Product | null>(null);
 const affiliateProducts = ref<AffiliateProduct[]>([]);
 const activeAffiliateCategory = ref('all');
+const homeDataLoadStarted = ref(false);
+const HOME_AFFILIATE_CACHE_KEY = 'psa_home_affiliate_products_v1';
 
 const affiliateCategoryTabs = [
   { id: 'all', name: 'Semua Promo', icon: '🔥' },
@@ -249,14 +251,32 @@ const rotateMarketplaceProducts = (products: AffiliateProduct[]): AffiliateProdu
   return rotated;
 };
 
+const hydrateAffiliateCache = () => {
+  if (typeof window === 'undefined') return;
+  try {
+    const cached = JSON.parse(localStorage.getItem(HOME_AFFILIATE_CACHE_KEY) || 'null');
+    if (Array.isArray(cached?.products) && cached.products.length > 0) {
+      affiliateProducts.value = rotateMarketplaceProducts(cached.products);
+    }
+  } catch (e) {
+    localStorage.removeItem(HOME_AFFILIATE_CACHE_KEY);
+  }
+};
+
 const loadHomeData = async () => {
+  if (homeDataLoadStarted.value) return;
+  homeDataLoadStarted.value = true;
+  hydrateAffiliateCache();
   catalogStore.fetchCatalogData().catch(e => console.warn('[HomeView] catalogStore fetch error:', e));
   shoppingStore.fetchShoppingData().catch(e => console.warn('[HomeView] shoppingStore fetch error:', e));
 
   await Promise.all([
     promotionStore.loadCampaignBanners().catch(e => console.warn('[HomeView] promotionStore load error:', e)),
-    getActiveAffiliateProducts({ limit: 60, vertical: 'marketplace', mixMerchants: true }).then(res => {
+    getActiveAffiliateProducts({ limit: 24, vertical: 'marketplace', mixMerchants: true }).then(res => {
       affiliateProducts.value = rotateMarketplaceProducts(res);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(HOME_AFFILIATE_CACHE_KEY, JSON.stringify({ savedAt: Date.now(), products: res }));
+      }
     })
   ]);
 };
@@ -270,7 +290,8 @@ onMounted(async () => {
   if (
     catalogStore.products.length === 0 ||
     shoppingStore.templates.length === 0 ||
-    affiliateProducts.value.length === 0
+    affiliateProducts.value.length === 0 ||
+    !homeDataLoadStarted.value
   ) {
     await loadHomeData();
   }

@@ -34,7 +34,23 @@ export async function getActiveAffiliateProducts(options?: {
   search?: string;
   mixMerchants?: boolean;
 }): Promise<AffiliateProduct[]> {  try {
-    const local = await fetchLocalAffiliateProducts({ page: options?.page || 1, limit: options?.limit || 40, merchant: options?.merchant, vertical: options?.vertical, category: options?.category, search: options?.search, sort: options?.sort });
+    const fetchLimit = options?.limit || 40;
+    const page = options?.page || 1;
+    if (options?.mixMerchants && options?.vertical === 'marketplace' && !options?.merchant && !options?.search) {
+      const merchants = ['shopee', 'tokopedia', 'blibli'];
+      const perMerchant = Math.ceil(fetchLimit / merchants.length);
+      const responses = await Promise.all(merchants.map(merchant =>
+        fetchLocalAffiliateProducts({ page, limit: perMerchant, merchant, vertical: options.vertical, category: options.category, sort: options.sort })
+      ));
+      const lists = responses.map(response => (response.data || []) as AffiliateProduct[]);
+      const combined: AffiliateProduct[] = [];
+      const maxLength = Math.max(...lists.map(list => list.length), 0);
+      for (let i = 0; i < maxLength; i++) {
+        for (const list of lists) if (list[i]) combined.push(list[i]);
+      }
+      if (combined.length) return combined.slice(0, fetchLimit);
+    }
+    const local = await fetchLocalAffiliateProducts({ page, limit: fetchLimit, merchant: options?.merchant, vertical: options?.vertical, category: options?.category, search: options?.search, sort: options?.sort });
     if (local.data?.length) return local.data as AffiliateProduct[];
   } catch (err) {
     console.warn('[AffiliateService] Local API unavailable, using fallback:', err);
