@@ -518,7 +518,7 @@ export const dataService = {
       try {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 2500);
-        const res = await fetch(`${apiBaseUrl}/api/v1/products?limit=10000`, { signal: controller.signal });
+        const res = await fetch(`${apiBaseUrl}/api/v1/products?limit=1000`, { signal: controller.signal });
         clearTimeout(timeoutId);
         if (res.ok) {
           const json = await res.json();

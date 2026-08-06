@@ -216,10 +216,7 @@ func handleAffiliateProducts(w http.ResponseWriter, r *http.Request) {
 		respondJSON(w, 500, map[string]string{"error": err.Error()})
 		return
 	}
-	orderBy := "ORDER BY created_at DESC"
-	if q.Get("merchant") == "" || q.Get("merchant") == "all" {
-		orderBy = "ORDER BY (ROW_NUMBER() OVER (PARTITION BY merchant ORDER BY id ASC)), merchant ASC"
-	}
+	orderBy := "ORDER BY created_at DESC, id DESC"
 	query := "SELECT * FROM affiliate_products" + whereSQL + " " + orderBy + " LIMIT ? OFFSET ?"
 	queryArgs := append(args, limit, (page-1)*limit)
 	rows, err := db.Query(query, queryArgs...)
