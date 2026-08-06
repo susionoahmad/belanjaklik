@@ -31,6 +31,8 @@ import html
 import json
 import urllib.request
 import urllib.parse
+import sqlite3
+import uuid
 from datetime import datetime, timezone
 
 def load_env_file():
@@ -52,13 +54,17 @@ load_env_file()
 
 # Path file mentah hasil download dari ACCESSTRADE.
 # Bisa .csv atau .xlsx -- script ini otomatis mendeteksi dari ekstensi.
-INPUT_FILE = "product_list_966_20260727.csv"
+INPUT_FILE = "product_list_966_20260804.CSV"
 
 # Nama file hasil filter (akan dibuat / ditimpa).
-OUTPUT_FILE = "product_list_966_20260727_FILTERED.csv"
+OUTPUT_FILE = "product_list_966_20260804_FILTERED.csv"
+
+# Sinkronkan otomatis hasil filter ke database SQLite lokal.
+AUTO_SYNC_TO_LOCAL_DB = True
+LOCAL_DB_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "backend", "katalog.db"))
 
 # Set True jika ingin hasil saringan LANGSUNG diupload ke Supabase!
-AUTO_UPLOAD_TO_SUPABASE = True
+AUTO_UPLOAD_TO_SUPABASE = False
 
 # Supabase Credentials (otomatis dibaca dari file .env)
 SUPABASE_URL = os.getenv("VITE_SUPABASE_URL") or os.getenv("SUPABASE_URL")
@@ -106,6 +112,7 @@ COLUMN_MAPPING = {
     "Product URL Web": "product_url",
     "Site ID": "site_id",
     "Site URL": "site_url",
+    "Merchant": "merchant",
 
     "Description": "description",
     "Price": "price",
@@ -374,11 +381,117 @@ def main():
     print(f"\nSelesai. File hasil filter disimpan di: {final_path}")
     print(f"Ukuran akhir: {len(df_output):,} baris -- jauh lebih aman untuk diimport ke Supabase.")
 
+    if AUTO_SYNC_TO_LOCAL_DB:
+        sync_to_local_db(df_output, LOCAL_DB_PATH)
+
     if AUTO_UPLOAD_TO_SUPABASE:
         upload_to_supabase(df_output, SUPABASE_URL, SUPABASE_KEY)
 
 
 import hashlib
+
+def sync_to_local_db(df: pd.DataFrame, db_path: str):
+    """Upsert hasil filter ke SQLite lokal tanpa menghapus produk toko."""
+    if not db_path:
+        return
+    if not os.path.exists(db_path):
+        print(f"\n[LOCAL DB] Database tidak ditemukan: {db_path}")
+        return
+
+    site_id = str(ACCESSTRADE_SITE_ID or "legacy").strip() or "legacy"
+    campaign_id = str(ACCESSTRADE_CAMPAIGN_ID or "direct_csv").strip() or "direct_csv"
+    now_iso = datetime.now(timezone.utc).isoformat()
+    conn = sqlite3.connect(db_path, timeout=30)
+    conn.execute("PRAGMA busy_timeout = 30000")
+    try:
+        columns = {row[1] for row in conn.execute("PRAGMA table_info(affiliate_products)")}
+        required = {"id", "merchant", "campaign_id", "site_id", "external_product_id", "name", "affiliate_url"}
+        missing = required - columns
+        if missing:
+            raise RuntimeError(f"Kolom affiliate_products kurang: {', '.join(sorted(missing))}")
+
+        existing = {}
+        existing_by_merchant_external = {}
+        existing_by_merchant_url = {}
+        select_columns = "id, merchant, campaign_id, site_id, external_product_id, product_url"
+        for row in conn.execute(f"SELECT {select_columns} FROM affiliate_products"):
+            row_id, merchant, campaign, row_site, external_id, product_url = row
+            if external_id:
+                existing[(str(merchant or "").lower(), str(campaign or ""), str(row_site or "legacy"), str(external_id).lower())] = row_id
+                existing_by_merchant_external[(str(merchant or "").lower(), str(external_id).lower())] = row_id
+            if product_url:
+                existing[(str(merchant or "").lower(), str(campaign or ""), str(row_site or "legacy"), f"url:{str(product_url).strip().lower()}")] = row_id
+                existing_by_merchant_url[(str(merchant or "").lower(), str(product_url).strip().lower())] = row_id
+
+        updatable = [
+            "source", "merchant", "campaign_id", "site_id", "site_url", "external_product_id",
+            "name", "slug", "description", "image_url", "product_url", "affiliate_url", "price",
+            "original_price", "discount_percent", "item_sold", "item_rating", "shop_name", "category",
+            "brand", "is_active", "updated_at"
+        ]
+        optional_values = {
+            "vertical": lambda merchant: "travel" if merchant == "traveloka" else "marketplace",
+            "offer_type": lambda merchant: "booking" if merchant == "traveloka" else "product",
+            "subcategory": lambda row, category: category,
+            "last_synced_at": lambda row, category: now_iso,
+            "raw_data": lambda row, category: json.dumps({"source": "filter_product_feed", "synced_at": now_iso}, ensure_ascii=False),
+        }
+        inserted = updated = 0
+        for _, row in df.iterrows():
+            product_url = str(row.get("product_url") or "").strip()
+            affiliate_url = str(row.get("affiliate_url") or "").strip()
+            name = str(row.get("name") or "").strip()
+            if not name or not affiliate_url:
+                continue
+            source_text = " ".join(str(row.get(key) or "") for key in ("merchant", "product_url", "affiliate_url")) + " " + str(INPUT_FILE)
+            source_lower = source_text.lower()
+            if "traveloka" in source_lower or "travel" in source_lower:
+                merchant = "traveloka"
+            elif "blibli" in source_lower:
+                merchant = "blibli"
+            elif "tokopedia" in source_lower or "tokope" in source_lower:
+                merchant = "tokopedia"
+            elif "shopee" in source_lower:
+                merchant = "shopee"
+            elif "lazada" in source_lower:
+                merchant = "lazada"
+            else:
+                merchant = str(row.get("merchant") or "accesstrade").strip().lower()
+            external_id = str(row.get("external_product_id") or "").replace("\ufeff", "").strip()
+            if not external_id or external_id.lower() == "nan":
+                external_id = "url_" + hashlib.md5(product_url.encode("utf-8")).hexdigest()[:12]
+            category = str(row.get("sub_category") or row.get("category") or "").strip() or None
+            price = float(row.get("price") or 0) if str(row.get("price") or "").replace(".", "", 1).isdigit() else 0
+            original_price = float(row.get("original_price") or 0) if str(row.get("original_price") or "").replace(".", "", 1).isdigit() else None
+            key = (merchant, campaign_id, site_id, external_id.lower())
+            row_id = (existing.get(key) or (existing.get((merchant, campaign_id, site_id, f"url:{product_url.lower()}")) if product_url else None) or existing_by_merchant_external.get((merchant, external_id.lower())) or (existing_by_merchant_url.get((merchant, product_url.lower())) if product_url else None))
+            payload = {
+                "source": "accesstrade", "merchant": merchant, "campaign_id": campaign_id, "site_id": site_id,
+                "site_url": str(row.get("site_url") or ACCESSTRADE_SITE_URL or ""), "external_product_id": external_id,
+                "name": name, "slug": generate_slug(name, external_id, merchant), "description": row.get("description"),
+                "image_url": row.get("image_url"), "product_url": product_url or None, "affiliate_url": affiliate_url,
+                "price": price, "original_price": original_price, "discount_percent": row.get("discount_percent"),
+                "item_sold": int(float(row.get("item_sold") or 0)), "item_rating": float(row.get("item_rating") or 0),
+                "shop_name": row.get("shop_name") or row.get("brand"), "category": category, "brand": row.get("brand"),
+                "is_active": 1, "updated_at": now_iso,
+            }
+            for column, factory in optional_values.items():
+                if column in columns:
+                    payload[column] = factory(merchant) if column in ("vertical", "offer_type") else factory(row, category)
+            if row_id:
+                set_columns = [column for column in payload if column in columns and column != "id"]
+                conn.execute(f"UPDATE affiliate_products SET {', '.join(f'\"{column}\" = ?' for column in set_columns)} WHERE id = ?", [payload[column] for column in set_columns] + [row_id])
+                updated += 1
+            else:
+                if "id" in columns:
+                    payload["id"] = str(uuid.uuid4())
+                insert_columns = [column for column in payload if column in columns]
+                conn.execute(f"INSERT INTO affiliate_products ({', '.join(f'\"{column}\"' for column in insert_columns)}) VALUES ({', '.join('?' for _ in insert_columns)})", [payload[column] for column in insert_columns])
+                inserted += 1
+        conn.commit()
+        print(f"[LOCAL DB] Selesai: {updated:,} update, {inserted:,} insert -> {db_path}")
+    finally:
+        conn.close()
 
 def extract_clean_merchant_url(url_str: str) -> str:
     if not url_str or str(url_str).lower() == 'nan':

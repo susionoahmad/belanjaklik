@@ -202,9 +202,9 @@ func handleAffiliateProducts(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if value := q.Get("search"); value != "" {
-		where = append(where, "(name LIKE ? OR category LIKE ? OR shop_name LIKE ? OR brand LIKE ?)")
+		where = append(where, "(name LIKE ? OR category LIKE ? OR shop_name LIKE ?)")
 		term := "%" + value + "%"
-		args = append(args, term, term, term, term)
+		args = append(args, term, term, term)
 	}
 	whereSQL := ""
 
