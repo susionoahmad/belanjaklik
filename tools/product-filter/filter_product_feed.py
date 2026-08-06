@@ -835,7 +835,15 @@ def upload_to_go_api(data_input, api_url: str):
     for i in range(0, len(records), batch_size):
         batch = records[i:i + batch_size]
         data_json = json.dumps(batch, ensure_ascii=False).encode('utf-8')
-        req = urllib.request.Request(endpoint, data=data_json, headers={"Content-Type": "application/json"}, method='POST')
+        req = urllib.request.Request(
+            endpoint, 
+            data=data_json, 
+            headers={
+                "Content-Type": "application/json",
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            }, 
+            method='POST'
+        )
         try:
             with urllib.request.urlopen(req) as resp:
                 if resp.status in (200, 201):
