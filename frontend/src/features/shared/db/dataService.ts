@@ -2,6 +2,7 @@ import { supabase, isSupabaseConfigured } from './supabaseClient';
 import { offlineDb } from './offlineDb';
 import type { Product, Category, FulfillmentChannel, ShoppingTemplate, ShoppingRequest, StoreProfile, ProductSource } from '../types';
 import { normalizePromoType } from '../types';
+import { getApiBaseUrl } from './localApi';
 
 // INITIAL FALLBACK DATASET FOR IMMEDIATE OFFLINE / MOCK DEMO EXECUTION
 const DEFAULT_CHANNELS: FulfillmentChannel[] = [
@@ -513,7 +514,7 @@ export const dataService = {
 
     let baseList: Product[] = [];
     // 1. Try Go Backend Microservice API (SQLite)
-    const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080').replace(/\/$/, '');
+    const apiBaseUrl = getApiBaseUrl();
     if (apiBaseUrl) {
       try {
         const controller = new AbortController();

@@ -1,6 +1,18 @@
 import type { Product } from '../types';
 
-export const localApiBaseUrl = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080').replace(/\/$/, '');
+export function getApiBaseUrl(): string {
+  const configured = String(import.meta.env.VITE_API_BASE_URL || '').trim().replace(/\/$/, '');
+  const isLocalHost = typeof window === 'undefined' || ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname);
+  if (configured && (isLocalHost || !/localhost|127\.0\.0\.1/.test(configured))) return configured;
+
+  if (!isLocalHost) {
+    return 'https://api.belanjaklik.my.id';
+  }
+
+  return 'http://localhost:8081';
+}
+
+export const localApiBaseUrl = getApiBaseUrl();
 
 export interface LocalProductResponse {
   status: string;

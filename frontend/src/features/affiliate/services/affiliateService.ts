@@ -1,7 +1,7 @@
 import { supabase, isSupabaseConfigured } from '@/features/shared/db/supabaseClient';
 import type { AffiliateProduct } from '../types';
 import { extractSiteIdFromAffiliateUrl, normaliseSiteId } from './affiliateLinkUtils';
-import { fetchLocalAffiliateProducts } from '@/features/shared/db/localApi';
+import { fetchLocalAffiliateProducts, getApiBaseUrl } from '@/features/shared/db/localApi';
 
 const OFFLINE_AFFILIATE_KEY = 'psa_offline_affiliate_products';
 
@@ -238,7 +238,7 @@ export async function getAffiliateProductBySlug(slug: string): Promise<Affiliate
 
   // 1. Try Go Backend API (Local / GCP VM) by exact slug
   try {
-    const apiBase = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8081').replace(/\/$/, '');
+    const apiBase = getApiBaseUrl();
     let res = await fetch(`${apiBase}/api/v1/products?slug=${encodeURIComponent(slug)}`);
     if (res.ok) {
       const json = await res.json();
