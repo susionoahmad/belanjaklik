@@ -2,11 +2,11 @@
   "cleanUrls": true,
   "rewrites": [
     {
-      "source": "/api/(.*)",
-      "destination": "https://api.belanjaklik.my.id/api/$1"
+      "source": "/api/:path*",
+      "destination": "https://api.belanjaklik.my.id/api/:path*"
     },
     {
-      "source": "/(.*)",
+      "source": "/:path*",
       "destination": "/index.html"
     }
   ],
