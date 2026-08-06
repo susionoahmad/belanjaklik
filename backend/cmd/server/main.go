@@ -91,6 +91,7 @@ func main() {
 	mux.HandleFunc("/api/v1/health", handleHealth)
 	mux.HandleFunc("/api/v1/products", handleProductsRouter)
 	mux.HandleFunc("/api/v1/affiliate-products", handleAffiliateProducts)
+	mux.HandleFunc("/api/v1/affiliate-product", handleAffiliateProducts)
 	mux.HandleFunc("/api/v1/categories", handleCategories)
 
 	// Apply Middlewares: CORS -> Gzip -> Cache Headers
@@ -141,13 +142,22 @@ func handleRoot(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func handleHealth(w http.ResponseWriter, r *http.Request) {
-	uptimeSeconds := int(time.Since(startTime).Seconds())
-	respondJSON(w, http.StatusOK, map[string]interface{}{
-		"status":         "ok",
-		"timestamp":      time.Now().Format(time.RFC3339),
-		"uptime_seconds": uptimeSeconds,
-	})
+func handleCategories(w http.ResponseWriter, r *http.Request) {
+	rows, err := db.Query("SELECT DISTINCT category FROM all_products WHERE category IS NOT NULL AND category != '' ORDER BY category ASC")
+	if err != nil {
+		respondJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
+	defer rows.Close()
+
+	var categories []string
+	for rows.Next() {
+		var cat string
+		if err := rows.Scan(&cat); err == nil {
+			categories = append(categories, cat)
+		}
+	}
+	respondJSON(w, http.StatusOK, map[string]interface{}{"status": "success", "data": categories})
 }
 
 func handleAffiliateProducts(w http.ResponseWriter, r *http.Request) {
