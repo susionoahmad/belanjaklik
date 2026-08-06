@@ -151,6 +151,8 @@ const DEFAULT_TEMPLATES: ShoppingTemplate[] = [
   }
 ];
 
+let activeProductsPromise: Promise<Product[]> | null = null;
+let activeProductsPromiseTime = 0;
 
 export const dataService = {
   // CATEGORIES
@@ -412,8 +414,18 @@ export const dataService = {
     await offlineDb.setSources(filtered);
   },
 
+  invalidateProductsCache() {
+    activeProductsPromise = null;
+  },
+
   // PRODUCTS
   async fetchProducts(): Promise<Product[]> {
+    const now = Date.now();
+    if (activeProductsPromise && (now - activeProductsPromiseTime < 30000)) {
+      return activeProductsPromise;
+    }
+    activeProductsPromiseTime = now;
+    activeProductsPromise = (async () => {
     const inferCategoryIdByName = (name: string, categoryStr?: string): { id: string; name: string } => {
       const n = (name + ' ' + (categoryStr || '')).toLowerCase();
 
@@ -685,6 +697,11 @@ export const dataService = {
 
     await offlineDb.setProducts(sanitized);
     return sanitized;
+    })().catch(err => {
+      activeProductsPromise = null;
+      throw err;
+    });
+    return activeProductsPromise;
   },
 
   // SHOPPING TEMPLATES
