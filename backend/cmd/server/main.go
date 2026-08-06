@@ -46,6 +46,16 @@ type ProductItem struct {
 	CreatedAt           string  `json:"created_at"`
 }
 
+// StoreProfile contains the public store contact data used for WhatsApp orders.
+type StoreProfile struct {
+	Name          string `json:"name"`
+	Phone         string `json:"phone"`
+	Owner         string `json:"owner"`
+	Address       string `json:"address"`
+	BusinessHours string `json:"business_hours"`
+	DeliveryInfo  string `json:"delivery_info"`
+}
+
 // APIResponse represents standard pagination metadata response
 type APIResponse struct {
 	Status     string        `json:"status"`
@@ -66,8 +76,8 @@ func main() {
 	}
 
 	var err error
-	// Open SQLite database in read-only mode for maximum performance & concurrency safety
-	connStr := fmt.Sprintf("file:%s?mode=ro&_journal_mode=WAL", dbPath)
+	// Open SQLite database in read-write mode for catalog settings updates
+	connStr := fmt.Sprintf("file:%s?_journal_mode=WAL", dbPath)
 	db, err = sql.Open("sqlite", connStr)
 	if err != nil {
 		log.Fatalf("Failed to connect to SQLite (%s): %v", dbPath, err)
@@ -84,6 +94,10 @@ func main() {
 		log.Printf("Warning: SQLite ping failed (%v). Ensure DB file exists at %s", err, dbPath)
 	}
 
+	if _, err := db.Exec(`CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT, description TEXT, updated_at TEXT)`); err != nil {
+		log.Fatalf("Failed to initialize settings table: %v", err)
+	}
+
 	// Router setup
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", handleRoot)
@@ -93,6 +107,7 @@ func main() {
 	mux.HandleFunc("/api/v1/affiliate-products", handleAffiliateProducts)
 	mux.HandleFunc("/api/v1/affiliate-product", handleAffiliateProducts)
 	mux.HandleFunc("/api/v1/categories", handleCategories)
+	mux.HandleFunc("/api/v1/store-profile", handleStoreProfile)
 
 	// Apply Middlewares: CORS -> Gzip -> Cache Headers
 	handler := middlewareCORS(middlewareCacheControl(middlewareGzip(mux)))
@@ -142,6 +157,66 @@ func handleRoot(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func defaultStoreProfile() StoreProfile {
+	return StoreProfile{
+		Name:          "BelanjaKlik Marketplace",
+		Phone:         "6281234567890",
+		Owner:         "Admin BelanjaKlik",
+		Address:       "Jakarta, Indonesia",
+		BusinessHours: "07:00 - 21:00 WIB",
+		DeliveryInfo:  "Pengiriman gratis radius 3 km dengan minimal pemesanan Rp 50.000",
+	}
+}
+
+func handleStoreProfile(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodGet {
+		profile := defaultStoreProfile()
+		var raw string
+		err := db.QueryRow("SELECT value FROM settings WHERE key = 'store_profile'").Scan(&raw)
+		if err == nil && raw != "" {
+			if decodeErr := json.Unmarshal([]byte(raw), &profile); decodeErr != nil {
+				log.Printf("[API-SERVER] Invalid store_profile setting: %v", decodeErr)
+			}
+		} else if err != sql.ErrNoRows && err != nil {
+			respondJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+			return
+		}
+		respondJSON(w, http.StatusOK, map[string]interface{}{"status": "success", "data": profile})
+		return
+	}
+
+	if r.Method != http.MethodPut && r.Method != http.MethodPost {
+		w.Header().Set("Allow", "GET, PUT, POST, OPTIONS")
+		respondJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
+		return
+	}
+
+	var profile StoreProfile
+	decoder := json.NewDecoder(io.LimitReader(r.Body, 64*1024))
+	if err := decoder.Decode(&profile); err != nil {
+		respondJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid profile payload"})
+		return
+	}
+	profile.Phone = strings.TrimSpace(profile.Phone)
+	if profile.Name == "" || profile.Phone == "" {
+		respondJSON(w, http.StatusBadRequest, map[string]string{"error": "name and phone are required"})
+		return
+	}
+
+	raw, err := json.Marshal(profile)
+	if err != nil {
+		respondJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		return
+	}
+	_, err = db.Exec(`INSERT INTO settings (key, value, description, updated_at)
+		VALUES ('store_profile', ?, 'Profil toko & nomor kontak WhatsApp', ?)
+		ON CONFLICT(key) DO UPDATE SET value = excluded.value, description = excluded.description, updated_at = excluded.updated_at`, string(raw), time.Now().UTC().Format(time.RFC3339))
+	if err != nil {
+		respondJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
+	respondJSON(w, http.StatusOK, map[string]interface{}{"status": "success", "data": profile})
+}
 func handleCategories(w http.ResponseWriter, r *http.Request) {
 	rows, err := db.Query("SELECT DISTINCT category FROM all_products WHERE category IS NOT NULL AND category != '' ORDER BY category ASC")
 	if err != nil {
@@ -480,7 +555,7 @@ func middlewareCORS(next http.Handler) http.Handler {
 			w.Header().Set("Access-Control-Allow-Origin", "*")
 		}
 
-		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With")
 
 		if r.Method == http.MethodOptions {
@@ -496,7 +571,7 @@ func middlewareCORS(next http.Handler) http.Handler {
 func middlewareCacheControl(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Static/Read-only product catalog is highly cacheable
-		if r.Method == http.MethodGet && r.URL.Path != "/health" {
+		if r.Method == http.MethodGet && r.URL.Path != "/health" && r.URL.Path != "/api/v1/store-profile" {
 			w.Header().Set("Cache-Control", "public, max-age=3600, s-maxage=86400")
 		} else {
 			w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")

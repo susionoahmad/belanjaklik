@@ -1027,15 +1027,21 @@ export const dataService = {
       delivery_info: 'Pengiriman gratis radius 3 km dengan minimal pemesanan Rp 50.000'
     };
 
-    if (isSupabaseConfigured) {
-      try {
-        const { data, error } = await supabase.from('settings').select('*').eq('key', 'store_profile').maybeSingle();
-        if (!error && data && data.value) {
-          return data.value as StoreProfile;
+    try {
+      const controller = new AbortController();
+      const timeoutId = window.setTimeout(() => controller.abort(), 8000);
+      const response = await fetch(`${getApiBaseUrl()}/api/v1/store-profile`, { signal: controller.signal });
+      window.clearTimeout(timeoutId);
+      if (response.ok) {
+        const json = await response.json();
+        if (json.data?.phone) {
+          const profile = json.data as StoreProfile;
+          localStorage.setItem('psa_store_profile', JSON.stringify(profile));
+          return profile;
         }
-      } catch (err) {
-        console.warn('Supabase fetchStoreProfile error', err);
       }
+    } catch (err) {
+      console.warn('Backend fetchStoreProfile unavailable, using fallback', err);
     }
 
     const saved = localStorage.getItem('psa_store_profile');
@@ -1046,21 +1052,24 @@ export const dataService = {
   },
 
   async saveStoreProfile(profile: StoreProfile): Promise<StoreProfile> {
-    localStorage.setItem('psa_store_profile', JSON.stringify(profile));
-
-    if (isSupabaseConfigured) {
-      try {
-        await supabase.from('settings').upsert({
-          key: 'store_profile',
-          value: profile,
-          description: 'Profil toko & nomor kontak WhatsApp',
-          updated_at: new Date().toISOString()
-        });
-      } catch (err) {
-        console.warn('Supabase saveStoreProfile error', err);
+    try {
+      const response = await fetch(`${getApiBaseUrl()}/api/v1/store-profile`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(profile)
+      });
+      if (response.ok) {
+        const json = await response.json();
+        const savedProfile = (json.data || profile) as StoreProfile;
+        localStorage.setItem('psa_store_profile', JSON.stringify(savedProfile));
+        return savedProfile;
       }
+      console.warn('Backend saveStoreProfile returned', response.status);
+    } catch (err) {
+      console.warn('Backend saveStoreProfile unavailable, saving browser fallback', err);
     }
 
+    localStorage.setItem('psa_store_profile', JSON.stringify(profile));
     return profile;
   },
 
