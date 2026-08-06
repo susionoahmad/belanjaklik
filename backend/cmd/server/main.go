@@ -312,8 +312,10 @@ func handleUnifiedProducts(w http.ResponseWriter, r *http.Request) {
 		page = 1
 	}
 	limit, _ := strconv.Atoi(query.Get("limit"))
-	if limit < 1 || limit > 1000 {
+	if limit < 1 {
 		limit = 20
+	} else if limit > 10000 {
+		limit = 10000
 	}
 	offset := (page - 1) * limit
 
