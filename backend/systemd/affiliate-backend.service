@@ -4,8 +4,8 @@ After=network.target
 
 [Service]
 Type=simple
-User=ubuntu
-Group=ubuntu
+User=ahmad
+Group=ahmad
 WorkingDirectory=/var/www/belanjaklik
 ExecStart=/var/www/belanjaklik/belanjaklik-backend
 

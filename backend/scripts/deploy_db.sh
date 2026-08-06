@@ -10,7 +10,7 @@
 set -e # Exit immediately if a command fails
 
 # KONFIGURASI SERVER GCP VM (Dapat disesuaikan atau di-override via Environment Variables)
-GCP_USER="${GCP_USER:-ubuntu}"
+GCP_USER="${GCP_USER:-ahmad}"
 GCP_HOST="${GCP_HOST:-104.198.xxx.xxx}" # Masukkan IP VM GCP atau Domain backend
 SSH_KEY="${SSH_KEY:-~/.ssh/id_rsa}"     # Path SSH Private Key
 REMOTE_DIR="${REMOTE_DIR:-/var/www/belanjaklik}"
