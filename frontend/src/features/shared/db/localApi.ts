@@ -35,7 +35,13 @@ export async function fetchLocalAffiliateProducts(options: {
 } = {}): Promise<{ data: any[]; total: number; total_pages: number }> {
   const params = new URLSearchParams({ page: String(options.page || 1), limit: String(options.limit || 50) });
   for (const [key, value] of Object.entries(options)) if (value) params.set(key, String(value));
-  const response = await fetch(`${localApiBaseUrl}/api/v1/affiliate-products?${params}`);
-  if (!response.ok) throw new Error(`Local affiliate API returned ${response.status}`);
-  return response.json();
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), 15000);
+  try {
+    const response = await fetch(`${localApiBaseUrl}/api/v1/affiliate-products?${params}`, { signal: controller.signal });
+    if (!response.ok) throw new Error(`Local affiliate API returned ${response.status}`);
+    return await response.json();
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
 }

@@ -713,9 +713,12 @@ const tabs = [
 
 onMounted(async () => {
   updatePageSeo('Admin Panel', 'Panel Pengelolaan Toko Sembako.');
-  await catalogStore.fetchCatalogData();
-  await adminStore.loadProfile();
-  channels.value = await dataService.fetchFulfillmentChannels();
+  // Jangan blokir panel affiliate menunggu katalog umum 1.000 produk selesai dimuat.
+  void catalogStore.fetchCatalogData();
+  void adminStore.loadProfile();
+  void dataService.fetchFulfillmentChannels().then((loadedChannels) => {
+    channels.value = loadedChannels;
+  });
 });
 
 const filteredAdminProducts = computed(() => {
