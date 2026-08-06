@@ -194,7 +194,7 @@ import { ref, computed, onMounted } from 'vue';
 import { Sparkles, ShoppingBag, Search, SlidersHorizontal, ChevronLeft, ChevronRight, Plane, Globe2, Store, Folder, Smartphone, HeartPulse, Utensils, Home, Shirt } from 'lucide-vue-next';
 import AffiliateProductCard from '../features/affiliate/components/AffiliateProductCard.vue';
 import type { AffiliateProduct } from '../features/affiliate/types';
-import { fetchLocalAffiliateProducts } from '../features/shared/db/localApi';
+import { getActiveAffiliateProducts } from '../features/affiliate/services/affiliateService';
 import { updatePageSeo } from '../features/shared/utils/seo';
 
 const products = ref<AffiliateProduct[]>([]);
@@ -265,15 +265,14 @@ const loadProducts = async (resetPage = false) => {
   try {
     const tab = visibleCategoryTabs.value.find(t => t.id === selectedCategory.value);
     const term = searchQuery.value.trim();
-    const result = await fetchLocalAffiliateProducts({
-      page: currentPage.value,
+    const result = await getActiveAffiliateProducts({
       limit: PAGE_SIZE,
       vertical: selectedVertical.value !== 'all' ? selectedVertical.value : undefined,
       merchant: selectedMerchant.value !== 'all' ? selectedMerchant.value : undefined,
       category: selectedCategory.value !== 'all' ? (tab?.kw?.[0] || selectedCategory.value) : undefined,
       search: term || undefined,
     });
-    products.value = (result.data || []) as AffiliateProduct[];
+    products.value = result as AffiliateProduct[];
     hasNoMore.value = products.value.length < PAGE_SIZE;
   } catch (err) {
     console.error('[AffiliateView] Exception:', err);

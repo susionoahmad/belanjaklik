@@ -1,7 +1,8 @@
 ﻿export interface AffiliateProduct {
   id: string;
   source: string;
-  merchant: 'shopee' | 'tiktok_shop' | 'tokopedia' | string;
+  brand?: string | null;
+  merchant: 'shopee' | 'tiktok_shop' | 'tokopedia' | 'blibli' | 'lazada' | 'traveloka' | string;
   vertical: 'marketplace' | 'travel' | 'digital' | string;
   subcategory?: string | null;
   country?: string | null;

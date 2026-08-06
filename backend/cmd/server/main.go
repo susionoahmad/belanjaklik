@@ -181,9 +181,9 @@ func handleAffiliateProducts(w http.ResponseWriter, r *http.Request) {
 		case "digital":
 			where = append(where, "(category LIKE '%digital%' OR category LIKE '%hosting%' OR category LIKE '%domain%' OR category LIKE '%software%' OR category LIKE '%paket data%' OR category LIKE '%pulsa%' OR category LIKE '%voucher%' OR name LIKE '%hosting%' OR name LIKE '%domain%' OR name LIKE '%vps%' OR name LIKE '%vpn%')")
 		case "travel":
-			where = append(where, "(category LIKE '%travel%' OR category LIKE '%hotel%' OR category LIKE '%tiket%' OR category LIKE '%pesawat%' OR category LIKE '%wisata%' OR merchant = 'traveloka' OR merchant = 'agoda')")
+			where = append(where, "(category LIKE '%travel%' OR category LIKE '%hotel%' OR category LIKE '%tiket%' OR category LIKE '%pesawat%' OR category LIKE '%wisata%' OR LOWER(TRIM(COALESCE(merchant, ''))) IN ('traveloka', 'agoda'))")
 		case "marketplace":
-			where = append(where, "(merchant IN ('shopee', 'tokopedia', 'blibli', 'lazada', 'tiktok') OR merchant IS NULL OR merchant = '')")
+			where = append(where, "(LOWER(TRIM(COALESCE(merchant, ''))) IN ('shopee', 'tokopedia', 'blibli', 'lazada', 'tiktok', 'tiktok_shop', 'traveloka') OR merchant IS NULL OR TRIM(merchant) = '')")
 		default:
 			where = append(where, "category LIKE ?")
 			args = append(args, "%"+vertical+"%")
@@ -193,7 +193,7 @@ func handleAffiliateProducts(w http.ResponseWriter, r *http.Request) {
 	for _, field := range []string{"merchant", "category", "brand"} {
 		if value := q.Get(field); value != "" && value != "all" {
 			if field == "merchant" {
-				where = append(where, "LOWER(merchant) LIKE ?")
+				where = append(where, "LOWER(TRIM(COALESCE(merchant, ''))) LIKE ?")
 				args = append(args, "%"+strings.ToLower(value)+"%")
 			} else {
 				where = append(where, field+" = ?")

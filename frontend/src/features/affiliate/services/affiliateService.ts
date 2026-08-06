@@ -5,6 +5,9 @@ import { fetchLocalAffiliateProducts } from '@/features/shared/db/localApi';
 
 const OFFLINE_AFFILIATE_KEY = 'psa_offline_affiliate_products';
 
+const matchesMerchant = (productMerchant: string | undefined, merchant: string): boolean =>
+  (productMerchant || '').trim().toLowerCase() === merchant.trim().toLowerCase();
+
 function getOfflineProducts(): AffiliateProduct[] {
   try {
     const raw = localStorage.getItem(OFFLINE_AFFILIATE_KEY);
@@ -26,19 +29,24 @@ export async function getActiveAffiliateProducts(options?: {
   merchant?: string;
   vertical?: string;
   subcategory?: string;
+  search?: string;
   mixMerchants?: boolean;
 }): Promise<AffiliateProduct[]> {  try {
-    const local = await fetchLocalAffiliateProducts({ page: 1, limit: options?.limit || 40, merchant: options?.merchant, vertical: options?.vertical, category: options?.category });
+    const local = await fetchLocalAffiliateProducts({ page: 1, limit: options?.limit || 40, merchant: options?.merchant, vertical: options?.vertical, category: options?.category, search: options?.search });
     if (local.data?.length) return local.data as AffiliateProduct[];
   } catch (err) {
     console.warn('[AffiliateService] Local API unavailable, using fallback:', err);
   }
   if (!isSupabaseConfigured) {
     let list = getOfflineProducts().filter(p => p.is_active);
-    if (options?.merchant) list = list.filter(p => p.merchant === options.merchant);
+    if (options?.merchant) list = list.filter(p => matchesMerchant(p.merchant, options.merchant!));
     if (options?.vertical) list = list.filter(p => p.vertical === options.vertical);
     if (options?.subcategory) list = list.filter(p => p.subcategory === options.subcategory);
     if (options?.category) list = list.filter(p => p.category === options.category);
+    if (options?.search) {
+      const search = options.search.trim().toLowerCase();
+      list = list.filter(p => [p.name, p.category, p.shop_name, p.brand].some(value => value?.toLowerCase().includes(search)));
+    }
     if (options?.limit) list = list.slice(0, options.limit);
     return list;
   }
@@ -111,10 +119,14 @@ export async function getActiveAffiliateProducts(options?: {
       .order('last_synced_at', { ascending: false });
 
     if (options?.merchant) {
-      query = query.eq('merchant', options.merchant);
+      query = query.ilike('merchant', options.merchant);
     }
     if (options?.category) {
       query = query.eq('category', options.category);
+    }
+    if (options?.search) {
+      const search = options.search.trim();
+      query = query.or(`name.ilike.%${search}%,category.ilike.%${search}%,shop_name.ilike.%${search}%,brand.ilike.%${search}%`);
     }
     if (options?.limit) {
       query = query.limit(options.limit);
@@ -336,7 +348,7 @@ export async function getAllAffiliateProductsAdmin(options?: {
       vertical: options?.vertical,
       active: 'all',
     });
-    if (local && Array.isArray(local.data)) {
+    if (local && Array.isArray(local.data) && (local.data.length > 0 || (!options?.merchant && !options?.search))) {
       return { data: local.data as AffiliateProduct[], total: local.total };
     }
   } catch (err) {
@@ -347,7 +359,7 @@ export async function getAllAffiliateProductsAdmin(options?: {
   const localList = getOfflineProducts();
   if (!isSupabaseConfigured) {
     let list = localList;
-    if (options?.merchant) list = list.filter(p => p.merchant === options.merchant);
+    if (options?.merchant) list = list.filter(p => matchesMerchant(p.merchant, options.merchant!));
     if (options?.vertical) list = list.filter(p => p.vertical === options.vertical);
     if (options?.source) list = list.filter(p => p.source === options.source);
     if (options?.search) {
@@ -371,12 +383,12 @@ export async function getAllAffiliateProductsAdmin(options?: {
       .select(ADMIN_LIST_COLUMNS, { count: 'exact' })
       .order('created_at', { ascending: false });
 
-    if (options?.merchant) query = query.eq('merchant', options.merchant);
+    if (options?.merchant) query = query.ilike('merchant', options.merchant);
     if (options?.vertical) query = query.eq('vertical', options.vertical);
     if (options?.source) query = query.eq('source', options.source);
     if (options?.search) {
-      const s = options.search.trim();
-      query = query.or(`name.ilike.%${s}%,category.ilike.%${s}%,shop_name.ilike.%${s}%`);
+      const search = options.search.trim();
+      query = query.or(`name.ilike.%${search}%,category.ilike.%${search}%,shop_name.ilike.%${search}%,brand.ilike.%${search}%`);
     }
 
     const offset = (page - 1) * pageSize;
