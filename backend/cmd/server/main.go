@@ -160,6 +160,7 @@ func main() {
 	mux.HandleFunc("/api/v1/affiliate-product", handleAffiliateProducts)
 	mux.HandleFunc("/api/v1/categories", handleCategories)
 	mux.HandleFunc("/api/v1/store-profile", handleStoreProfile)
+	mux.HandleFunc("/api/v1/campaigns", handleCampaigns)
 	mux.HandleFunc("/api/v1/admin/login", handleAdminLogin)
 	mux.HandleFunc("/api/v1/admin/logout", handleAdminLogout)
 	mux.HandleFunc("/api/v1/admin/me", handleAdminMe)
@@ -421,6 +422,167 @@ func handleStoreProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	respondJSON(w, http.StatusOK, map[string]interface{}{"status": "success", "data": profile})
+}
+
+func handleCampaigns(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodGet {
+		var rawValue string
+		err := db.QueryRow("SELECT value FROM settings WHERE key = 'promotion_campaigns'").Scan(&rawValue)
+		if err == nil && rawValue != "" {
+			var list []map[string]interface{}
+			if err := json.Unmarshal([]byte(rawValue), &list); err == nil && len(list) > 0 {
+				respondJSON(w, http.StatusOK, map[string]interface{}{"status": "success", "data": list})
+				return
+			}
+		}
+		// Default campaigns fallback
+		defaultCamps := []map[string]interface{}{
+			{
+				"id":               "camp_merdeka_88_2026",
+				"title":            "8.8 Merdeka Sale Special",
+				"slug":             "8-8-merdeka-sale",
+				"subtitle":         "Diskon Spesial Kemerdekaan Tiket & Promo Liburan hingga 45%",
+				"description":      "Dapatkan penawaran promo hotel, tiket pesawat, dan produk pilihan selama periode 8.8 Merdeka Sale.",
+				"banner_image":     "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=960&h=368&fit=crop",
+				"desktop_banner":   "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=960&h=368&fit=crop",
+				"mobile_banner":    "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=600",
+				"banner_size":      "960x368",
+				"affiliate_link":   "https://atid.me/go/Rkcak4ql",
+				"target_url":       "https://atid.me/go/Rkcak4ql",
+				"is_external_link": true,
+				"open_in_new_tab":  true,
+				"start_date":       "2026-08-01",
+				"end_date":         "2026-08-23",
+				"campaign_type":    "SEASONAL",
+				"priority":         10,
+				"status":           "ACTIVE",
+				"primary_color":    "#dc2626",
+				"secondary_color":  "#ef4444",
+				"terms_conditions": "Promo berlaku khusus melalui link resmi afiliasi belanjaklik.",
+				"created_at":       time.Now().UTC().Format(time.RFC3339),
+			},
+			{
+				"id":               "camp_body_care_2026",
+				"title":            "Body Care Fair Special",
+				"slug":             "body-care-fair",
+				"subtitle":         "Hemat hingga 35% untuk produk perawatan tubuh & mandi pilihan",
+				"description":      "Beli produk body care kesayangan keluarga dengan harga promo paling hemat minggu ini.",
+				"banner_image":     "https://images.unsplash.com/photo-1540555700478-4be289fbecef?w=1200&h=450&fit=crop",
+				"desktop_banner":   "https://images.unsplash.com/photo-1540555700478-4be289fbecef?w=1200&h=450&fit=crop",
+				"mobile_banner":    "https://images.unsplash.com/photo-1540555700478-4be289fbecef?w=600",
+				"banner_size":      "1200x450",
+				"affiliate_link":   "https://atid.me/adv.php?rk=00tlfd002qq6",
+				"target_url":       "https://atid.me/adv.php?rk=00tlfd002qq6",
+				"is_external_link": true,
+				"open_in_new_tab":  true,
+				"start_date":       "2026-07-16",
+				"end_date":         "2026-08-31",
+				"campaign_type":    "FAIR",
+				"priority":         9,
+				"status":           "ACTIVE",
+				"primary_color":    "#e11d48",
+				"secondary_color":  "#f43f5e",
+				"terms_conditions": "Promo berlaku selama persediaan masih ada. Maksimal 3 pcs per pesanan.",
+				"created_at":       time.Now().UTC().Format(time.RFC3339),
+			},
+		}
+		respondJSON(w, http.StatusOK, map[string]interface{}{"status": "success", "data": defaultCamps})
+		return
+	}
+
+	if r.Method == http.MethodPost || r.Method == http.MethodPut {
+		bodyBytes, err := io.ReadAll(io.LimitReader(r.Body, 2*1024*1024))
+		if err != nil {
+			respondJSON(w, http.StatusBadRequest, map[string]string{"error": "failed reading request body"})
+			return
+		}
+		bodyBytes = bytes.TrimSpace(bodyBytes)
+		if len(bodyBytes) == 0 {
+			respondJSON(w, http.StatusBadRequest, map[string]string{"error": "empty payload"})
+			return
+		}
+
+		var incomingList []map[string]interface{}
+		if bodyBytes[0] == '[' {
+			if err := json.Unmarshal(bodyBytes, &incomingList); err != nil {
+				respondJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid json array: " + err.Error()})
+				return
+			}
+		} else {
+			var single map[string]interface{}
+			if err := json.Unmarshal(bodyBytes, &single); err != nil {
+				respondJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid json object: " + err.Error()})
+				return
+			}
+			// Merge with existing list
+			var existing []map[string]interface{}
+			var rawValue string
+			if err := db.QueryRow("SELECT value FROM settings WHERE key = 'promotion_campaigns'").Scan(&rawValue); err == nil && rawValue != "" {
+				json.Unmarshal([]byte(rawValue), &existing)
+			}
+			idStr := fmt.Sprintf("%v", single["id"])
+			slugStr := fmt.Sprintf("%v", single["slug"])
+			foundIdx := -1
+			for idx, item := range existing {
+				if (idStr != "" && fmt.Sprintf("%v", item["id"]) == idStr) || (slugStr != "" && fmt.Sprintf("%v", item["slug"]) == slugStr) {
+					foundIdx = idx
+					break
+				}
+			}
+			if foundIdx != -1 {
+				existing[foundIdx] = single
+			} else {
+				existing = append([]map[string]interface{}{single}, existing...)
+			}
+			incomingList = existing
+		}
+
+		raw, err := json.Marshal(incomingList)
+		if err != nil {
+			respondJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+			return
+		}
+
+		_, err = db.Exec(`INSERT INTO settings (key, value, description, updated_at)
+			VALUES ('promotion_campaigns', ?, 'Daftar Kampanye Banner Promo & Link Afiliasi', ?)
+			ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`, string(raw), time.Now().UTC().Format(time.RFC3339))
+		if err != nil {
+			respondJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+			return
+		}
+
+		respondJSON(w, http.StatusOK, map[string]interface{}{"status": "success", "data": incomingList})
+		return
+	}
+
+	if r.Method == http.MethodDelete {
+		deleteID := r.URL.Query().Get("id")
+		if deleteID == "" {
+			respondJSON(w, http.StatusBadRequest, map[string]string{"error": "id query parameter required"})
+			return
+		}
+		var existing []map[string]interface{}
+		var rawValue string
+		if err := db.QueryRow("SELECT value FROM settings WHERE key = 'promotion_campaigns'").Scan(&rawValue); err == nil && rawValue != "" {
+			json.Unmarshal([]byte(rawValue), &existing)
+		}
+		var updated []map[string]interface{}
+		for _, item := range existing {
+			if fmt.Sprintf("%v", item["id"]) != deleteID {
+				updated = append(updated, item)
+			}
+		}
+		raw, _ := json.Marshal(updated)
+		db.Exec(`INSERT INTO settings (key, value, description, updated_at)
+			VALUES ('promotion_campaigns', ?, 'Daftar Kampanye Banner Promo & Link Afiliasi', ?)
+			ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`, string(raw), time.Now().UTC().Format(time.RFC3339))
+
+		respondJSON(w, http.StatusOK, map[string]interface{}{"status": "success", "data": updated})
+		return
+	}
+
+	w.Header().Set("Allow", "GET, POST, PUT, DELETE, OPTIONS")
+	respondJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
 }
 func handleCategories(w http.ResponseWriter, r *http.Request) {
 	rows, err := db.Query("SELECT DISTINCT category FROM all_products WHERE category IS NOT NULL AND category != '' ORDER BY category ASC")

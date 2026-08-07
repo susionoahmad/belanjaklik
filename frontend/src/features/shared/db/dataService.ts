@@ -1078,8 +1078,24 @@ export const dataService = {
     return profile;
   },
 
-  // PROMOTION CAMPAIGN ENGINE (AI VISION + FLYER IMPORT)
+  // PROMOTION CAMPAIGN ENGINE (REAL-TIME GCP VM BACKEND PERSISTENCE)
   async fetchPromotionCampaigns(): Promise<any[]> {
+    const apiBaseUrl = getApiBaseUrl();
+    if (apiBaseUrl) {
+      try {
+        const res = await fetch(`${apiBaseUrl}/api/v1/campaigns`);
+        if (res.ok) {
+          const resJson = await res.json();
+          if (resJson.data && Array.isArray(resJson.data) && resJson.data.length > 0) {
+            await offlineDb.setCampaigns(resJson.data);
+            return resJson.data;
+          }
+        }
+      } catch (err) {
+        console.warn('[dataService] Go API fetchPromotionCampaigns error:', err);
+      }
+    }
+
     if (isSupabaseConfigured) {
       try {
         const { data, error } = await supabase.from('promotion_campaigns').select('*').order('created_at', { ascending: false });
@@ -1093,7 +1109,7 @@ export const dataService = {
     }
     const cached = await offlineDb.getCampaigns();
     if (cached && cached.length > 0) return cached;
-    const defaultCampaigns = [
+    return [
       {
         id: 'camp_merdeka_88_2026',
         title: '8.8 Merdeka Sale Special',
@@ -1143,8 +1159,6 @@ export const dataService = {
         created_at: new Date().toISOString()
       }
     ];
-    await offlineDb.setCampaigns(defaultCampaigns);
-    return defaultCampaigns;
   },
 
   async resetPromotionCampaigns(): Promise<any[]> {
@@ -1198,11 +1212,52 @@ export const dataService = {
         created_at: new Date().toISOString()
       }
     ];
+
+    const apiBaseUrl = getApiBaseUrl();
+    if (apiBaseUrl) {
+      try {
+        const res = await fetch(`${apiBaseUrl}/api/v1/campaigns`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(defaultCampaigns)
+        });
+        if (res.ok) {
+          const resJson = await res.json();
+          if (resJson.data) {
+            await offlineDb.setCampaigns(resJson.data);
+            return resJson.data;
+          }
+        }
+      } catch (err) {
+        console.warn('[dataService] Go API resetPromotionCampaigns error:', err);
+      }
+    }
+
     await offlineDb.setCampaigns(defaultCampaigns);
     return defaultCampaigns;
   },
 
   async savePromotionCampaign(campaign: any): Promise<any> {
+    const apiBaseUrl = getApiBaseUrl();
+    if (apiBaseUrl) {
+      try {
+        const res = await fetch(`${apiBaseUrl}/api/v1/campaigns`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(campaign)
+        });
+        if (res.ok) {
+          const resJson = await res.json();
+          if (resJson.data) {
+            await offlineDb.setCampaigns(resJson.data);
+            return campaign;
+          }
+        }
+      } catch (err) {
+        console.warn('[dataService] Go API savePromotionCampaign error:', err);
+      }
+    }
+
     if (isSupabaseConfigured) {
       try {
         const { data, error } = await supabase.from('promotion_campaigns').upsert([campaign]).select().single();
@@ -1223,6 +1278,24 @@ export const dataService = {
   },
 
   async deletePromotionCampaign(id: string): Promise<void> {
+    const apiBaseUrl = getApiBaseUrl();
+    if (apiBaseUrl) {
+      try {
+        const res = await fetch(`${apiBaseUrl}/api/v1/campaigns?id=${id}`, {
+          method: 'DELETE'
+        });
+        if (res.ok) {
+          const resJson = await res.json();
+          if (resJson.data) {
+            await offlineDb.setCampaigns(resJson.data);
+            return;
+          }
+        }
+      } catch (err) {
+        console.warn('[dataService] Go API deletePromotionCampaign error:', err);
+      }
+    }
+
     if (isSupabaseConfigured) {
       try {
         await supabase.from('promotion_campaigns').delete().eq('id', id);
