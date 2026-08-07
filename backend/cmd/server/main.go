@@ -650,9 +650,9 @@ func handleAffiliateProducts(w http.ResponseWriter, r *http.Request) {
 		case "digital":
 			where = append(where, "(category LIKE '%digital%' OR category LIKE '%hosting%' OR category LIKE '%domain%' OR category LIKE '%software%' OR category LIKE '%paket data%' OR category LIKE '%pulsa%' OR category LIKE '%voucher%' OR name LIKE '%hosting%' OR name LIKE '%domain%' OR name LIKE '%vps%' OR name LIKE '%vpn%')")
 		case "travel":
-			where = append(where, "(category LIKE '%travel%' OR category LIKE '%hotel%' OR category LIKE '%tiket%' OR category LIKE '%pesawat%' OR category LIKE '%wisata%' OR LOWER(TRIM(COALESCE(merchant, ''))) IN ('traveloka', 'agoda'))")
+			where = append(where, "(category LIKE '%travel%' OR category LIKE '%hotel%' OR category LIKE '%tiket%' OR category LIKE '%pesawat%' OR category LIKE '%wisata%' OR merchant IN ('traveloka', 'agoda'))")
 		case "marketplace":
-			where = append(where, "(LOWER(TRIM(COALESCE(merchant, ''))) IN ('shopee', 'tokopedia', 'blibli', 'lazada', 'tiktok', 'tiktok_shop', 'traveloka') OR merchant IS NULL OR TRIM(merchant) = '')")
+			where = append(where, "(merchant IN ('shopee', 'tokopedia', 'blibli', 'lazada', 'tiktok', 'tiktok_shop', 'traveloka') OR merchant IS NULL OR merchant = '')")
 		default:
 			where = append(where, "category LIKE ?")
 			args = append(args, "%"+vertical+"%")
@@ -662,8 +662,8 @@ func handleAffiliateProducts(w http.ResponseWriter, r *http.Request) {
 	for _, field := range []string{"merchant", "category", "brand"} {
 		if value := q.Get(field); value != "" && value != "all" {
 			if field == "merchant" {
-				where = append(where, "LOWER(TRIM(COALESCE(merchant, ''))) LIKE ?")
-				args = append(args, "%"+strings.ToLower(value)+"%")
+				where = append(where, "merchant = ?")
+				args = append(args, strings.ToLower(value))
 			} else if field == "category" {
 				parts := strings.Split(value, ",")
 				var catClauses []string
@@ -843,8 +843,13 @@ func handleUnifiedProducts(w http.ResponseWriter, r *http.Request) {
 		whereSQL = " WHERE " + strings.Join(whereClauses, " AND ")
 	}
 
+	tableName := "all_products"
+	if prodType == "own" {
+		tableName = "own_products"
+	}
+
 	// Count Total
-	countQuery := "SELECT COUNT(*) FROM all_products" + whereSQL
+	countQuery := "SELECT COUNT(*) FROM " + tableName + whereSQL
 	var total int
 	err := db.QueryRow(countQuery, args...).Scan(&total)
 	if err != nil {
@@ -854,15 +859,15 @@ func handleUnifiedProducts(w http.ResponseWriter, r *http.Request) {
 
 	// Select Items
 	dataQuery := fmt.Sprintf(`
-		SELECT id, product_type, name, coalesce(slug,''), coalesce(brand,''), coalesce(category,''),
+		SELECT id, 'own' as product_type, name, coalesce(slug,''), coalesce(brand,''), coalesce(category,''),
 		       coalesce(description,''), coalesce(image_url,''), coalesce(thumbnail_url,''),
 		       coalesce(product_url,''), coalesce(affiliate_url,''), price, coalesce(promo_price,0),
 		       is_promo, is_active, coalesce(stock_status,'in_stock'), coalesce(purchase_method,'owner_checkout'), coalesce(external_product_code,''),
 		       item_sold, item_rating, coalesce(created_at,'')
-		FROM all_products %s
-		ORDER BY created_at DESC, id DESC
+		FROM %s %s
+		ORDER BY id DESC
 		LIMIT ? OFFSET ?
-	`, whereSQL)
+	`, tableName, whereSQL)
 
 	fetchArgs := append(args, limit, offset)
 	rows, err := db.Query(dataQuery, fetchArgs...)
