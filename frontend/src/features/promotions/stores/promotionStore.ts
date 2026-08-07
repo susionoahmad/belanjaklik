@@ -59,7 +59,11 @@ export const usePromotionStore = defineStore('promotions', () => {
           slug: c.slug,
           image_url: c.desktop_banner || c.banner_image,
           subtitle: c.subtitle || c.description,
-          target_url: `/campaign/${c.slug}`
+          affiliate_link: c.affiliate_link || c.target_url || `/campaign/${c.slug}`,
+          target_url: c.affiliate_link || c.target_url || `/campaign/${c.slug}`,
+          is_external_link: Boolean(c.affiliate_link || (c.target_url && c.target_url.startsWith('http'))),
+          open_in_new_tab: c.open_in_new_tab ?? true,
+          banner_size: c.banner_size || '1200x450'
         }));
       }
     }

@@ -42,16 +42,27 @@
           </div>
         </div>
 
-        <!-- View Full Flyer Button -->
-        <div v-if="campaign.desktop_banner || campaign.banner_image" class="shrink-0 flex flex-col items-center gap-2">
-          <button
-            @click="showFlyerModal = true"
-            class="bg-white hover:bg-gray-100 text-gray-900 font-extrabold px-5 py-3 rounded-2xl shadow-lg text-xs transition-all flex items-center gap-2 group hover:scale-105"
+        <!-- View Full Flyer & Open Affiliate Link Buttons -->
+        <div class="shrink-0 flex flex-col items-center sm:items-end gap-2.5">
+          <a
+            v-if="campaign.affiliate_link || (campaign.target_url && campaign.target_url.startsWith('http'))"
+            :href="campaign.affiliate_link || campaign.target_url"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="bg-amber-400 hover:bg-amber-300 text-gray-950 font-black px-6 py-3.5 rounded-2xl shadow-xl text-xs sm:text-sm transition-all flex items-center gap-2.5 hover:scale-105"
           >
-            <FileImage class="w-4 h-4 text-brand-red group-hover:rotate-12 transition-transform" />
+            <ExternalLink class="w-4 h-4 text-red-700" />
+            <span>KUNTUNGI PROMO AFILIASI RESMI ↗</span>
+          </a>
+
+          <button
+            v-if="campaign.desktop_banner || campaign.banner_image"
+            @click="showFlyerModal = true"
+            class="bg-white/90 hover:bg-white text-gray-900 font-extrabold px-5 py-2.5 rounded-2xl shadow-lg text-xs transition-all flex items-center gap-2 hover:scale-105"
+          >
+            <FileImage class="w-4 h-4 text-brand-red" />
             <span>Lihat Brosur Flyer Utuh</span>
           </button>
-          <span class="text-[10px] text-gray-300 font-semibold">Klik untuk melihat brosur flyer asli</span>
         </div>
       </div>
     </div>
@@ -123,7 +134,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRoute } from 'vue-router';
-import { ArrowLeft, Sparkles, Clock, ShoppingBag, FileText, FileImage } from 'lucide-vue-next';
+import { ArrowLeft, Sparkles, Clock, ShoppingBag, FileText, FileImage, ExternalLink } from 'lucide-vue-next';
 import type { Product } from '../features/shared/types';
 import type { PromotionCampaign } from '../features/promotions/types/campaignTypes';
 import { dataService } from '../features/shared/db/dataService';

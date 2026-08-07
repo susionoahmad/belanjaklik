@@ -16,6 +16,11 @@ export interface PromotionCampaign {
   banner_image?: string;
   mobile_banner?: string;
   desktop_banner?: string;
+  banner_size?: string; // e.g. '1200x450', '960x368', '1080x1080', '1920x1080'
+  affiliate_link?: string; // e.g. 'https://atid.me/go/Rkcak4ql'
+  target_url?: string;
+  is_external_link?: boolean;
+  open_in_new_tab?: boolean;
   start_date: string;
   end_date: string;
   campaign_type: CampaignType;
