@@ -4,6 +4,7 @@ import type { AffiliateProduct } from '../types';
 import { saveAffiliateProduct } from './affiliateService';
 import { extractSiteIdFromAffiliateUrl, normaliseSiteId, preserveAffiliateUrl } from './affiliateLinkUtils';
 import { extractCleanMerchantProductUrl, cleanTrackingUrl } from './dynamicAffiliateLinkService';
+import { getApiBaseUrl } from '@/features/shared/db/localApi';
 
 export interface ColumnMappingConfig {
   name: string;
@@ -464,7 +465,7 @@ export async function bulkUpsertAffiliateFeed(
       };
     });
 
-    const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080').replace(/\/$/, '');
+    const apiBaseUrl = getApiBaseUrl();
     if (apiBaseUrl) {
       try {
         const res = await fetch(`${apiBaseUrl}/api/v1/affiliate-products`, {

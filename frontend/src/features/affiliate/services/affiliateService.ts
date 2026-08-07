@@ -505,7 +505,7 @@ export async function saveAffiliateProduct(payload: Partial<AffiliateProduct>): 
     return savedItem;
   };
 
-  const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080').replace(/\/$/, '');
+  const apiBaseUrl = getApiBaseUrl();
   if (apiBaseUrl) {
     try {
       const res = await fetch(`${apiBaseUrl}/api/v1/affiliate-products`, {
