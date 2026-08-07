@@ -1147,6 +1147,61 @@ export const dataService = {
     return defaultCampaigns;
   },
 
+  async resetPromotionCampaigns(): Promise<any[]> {
+    const defaultCampaigns = [
+      {
+        id: 'camp_merdeka_88_2026',
+        title: '8.8 Merdeka Sale Special',
+        slug: '8-8-merdeka-sale',
+        subtitle: 'Diskon Spesial Kemerdekaan Tiket & Promo Liburan hingga 45%',
+        description: 'Dapatkan penawaran promo hotel, tiket pesawat, dan produk pilihan selama periode 8.8 Merdeka Sale.',
+        banner_image: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=960&h=368&fit=crop',
+        desktop_banner: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=960&h=368&fit=crop',
+        mobile_banner: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=600',
+        banner_size: '960x368',
+        affiliate_link: 'https://atid.me/go/Rkcak4ql',
+        target_url: 'https://atid.me/go/Rkcak4ql',
+        is_external_link: true,
+        open_in_new_tab: true,
+        start_date: '2026-08-01',
+        end_date: '2026-08-23',
+        campaign_type: 'SEASONAL',
+        priority: 10,
+        status: 'ACTIVE',
+        primary_color: '#dc2626',
+        secondary_color: '#ef4444',
+        terms_conditions: 'Promo berlaku khusus melalui link resmi afiliasi belanjaklik.',
+        created_at: new Date().toISOString()
+      },
+      {
+        id: 'camp_body_care_2026',
+        title: 'Body Care Fair Special',
+        slug: 'body-care-fair',
+        subtitle: 'Hemat hingga 35% untuk produk perawatan tubuh & mandi pilihan',
+        description: 'Beli produk body care kesayangan keluarga dengan harga promo paling hemat minggu ini.',
+        banner_image: 'https://images.unsplash.com/photo-1540555700478-4be289fbecef?w=1200&h=450&fit=crop',
+        desktop_banner: 'https://images.unsplash.com/photo-1540555700478-4be289fbecef?w=1200&h=450&fit=crop',
+        mobile_banner: 'https://images.unsplash.com/photo-1540555700478-4be289fbecef?w=600',
+        banner_size: '1200x450',
+        affiliate_link: 'https://atid.me/adv.php?rk=00tlfd002qq6',
+        target_url: 'https://atid.me/adv.php?rk=00tlfd002qq6',
+        is_external_link: true,
+        open_in_new_tab: true,
+        start_date: '2026-07-16',
+        end_date: '2026-08-31',
+        campaign_type: 'FAIR',
+        priority: 9,
+        status: 'ACTIVE',
+        primary_color: '#e11d48',
+        secondary_color: '#f43f5e',
+        terms_conditions: 'Promo berlaku selama persediaan masih ada. Maksimal 3 pcs per pesanan.',
+        created_at: new Date().toISOString()
+      }
+    ];
+    await offlineDb.setCampaigns(defaultCampaigns);
+    return defaultCampaigns;
+  },
+
   async savePromotionCampaign(campaign: any): Promise<any> {
     if (isSupabaseConfigured) {
       try {

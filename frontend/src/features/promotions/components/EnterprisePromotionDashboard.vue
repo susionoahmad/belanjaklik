@@ -149,14 +149,25 @@
             <p class="text-xs text-gray-500">Kelola banner promo, resolusi gambar, dan link afiliasi yang dituju saat pengunjung mengklik banner.</p>
           </div>
 
-          <button 
-            @click="openAddBannerModal"
-            type="button"
-            class="bg-brand-red hover:bg-brand-red-dark text-white text-xs font-extrabold px-4 py-2 rounded-xl shadow-md flex items-center gap-1.5 cursor-pointer"
-          >
-            <Plus class="w-4 h-4" />
-            <span>Tambah Banner Afiliasi Baru</span>
-          </button>
+          <div class="flex items-center gap-2">
+            <button 
+              @click="handleResetDefaultBanners"
+              type="button"
+              class="bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 text-xs font-bold px-3 py-2 rounded-xl border border-gray-300 dark:border-gray-600 flex items-center gap-1.5 cursor-pointer"
+              title="Reset data banner ke versi default terbaru"
+            >
+              <RotateCcw class="w-3.5 h-3.5" />
+              <span>Reset Banner Default</span>
+            </button>
+            <button 
+              @click="openAddBannerModal"
+              type="button"
+              class="bg-brand-red hover:bg-brand-red-dark text-white text-xs font-extrabold px-4 py-2 rounded-xl shadow-md flex items-center gap-1.5 cursor-pointer"
+            >
+              <Plus class="w-4 h-4" />
+              <span>Tambah Banner Afiliasi Baru</span>
+            </button>
+          </div>
         </div>
 
         <div class="space-y-3 pt-1">
@@ -466,6 +477,15 @@ const openAddBannerModal = () => {
     status: 'ACTIVE',
     terms_conditions: ''
   };
+};
+
+const handleResetDefaultBanners = async () => {
+  if (confirm('Reset data banner & kampanye promo ke versi default terbaru? (Mengembalikan banner 8.8 Merdeka Sale & Body Care Fair)')) {
+    const fresh = await dataService.resetPromotionCampaigns();
+    campaigns.value = fresh;
+    await promotionStore.loadCampaignBanners();
+    alert('✅ Data banner promo telah diperbarui ke versi default!');
+  }
 };
 
 const copyAffiliateLink = (url: string) => {
