@@ -287,6 +287,7 @@ onServerPrefetch(async () => {
 
 onMounted(async () => {
   updatePageSeo('Beranda', 'Personal Shopping Assistant - Asisten Belanja Pribadi Serba Ada');
+  void promotionStore.loadCampaignBanners();
   if (
     catalogStore.products.length === 0 ||
     shoppingStore.templates.length === 0 ||
