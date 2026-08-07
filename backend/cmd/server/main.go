@@ -1161,7 +1161,7 @@ func middlewareCacheControl(next http.Handler) http.Handler {
 		// Static/Read-only product catalog is highly cacheable
 		if r.Method == http.MethodGet && r.URL.Path == "/api/v1/affiliate-products" {
 			w.Header().Set("Cache-Control", "public, max-age=300, s-maxage=900, stale-while-revalidate=60")
-		} else if r.Method == http.MethodGet && r.URL.Path != "/health" && r.URL.Path != "/api/v1/store-profile" {
+		} else if r.Method == http.MethodGet && r.URL.Path != "/health" && r.URL.Path != "/api/v1/store-profile" && r.URL.Path != "/api/v1/campaigns" {
 			w.Header().Set("Cache-Control", "public, max-age=3600, s-maxage=86400")
 		} else {
 			w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")

@@ -1083,13 +1083,22 @@ export const dataService = {
     const apiBaseUrl = getApiBaseUrl();
     if (apiBaseUrl) {
       try {
-        const res = await fetch(`${apiBaseUrl}/api/v1/campaigns`);
-        if (res.ok) {
-          const resJson = await res.json();
-          if (resJson.data && Array.isArray(resJson.data) && resJson.data.length > 0) {
-            await offlineDb.setCampaigns(resJson.data);
-            return resJson.data;
+        const controller = new AbortController();
+        const timeoutId = window.setTimeout(() => controller.abort(), 15000);
+        try {
+          const res = await fetch(`${apiBaseUrl}/api/v1/campaigns`, {
+            signal: controller.signal,
+            cache: 'no-store'
+          });
+          if (res.ok) {
+            const resJson = await res.json();
+            if (resJson.data && Array.isArray(resJson.data) && resJson.data.length > 0) {
+              await offlineDb.setCampaigns(resJson.data);
+              return resJson.data;
+            }
           }
+        } finally {
+          window.clearTimeout(timeoutId);
         }
       } catch (err) {
         console.warn('[dataService] Go API fetchPromotionCampaigns error:', err);
