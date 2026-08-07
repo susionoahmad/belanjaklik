@@ -845,7 +845,7 @@ func handleUnifiedProducts(w http.ResponseWriter, r *http.Request) {
 
 	tableName := "all_products"
 	if prodType == "own" {
-		tableName = "own_products"
+		tableName = "products"
 	}
 
 	// Count Total
