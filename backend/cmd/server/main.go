@@ -843,10 +843,10 @@ func handleUnifiedProducts(w http.ResponseWriter, r *http.Request) {
 		whereSQL = " WHERE " + strings.Join(whereClauses, " AND ")
 	}
 
+	// Always query the unified VIEW `all_products`. The SELECT columns
+	// (product_type, is_active, item_sold, item_rating) only exist on the view,
+	// not on the underlying `products` / `affiliate_products` tables.
 	tableName := "all_products"
-	if prodType == "own" {
-		tableName = "products"
-	}
 
 	// Count Total
 	countQuery := "SELECT COUNT(*) FROM " + tableName + whereSQL

@@ -59,3 +59,4 @@ supabase/.temp/
 *.db-wal
 *.db-shm
 *.exe
+*.exe~
