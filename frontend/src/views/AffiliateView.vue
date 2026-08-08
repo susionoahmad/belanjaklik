@@ -220,6 +220,7 @@ const merchantTabs = [
   { id: 'shopee', name: 'Shopee', icon: Store },
   { id: 'tokopedia', name: 'Tokopedia', icon: Store },
   { id: 'blibli', name: 'Blibli', icon: Store },
+  { id: 'oppo', name: 'OPPO', icon: Store },
   { id: 'traveloka', name: 'Traveloka', icon: Plane },
 ];
 let searchDebounceTimer: any = null;

@@ -88,6 +88,7 @@
               <option value="blibli">Blibli</option>
               <option value="lazada">Lazada</option>
               <option value="tiktok_shop">TikTok Shop</option>
+              <option value="oppo">OPPO</option>
               <option value="traveloka">Traveloka</option>
               <option value="other">Lainnya / Merchant Lain</option>
             </select>

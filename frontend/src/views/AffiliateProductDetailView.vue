@@ -172,6 +172,7 @@ import {
   Store,
   Tag,
   PackageX,
+  Smartphone,
   Sparkles
 } from 'lucide-vue-next';
 import type { AffiliateProduct } from '@/features/affiliate/types';
@@ -259,6 +260,14 @@ const merchantStyle = computed(() => {
       badgeClass: 'bg-[#03AC0E] text-white border-[#03AC0E]',
       buttonClass: 'bg-[#03AC0E] hover:bg-[#028d0b]',
       icon: ShoppingBag,
+    };
+  }
+  if (m.includes('oppo')) {
+    return {
+      label: 'OPPO',
+      badgeClass: 'bg-[#0B5D43] text-white border-[#0B5D43]',
+      buttonClass: 'bg-[#0B5D43] hover:bg-[#084a36]',
+      icon: Smartphone,
     };
   }
   return {

@@ -108,6 +108,7 @@
           <option value="blibli">Blibli</option>
           <option value="lazada">Lazada</option>
           <option value="tiktok_shop">TikTok Shop</option>
+          <option value="oppo">OPPO</option>
           <option value="traveloka">Traveloka</option>
           <option value="other">Lainnya</option>
         </select>
@@ -580,6 +581,7 @@ const getMerchantName = (merchant: string): string => {
     case 'lazada': return 'Lazada';
     case 'tiktok_shop': return 'TikTok Shop';
     case 'traveloka': return 'Traveloka';
+    case 'oppo': return 'OPPO';
     default: return 'Merchant Lain';
   }
 };
@@ -596,6 +598,8 @@ const getMerchantBadgeClass = (merchant: string): string => {
       return 'bg-purple-100 text-purple-800 border border-purple-200 dark:bg-purple-950 dark:text-purple-300 dark:border-purple-900';
     case 'traveloka':
       return 'bg-sky-100 text-sky-800 border border-sky-200 dark:bg-sky-950 dark:text-sky-300 dark:border-sky-900';
+    case 'oppo':
+      return 'bg-emerald-100 text-emerald-800 border border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-900';
     default: 
       return 'bg-gray-100 text-gray-700 border border-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600';
   }

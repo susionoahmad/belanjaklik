@@ -284,6 +284,9 @@ function inferAffiliateClassification(input: { name?: string; category?: string;
   if (text.includes('blibli')) {
     return { merchant: 'blibli', vertical: 'marketplace' as const, subcategory: fallback.subcategory || undefined, offer_type: 'product' };
   }
+  if (text.includes('oppoid.sjv.io') || text.includes('oppo.com')) {
+    return { merchant: 'oppo', vertical: 'marketplace' as const, subcategory: 'smartphone', offer_type: 'product' };
+  }
   return { merchant: fallback.merchant, vertical: fallback.vertical, subcategory: fallback.subcategory || undefined, offer_type: fallback.vertical === 'digital' ? 'service' : 'product' };
 }
 export function transformAndCleanRows(

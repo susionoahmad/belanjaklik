@@ -100,7 +100,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import { ShoppingBag, ArrowRight, Store, ExternalLink, Star } from 'lucide-vue-next';
+import { ShoppingBag, ArrowRight, Store, ExternalLink, Star, Smartphone } from 'lucide-vue-next';
 import type { AffiliateProduct } from '../types';
 import { formatRupiah } from '@/features/shared/utils/formatters';
 import { proxyImageUrl } from '@/features/tokosaya-sync/services/ImageProxyService';
@@ -214,6 +214,13 @@ const merchantStyle = computed(() => {
       label: 'Tokopedia',
       badgeClass: 'bg-[#03AC0E] text-white border-[#03AC0E]',
       icon: ShoppingBag,
+    };
+  }
+  if (m.includes('oppo')) {
+    return {
+      label: 'OPPO',
+      badgeClass: 'bg-[#0B5D43] text-white border-[#0B5D43]',
+      icon: Smartphone,
     };
   }
   return {

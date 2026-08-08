@@ -691,10 +691,12 @@ func handleAffiliateProducts(w http.ResponseWriter, r *http.Request) {
 				affURL = getStr("product_url")
 			}
 
-			merchant := strings.ToLower(getStr("merchant"))
-			urlLower := strings.ToLower(affURL + " " + getStr("product_url") + " " + name + " " + merchant)
-			if strings.Contains(urlLower, "traveloka") {
+			merchant := strings.ToLower(strings.TrimSpace(getStr("merchant")))
+			urlLower := strings.ToLower(affURL + " " + getStr("product_url") + " " + name)
+			if strings.Contains(urlLower, "traveloka") || strings.Contains(urlLower, "travel.prf.hn") {
 				merchant = "traveloka"
+			} else if strings.Contains(urlLower, "oppoid.sjv.io") || strings.Contains(urlLower, "oppo.com") {
+				merchant = "oppo"
 			} else if strings.Contains(urlLower, "blibli") {
 				merchant = "blibli"
 			} else if strings.Contains(urlLower, "tokopedia") || strings.Contains(urlLower, "tokope") {
@@ -703,8 +705,30 @@ func handleAffiliateProducts(w http.ResponseWriter, r *http.Request) {
 				merchant = "lazada"
 			} else if strings.Contains(urlLower, "tiktok") {
 				merchant = "tiktok_shop"
-			} else if merchant == "" {
+			} else if strings.Contains(urlLower, "shopee") || strings.Contains(urlLower, "shope.ee") || strings.Contains(urlLower, "s.shopee.co.id") {
 				merchant = "shopee"
+			} else if merchant == "" || merchant == "other" || merchant == "lainnya" {
+				merchant = "other"
+			}
+
+			vertical := strings.ToLower(strings.TrimSpace(getStr("vertical")))
+			if vertical == "" {
+				if merchant == "traveloka" {
+					vertical = "travel"
+				} else {
+					vertical = "marketplace"
+				}
+			}
+			subcategory := strings.TrimSpace(getStr("subcategory"))
+			offerType := strings.ToLower(strings.TrimSpace(getStr("offer_type")))
+			if offerType == "" {
+				if vertical == "travel" {
+					offerType = "booking"
+				} else if vertical == "digital" {
+					offerType = "service"
+				} else {
+					offerType = "product"
+				}
 			}
 
 			extID := strings.TrimSpace(getStr("external_product_id"))
@@ -755,6 +779,9 @@ func handleAffiliateProducts(w http.ResponseWriter, r *http.Request) {
 				1,
 				createdAt,
 				now,
+				vertical,
+				subcategory,
+				offerType,
 			)
 			if err != nil {
 				return false, err
@@ -781,8 +808,9 @@ func handleAffiliateProducts(w http.ResponseWriter, r *http.Request) {
 					id, source, merchant, campaign_id, site_id, site_url, external_product_id,
 					name, slug, description, image_url, product_url, affiliate_url, price,
 					original_price, discount_percent, commission_rate, shop_name, category,
-					brand, item_sold, item_rating, is_active, created_at, updated_at
-				) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+					brand, item_sold, item_rating, is_active, created_at, updated_at,
+					vertical, subcategory, offer_type
+				) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 			`)
 			if err != nil {
 				tx.Rollback()
@@ -852,7 +880,7 @@ func handleAffiliateProducts(w http.ResponseWriter, r *http.Request) {
 		case "travel":
 			where = append(where, "(category LIKE '%travel%' OR category LIKE '%hotel%' OR category LIKE '%tiket%' OR category LIKE '%pesawat%' OR category LIKE '%wisata%' OR merchant IN ('traveloka', 'agoda'))")
 		case "marketplace":
-			where = append(where, "(merchant IN ('shopee', 'tokopedia', 'blibli', 'lazada', 'tiktok', 'tiktok_shop', 'traveloka') OR merchant IS NULL OR merchant = '')")
+			where = append(where, "(merchant IN ('shopee', 'tokopedia', 'blibli', 'lazada', 'tiktok', 'tiktok_shop', 'traveloka', 'oppo') OR merchant IS NULL OR merchant = '')")
 		default:
 			where = append(where, "category LIKE ?")
 			args = append(args, "%"+vertical+"%")
