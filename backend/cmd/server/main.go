@@ -82,6 +82,7 @@ const adminSessionDays = 7
 // APIResponse represents standard pagination metadata response
 type APIResponse struct {
 	Status     string        `json:"status"`
+	Degraded   bool          `json:"degraded"`
 	Total      int           `json:"total"`
 	Page       int           `json:"page"`
 	Limit      int           `json:"limit"`
@@ -960,8 +961,9 @@ func handleAffiliateProducts(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 	var total int
 	if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM affiliate_products"+whereSQL, args...).Scan(&total); err != nil {
-		respondJSON(w, 500, map[string]string{"error": err.Error()})
-		return
+		// Degrade instead of hard-fail: total unknown, continue serving the list.
+		log.Printf("[API-SERVER] affiliate count query degraded: %v", err)
+		total = -1
 	}
 	orderBy := "ORDER BY created_at DESC, id DESC"
 	switch q.Get("sort") {
@@ -981,10 +983,29 @@ func handleAffiliateProducts(w http.ResponseWriter, r *http.Request) {
 		vertical, subcategory, offer_type, campaign_name, advertiser_name, purchase_method
 		FROM affiliate_products` + whereSQL + " " + orderBy + " LIMIT ? OFFSET ?"
 	queryArgs := append(args, limit, (page-1)*limit)
+	degraded := false
 	rows, err := db.QueryContext(ctx, query, queryArgs...)
 	if err != nil {
-		respondJSON(w, 500, map[string]string{"error": err.Error()})
-		return
+		// Slow sort degraded to the default (indexed) ordering on a fresh deadline.
+		log.Printf("[API-SERVER] affiliate list query degraded: %v", err)
+		degraded = true
+		fallbackCtx, fallbackCancel := timedCtx()
+		fallback := `SELECT id, source, merchant, campaign_id, site_id, site_url, external_product_id,
+			name, slug, description, image_url, product_url, affiliate_url, price,
+			original_price, discount_percent, commission_rate, shop_name, category,
+			brand, item_sold, item_rating, is_active, created_at, updated_at,
+			vertical, subcategory, offer_type, campaign_name, advertiser_name, purchase_method
+			FROM affiliate_products` + whereSQL + " ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?"
+		rows, err = db.QueryContext(fallbackCtx, fallback, queryArgs...)
+		fallbackCancel()
+		if err != nil {
+			respondJSON(w, http.StatusOK, map[string]interface{}{
+				"status": "success", "degraded": true, "total": total,
+				"page": page, "limit": limit, "total_pages": 0,
+				"data": []map[string]interface{}{},
+			})
+			return
+		}
 	}
 	defer rows.Close()
 	columns, _ := rows.Columns()
@@ -1008,7 +1029,18 @@ func handleAffiliateProducts(w http.ResponseWriter, r *http.Request) {
 		}
 		data = append(data, item)
 	}
-	respondJSON(w, http.StatusOK, map[string]interface{}{"status": "success", "total": total, "page": page, "limit": limit, "total_pages": (total + limit - 1) / limit, "data": data})
+	if rows.Err() != nil {
+		log.Printf("[API-SERVER] affiliate list returned partial data: %v", rows.Err())
+		degraded = true
+	}
+	totalPages := 0
+	if total >= 0 {
+		totalPages = (total + limit - 1) / limit
+	}
+	respondJSON(w, http.StatusOK, map[string]interface{}{
+		"status": "success", "degraded": degraded, "total": total,
+		"page": page, "limit": limit, "total_pages": totalPages, "data": data,
+	})
 }
 
 func handleHealth(w http.ResponseWriter, r *http.Request) {
@@ -1121,8 +1153,8 @@ func handleUnifiedProducts(w http.ResponseWriter, r *http.Request) {
 	var total int
 	err := db.QueryRowContext(ctx, countQuery, args...).Scan(&total)
 	if err != nil {
-		respondJSON(w, http.StatusInternalServerError, map[string]string{"error": "Database query error: " + err.Error()})
-		return
+		log.Printf("[API-SERVER] products count query degraded: %v", err)
+		total = -1
 	}
 
 	// Select Items
@@ -1140,7 +1172,20 @@ func handleUnifiedProducts(w http.ResponseWriter, r *http.Request) {
 	fetchArgs := append(args, limit, offset)
 	rows, err := db.QueryContext(ctx, dataQuery, fetchArgs...)
 	if err != nil {
-		respondJSON(w, http.StatusInternalServerError, map[string]string{"error": "Failed fetching data: " + err.Error()})
+		log.Printf("[API-SERVER] products list query degraded: %v", err)
+		totalPages := 0
+		if total >= 0 {
+			totalPages = (total + limit - 1) / limit
+		}
+		respondJSON(w, http.StatusOK, APIResponse{
+			Status:     "success",
+			Degraded:   true,
+			Total:      total,
+			Page:       page,
+			Limit:      limit,
+			TotalPages: totalPages,
+			Data:       []ProductItem{},
+		})
 		return
 	}
 	defer rows.Close()
