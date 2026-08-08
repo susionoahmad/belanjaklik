@@ -804,13 +804,40 @@ func handleAffiliateProducts(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			stmt, err := tx.Prepare(`
-				INSERT OR REPLACE INTO affiliate_products (
+				INSERT INTO affiliate_products (
 					id, source, merchant, campaign_id, site_id, site_url, external_product_id,
 					name, slug, description, image_url, product_url, affiliate_url, price,
 					original_price, discount_percent, commission_rate, shop_name, category,
 					brand, item_sold, item_rating, is_active, created_at, updated_at,
 					vertical, subcategory, offer_type
 				) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+				ON CONFLICT(id) DO UPDATE SET
+					source = excluded.source,
+					merchant = excluded.merchant,
+					campaign_id = excluded.campaign_id,
+					site_id = excluded.site_id,
+					site_url = excluded.site_url,
+					external_product_id = excluded.external_product_id,
+					name = excluded.name,
+					slug = excluded.slug,
+					description = excluded.description,
+					image_url = excluded.image_url,
+					product_url = excluded.product_url,
+					affiliate_url = excluded.affiliate_url,
+					price = excluded.price,
+					original_price = excluded.original_price,
+					discount_percent = excluded.discount_percent,
+					commission_rate = excluded.commission_rate,
+					shop_name = excluded.shop_name,
+					category = excluded.category,
+					brand = excluded.brand,
+					item_sold = excluded.item_sold,
+					item_rating = excluded.item_rating,
+					is_active = excluded.is_active,
+					updated_at = excluded.updated_at,
+					vertical = excluded.vertical,
+					subcategory = excluded.subcategory,
+					offer_type = excluded.offer_type
 			`)
 			if err != nil {
 				tx.Rollback()

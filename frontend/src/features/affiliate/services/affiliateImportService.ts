@@ -429,7 +429,8 @@ export async function bulkUpsertAffiliateFeed(
         .replace(/^-+|-+$/g, '');
       if (slug.length > 80) slug = slug.substring(0, 80).replace(/-+$/, '');
 
-      const external_product_id = item.external_product_id || stableExternalProductId(item.product_url || item.affiliate_url, item.name);
+      const cleanDedupUrl = extractCleanMerchantProductUrl(item.product_url) || extractCleanMerchantProductUrl(item.affiliate_url);
+      const external_product_id = item.external_product_id || stableExternalProductId(cleanDedupUrl || item.product_url || item.affiliate_url, item.name);
       const site_id = item.site_id || defaultSiteId || extractSiteIdFromAffiliateUrl(item.affiliate_url) || 'legacy';
       const site_url = item.site_url || defaultSiteUrl;
 
