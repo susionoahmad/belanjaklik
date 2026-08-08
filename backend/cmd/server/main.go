@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"compress/gzip"
+	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/subtle"
@@ -22,6 +23,8 @@ import (
 
 	_ "modernc.org/sqlite"
 )
+
+const dbQueryTimeout = 12 * time.Second
 
 var db *sql.DB
 var startTime time.Time
@@ -91,17 +94,20 @@ func main() {
 	}
 
 	var err error
-	// Open SQLite database in read-write mode for catalog settings updates
-	connStr := fmt.Sprintf("file:%s?_journal_mode=WAL", dbPath)
+	// Open SQLite database in read-write mode for catalog settings updates.
+	// WAL allows concurrent readers; busy_timeout makes writers wait for locks
+	// instead of immediately failing; synchronous=NORMAL keeps commits fast.
+	connStr := fmt.Sprintf("file:%s?_journal_mode=WAL&_busy_timeout=10000&_synchronous=NORMAL", dbPath)
 	db, err = sql.Open("sqlite", connStr)
 	if err != nil {
 		log.Fatalf("Failed to connect to SQLite (%s): %v", dbPath, err)
 	}
 	defer db.Close()
 
-	// Connection Pool Settings as specified
-	db.SetMaxOpenConns(100)
-	db.SetMaxIdleConns(10)
+	// Connection Pool Settings: keep small for SQLite on a constrained VM.
+	// Too many open connections cause SQLite lock contention and memory pressure.
+	db.SetMaxOpenConns(20)
+	db.SetMaxIdleConns(5)
 	db.SetConnMaxLifetime(0) // Keep connections open indefinitely
 
 	// Verify connection
@@ -859,8 +865,10 @@ func handleAffiliateProducts(w http.ResponseWriter, r *http.Request) {
 	if len(where) > 0 {
 		whereSQL = " WHERE " + strings.Join(where, " AND ")
 	}
+	ctx, cancel := timedCtx()
+	defer cancel()
 	var total int
-	if err := db.QueryRow("SELECT COUNT(*) FROM affiliate_products"+whereSQL, args...).Scan(&total); err != nil {
+	if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM affiliate_products"+whereSQL, args...).Scan(&total); err != nil {
 		respondJSON(w, 500, map[string]string{"error": err.Error()})
 		return
 	}
@@ -877,7 +885,7 @@ func handleAffiliateProducts(w http.ResponseWriter, r *http.Request) {
 	}
 	query := "SELECT * FROM affiliate_products" + whereSQL + " " + orderBy + " LIMIT ? OFFSET ?"
 	queryArgs := append(args, limit, (page-1)*limit)
-	rows, err := db.Query(query, queryArgs...)
+	rows, err := db.QueryContext(ctx, query, queryArgs...)
 	if err != nil {
 		respondJSON(w, 500, map[string]string{"error": err.Error()})
 		return
@@ -1011,9 +1019,11 @@ func handleUnifiedProducts(w http.ResponseWriter, r *http.Request) {
 	tableName := "all_products"
 
 	// Count Total
+	ctx, cancel := timedCtx()
+	defer cancel()
 	countQuery := "SELECT COUNT(*) FROM " + tableName + whereSQL
 	var total int
-	err := db.QueryRow(countQuery, args...).Scan(&total)
+	err := db.QueryRowContext(ctx, countQuery, args...).Scan(&total)
 	if err != nil {
 		respondJSON(w, http.StatusInternalServerError, map[string]string{"error": "Database query error: " + err.Error()})
 		return
@@ -1032,7 +1042,7 @@ func handleUnifiedProducts(w http.ResponseWriter, r *http.Request) {
 	`, tableName, whereSQL)
 
 	fetchArgs := append(args, limit, offset)
-	rows, err := db.Query(dataQuery, fetchArgs...)
+	rows, err := db.QueryContext(ctx, dataQuery, fetchArgs...)
 	if err != nil {
 		respondJSON(w, http.StatusInternalServerError, map[string]string{"error": "Failed fetching data: " + err.Error()})
 		return
@@ -1121,6 +1131,11 @@ func respondJSON(w http.ResponseWriter, statusCode int, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
 	json.NewEncoder(w).Encode(data)
+}
+
+// timedCtx returns a context with dbQueryTimeout deadline for DB queries.
+func timedCtx() (context.Context, context.CancelFunc) {
+	return context.WithTimeout(context.Background(), dbQueryTimeout)
 }
 
 // -------------------------------------------------------------
