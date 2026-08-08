@@ -153,6 +153,10 @@ func main() {
 	db.Exec(`CREATE INDEX IF NOT EXISTS idx_aff_active_vertical ON affiliate_products(is_active, vertical)`)
 	db.Exec(`CREATE INDEX IF NOT EXISTS idx_aff_slug ON affiliate_products(slug)`)
 	db.Exec(`CREATE INDEX IF NOT EXISTS idx_aff_created ON affiliate_products(created_at, id)`)
+	db.Exec(`CREATE INDEX IF NOT EXISTS idx_aff_sold ON affiliate_products(item_sold)`)
+	db.Exec(`CREATE INDEX IF NOT EXISTS idx_aff_discount ON affiliate_products(discount_percent)`)
+	db.Exec(`CREATE INDEX IF NOT EXISTS idx_aff_price ON affiliate_products(price)`)
+	db.Exec(`CREATE INDEX IF NOT EXISTS idx_aff_updated ON affiliate_products(updated_at)`)
 
 	// Clean duplicate affiliate products if any exist from previous test runs
 	if _, err := db.Exec(`DELETE FROM affiliate_products WHERE rowid NOT IN (
