@@ -18,6 +18,7 @@ import (
 	"os/signal"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -25,6 +26,10 @@ import (
 )
 
 const dbQueryTimeout = 12 * time.Second
+
+// dbWriteMu serializes all write transactions so concurrent imports never
+// contend on the single SQLite write lock (reads keep running thanks to WAL).
+var dbWriteMu sync.Mutex
 
 var db *sql.DB
 var startTime time.Time
@@ -636,30 +641,16 @@ func handleAffiliateProducts(w http.ResponseWriter, r *http.Request) {
 			items = append(items, single)
 		}
 
-		tx, err := db.Begin()
-		if err != nil {
-			respondJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
-			return
-		}
-		stmt, err := tx.Prepare(`
-			INSERT OR REPLACE INTO affiliate_products (
-				id, source, merchant, campaign_id, site_id, site_url, external_product_id,
-				name, slug, description, image_url, product_url, affiliate_url, price,
-				original_price, discount_percent, commission_rate, shop_name, category,
-				brand, item_sold, item_rating, is_active, created_at, updated_at
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-		`)
-		if err != nil {
-			tx.Rollback()
-			respondJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
-			return
-		}
-		defer stmt.Close()
+		// Serialize all DB writes so concurrent imports never fight for the
+		// single SQLite write lock.
+		dbWriteMu.Lock()
+		defer dbWriteMu.Unlock()
 
 		now := time.Now().UTC().Format(time.RFC3339)
 		successCount := 0
 
-		for _, item := range items {
+		// Per-item processor shared across batches.
+		processItem := func(item map[string]interface{}, stmt *sql.Stmt) (bool, error) {
 			getStr := func(k string) string {
 				if v, ok := item[k]; ok && v != nil {
 					return fmt.Sprintf("%v", v)
@@ -693,7 +684,7 @@ func handleAffiliateProducts(w http.ResponseWriter, r *http.Request) {
 
 			name := getStr("name")
 			if name == "" {
-				continue
+				return false, nil
 			}
 			affURL := getStr("affiliate_url")
 			if affURL == "" {
@@ -765,14 +756,55 @@ func handleAffiliateProducts(w http.ResponseWriter, r *http.Request) {
 				createdAt,
 				now,
 			)
-			if err == nil {
-				successCount++
+			if err != nil {
+				return false, err
 			}
+			return true, nil
 		}
 
-		if err := tx.Commit(); err != nil {
-			respondJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
-			return
+		// Commit in small batches so the write lock is held only briefly and
+		// reader requests (products/affiliate listings) are never blocked long.
+		const batchSize = 200
+		for start := 0; start < len(items); start += batchSize {
+			end := start + batchSize
+			if end > len(items) {
+				end = len(items)
+			}
+
+			tx, err := db.Begin()
+			if err != nil {
+				respondJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+				return
+			}
+			stmt, err := tx.Prepare(`
+				INSERT OR REPLACE INTO affiliate_products (
+					id, source, merchant, campaign_id, site_id, site_url, external_product_id,
+					name, slug, description, image_url, product_url, affiliate_url, price,
+					original_price, discount_percent, commission_rate, shop_name, category,
+					brand, item_sold, item_rating, is_active, created_at, updated_at
+				) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			`)
+			if err != nil {
+				tx.Rollback()
+				respondJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+				return
+			}
+
+			for _, item := range items[start:end] {
+				ok, perr := processItem(item, stmt)
+				if perr != nil {
+					continue
+				}
+				if ok {
+					successCount++
+				}
+			}
+
+			stmt.Close()
+			if err := tx.Commit(); err != nil {
+				respondJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+				return
+			}
 		}
 
 		respondJSON(w, http.StatusOK, map[string]interface{}{
@@ -883,7 +915,12 @@ func handleAffiliateProducts(w http.ResponseWriter, r *http.Request) {
 	case "price_high":
 		orderBy = "ORDER BY COALESCE(price, 0) DESC, created_at DESC, id DESC"
 	}
-	query := "SELECT * FROM affiliate_products" + whereSQL + " " + orderBy + " LIMIT ? OFFSET ?"
+	query := `SELECT id, source, merchant, campaign_id, site_id, site_url, external_product_id,
+		name, slug, description, image_url, product_url, affiliate_url, price,
+		original_price, discount_percent, commission_rate, shop_name, category,
+		brand, item_sold, item_rating, is_active, created_at, updated_at,
+		vertical, subcategory, offer_type, campaign_name, advertiser_name, purchase_method
+		FROM affiliate_products` + whereSQL + " " + orderBy + " LIMIT ? OFFSET ?"
 	queryArgs := append(args, limit, (page-1)*limit)
 	rows, err := db.QueryContext(ctx, query, queryArgs...)
 	if err != nil {
