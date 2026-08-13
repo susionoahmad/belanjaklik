@@ -327,6 +327,26 @@ const effectiveLink = computed(() => {
   return selectedLinkType.value === 'belanjaklik' ? belanjaklikUrl.value : directAffiliateUrl.value;
 });
 
+const getMarketplaceHashtags = (merchant?: string): string => {
+  const m = (merchant || '').toLowerCase();
+  if (m.includes('tokopedia')) {
+    return '#BelanjaKlik #RacunTokped #SpillRacunTokped #TokopediaPromo #PromoHariIni';
+  } else if (m.includes('shopee')) {
+    return '#BelanjaKlik #RacunShopee #SpillRacunShopee #ShopeeHaul #PromoShopee';
+  } else if (m.includes('lazada')) {
+    return '#BelanjaKlik #RacunLazada #LazadaHaul #PromoLazada #DiskonLazada';
+  } else if (m.includes('tiktok')) {
+    return '#BelanjaKlik #RacunTikTok #SpillTikTokShop #TikTokShopHaul #PromoTikTok';
+  } else if (m.includes('blibli')) {
+    return '#BelanjaKlik #BlibliPromo #BlibliHaul #BelanjaDiBlibli #PromoHariIni';
+  } else if (m.includes('traveloka')) {
+    return '#BelanjaKlik #TravelokaPromo #TravelokaDiskon #LiburanHemat';
+  } else if (m.includes('oppo')) {
+    return '#BelanjaKlik #DiskonOppo #OppoPromo #GadgetPromo';
+  }
+  return '#BelanjaKlik #PromoOnline #RacunBelanja #DiskonHariIni #PromoSuper';
+};
+
 const generateCaption = (preset: string, linkType: 'belanjaklik' | 'direct'): string => {
   const p = props.product;
   if (!p) return '';
@@ -351,7 +371,7 @@ const generateCaption = (preset: string, linkType: 'belanjaklik' | 'direct'): st
     lines.push('👇 Beli & Cek Promo Sekarang di sini:');
     lines.push(link);
     lines.push('');
-    lines.push('#BelanjaKlik #PromoHariIni #Diskon' + merchantName.value.replace(/\s+/g, '') + ' #BelanjaHemat');
+    lines.push(getMarketplaceHashtags(p.merchant));
   } else if (preset === 'whatsapp') {
     lines.push(`*🛍️ PROMO HEBOH ${merchantName.value.toUpperCase()}*`);
     lines.push('');
@@ -391,7 +411,7 @@ const generateCaption = (preset: string, linkType: 'belanjaklik' | 'direct'): st
     lines.push('🛒 Klik link pembelian di sini:');
     lines.push(link);
     lines.push('');
-    lines.push('#BelanjaKlik #SpillRacunShopee #PromoSpesial #DiskonHeboh #RekomendasiBelanja');
+    lines.push(getMarketplaceHashtags(p.merchant));
   }
 
   return lines.join('\n');
