@@ -357,6 +357,7 @@ export async function getAllAffiliateProductsAdmin(options?: {
   merchant?: string;
   vertical?: string;
   source?: string;
+  sort?: string;
 }): Promise<{ data: AffiliateProduct[]; total: number }> {
   const page = options?.page ?? 1;
   const pageSize = options?.pageSize ?? 50;
@@ -369,6 +370,7 @@ export async function getAllAffiliateProductsAdmin(options?: {
       search: options?.search,
       merchant: options?.merchant,
       vertical: options?.vertical,
+      sort: options?.sort,
       active: 'all',
     });
     if (local && Array.isArray(local.data) && (local.data.length > 0 || (!options?.merchant && !options?.search))) {
@@ -389,6 +391,7 @@ export async function getAllAffiliateProductsAdmin(options?: {
       const s = options.search.toLowerCase();
       list = list.filter(p => p.name?.toLowerCase().includes(s));
     }
+    list = sortAdminAffiliateList(list, options?.sort);
     const start = (page - 1) * pageSize;
     return { data: list.slice(start, start + pageSize), total: list.length };
   }
@@ -437,6 +440,23 @@ export async function getAllAffiliateProductsAdmin(options?: {
     console.warn('[AffiliateService] Exception fetching admin products:', err);
     const start = (page - 1) * pageSize;
     return { data: localList.slice(start, start + pageSize), total: localList.length };
+  }
+}
+
+function sortAdminAffiliateList(list: AffiliateProduct[], sort?: string): AffiliateProduct[] {
+  switch (sort) {
+    case 'sold':
+      return [...list].sort((a, b) => (b.item_sold ?? 0) - (a.item_sold ?? 0) || (b.created_at || '').localeCompare(a.created_at || ''));
+    case 'discount':
+      return [...list].sort((a, b) => (b.discount_percent ?? 0) - (a.discount_percent ?? 0) || (b.created_at || '').localeCompare(a.created_at || ''));
+    case 'rating':
+      return [...list].sort((a, b) => (b.item_rating ?? 0) - (a.item_rating ?? 0) || (b.item_sold ?? 0) - (a.item_sold ?? 0));
+    case 'price_low':
+      return [...list].sort((a, b) => (a.price ?? 0) - (b.price ?? 0));
+    case 'price_high':
+      return [...list].sort((a, b) => (b.price ?? 0) - (a.price ?? 0));
+    default:
+      return [...list].sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
   }
 }
 

@@ -1039,6 +1039,8 @@ func handleAffiliateProducts(w http.ResponseWriter, r *http.Request) {
 		orderBy = "ORDER BY COALESCE(item_sold, 0) DESC, created_at DESC, id DESC"
 	case "discount":
 		orderBy = "ORDER BY COALESCE(discount_percent, 0) DESC, created_at DESC, id DESC"
+	case "rating":
+		orderBy = "ORDER BY COALESCE(item_rating, 0) DESC, COALESCE(item_sold, 0) DESC, created_at DESC, id DESC"
 	case "price_low":
 		orderBy = "ORDER BY COALESCE(price, 0) ASC, created_at DESC, id DESC"
 	case "price_high":

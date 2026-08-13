@@ -84,7 +84,7 @@
     </div>
 
     <!-- Search & Filter Controls -->
-    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 bg-white dark:bg-gray-800 p-3.5 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-soft">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 bg-white dark:bg-gray-800 p-3.5 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-soft">
       <!-- Search Input -->
       <div class="relative">
         <Search class="w-4 h-4 absolute left-3 top-2.5 text-gray-400" />
@@ -94,6 +94,21 @@
           placeholder="Cari nama produk, toko, atau kategori..." 
           class="w-full pl-9 pr-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700 text-xs font-semibold focus:ring-2 focus:ring-emerald-500 outline-none" 
         />
+      </div>
+
+      <!-- Sort Filter -->
+      <div>
+        <select 
+          v-model="selectedSort" 
+          class="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700 text-xs font-semibold focus:ring-2 focus:ring-emerald-500 outline-none"
+        >
+          <option value="">Urutkan: Terbaru</option>
+          <option value="sold">Terlaris (Item Sold)</option>
+          <option value="discount">Diskon Terbesar</option>
+          <option value="rating">Rating Terbaik</option>
+          <option value="price_low">Harga Terendah</option>
+          <option value="price_high">Harga Tertinggi</option>
+        </select>
       </div>
 
       <!-- Merchant Filter -->
@@ -242,6 +257,16 @@
                     <ExternalLink class="w-3.5 h-3.5" />
                   </a>
 
+                  <!-- Share Promo -->
+                  <button 
+                    @click="openShareModal(p)" 
+                    title="Buat Posting Promo & Bagikan ke Sosmed"
+                    class="px-2.5 py-1 text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 hover:bg-emerald-100 rounded-lg transition-colors border border-emerald-200 dark:border-emerald-900 text-[10px] font-extrabold flex items-center gap-1 cursor-pointer"
+                  >
+                    <Share2 class="w-3.5 h-3.5" />
+                    <span>Promo</span>
+                  </button>
+
                   <!-- Edit -->
                   <button 
                     @click="openEditModal(p)" 
@@ -380,6 +405,13 @@
       @imported="handleBulkImported" 
     />
 
+    <!-- Share Promo Modal -->
+    <AffiliatePromoShareModal 
+      :isOpen="isShareOpen" 
+      :product="productToShare" 
+      @close="isShareOpen = false" 
+    />
+
     <!-- Toast Notification -->
     <Transition enter-active-class="transition duration-300 ease-out" enter-from-class="transform translate-y-4 opacity-0" enter-to-class="transform translate-y-0 opacity-100" leave-active-class="transition duration-200 ease-in" leave-from-class="transform translate-y-0 opacity-100" leave-to-class="transform translate-y-4 opacity-0">
       <div v-if="toastMessage" class="fixed bottom-6 right-6 z-50 bg-gray-900 text-white font-bold text-xs px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-2 border border-gray-700">
@@ -396,10 +428,10 @@ import {
   Share2, Plus, RefreshCw, Package, CheckCircle2, Percent, Search, Clipboard, Code2, 
   ExternalLink, Edit3, Trash2, AlertTriangle, CheckCircle, UploadCloud, Store,
   ChevronLeft, ChevronRight
-} from 'lucide-vue-next';
-import Modal from '@/features/shared/components/Modal.vue';
+} from 'lucide-vue-next';import Modal from '@/features/shared/components/Modal.vue';
 import AffiliateProductModal from '@/features/affiliate/components/AffiliateProductModal.vue';
 import AffiliateBulkImportModal from '@/features/affiliate/components/AffiliateBulkImportModal.vue';
+import AffiliatePromoShareModal from '@/features/affiliate/components/AffiliatePromoShareModal.vue';
 import type { AffiliateProduct } from '@/features/affiliate/types';
 import { formatRupiah } from '@/features/shared/utils/formatters';
 import { proxyImageUrl } from '@/features/tokosaya-sync/services/ImageProxyService';
@@ -433,6 +465,9 @@ const isLoading = ref(false);
 const searchQuery = ref('');
 const selectedMerchantFilter = ref('');
 const selectedStatusFilter = ref('');
+const selectedSort = ref('');
+const isShareOpen = ref(false);
+const productToShare = ref<AffiliateProduct | null>(null);
 
 const currentPage = ref(1);
 const pageSize = ref(20);
@@ -515,6 +550,7 @@ const loadProducts = async () => {
       pageSize: pageSize.value,
       search: searchQuery.value.trim() || undefined,
       merchant: selectedMerchantFilter.value || undefined,
+      sort: selectedSort.value || undefined,
     });
     products.value = res.data;
     totalProducts.value = res.total;
@@ -538,6 +574,16 @@ watch(selectedMerchantFilter, () => {
   currentPage.value = 1;
   loadProducts();
 });
+
+watch(selectedSort, () => {
+  currentPage.value = 1;
+  loadProducts();
+});
+
+const openShareModal = (p: AffiliateProduct) => {
+  productToShare.value = p;
+  isShareOpen.value = true;
+};
 
 const goToPage = (page: number) => {
   if (page < 1 || page > totalPages.value) return;
