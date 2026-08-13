@@ -14,6 +14,7 @@ export interface ColumnMappingConfig {
   price?: string;
   original_price?: string;
   commission_rate?: string;
+  commission_rate_is_amount?: boolean;
   shop_name?: string;
   category?: string;
   description?: string;
@@ -244,6 +245,12 @@ export function autoDetectMapping(headers: string[]): ColumnMappingConfig {
   mapping.price = findHeader(['discounted price', 'harga promo', 'promo price', 'price', 'harga']);
   mapping.original_price = findHeader(['original price', 'harga asli', 'harga coret', 'normal price']);
   mapping.commission_rate = findHeader(['commission rate', 'commission_rate', 'komisi (%)', 'komisi %', 'rate (%)', 'rate']) || findHeader(['commission', 'komisi']);
+  {
+    // ACCESSTRADE feed exports estimated commission as an IDR amount (e.g. "Est. commission"),
+    // not a percentage. Convert amount -> rate = amount / price * 100 at transform time.
+    const h = mapping.commission_rate ? normalizeHeader(mapping.commission_rate) : '';
+    mapping.commission_rate_is_amount = !!mapping.commission_rate && !h.includes('rate') && !h.includes('%') && !h.includes('percent') && !h.includes('persen');
+  }
   mapping.shop_name = findHeader(['shop name', 'nama toko', 'seller', 'shop_name', 'merchant name']);
   // Prefer the merchant's top-level category for consistent catalog grouping.
   mapping.category = findExactHeader(['main category name', 'main category', 'main_category_name']) ||
@@ -321,7 +328,10 @@ export function transformAndCleanRows(
 
     const price = mapping.price ? cleanNumeric(row[mapping.price]) : null;
     const original_price = mapping.original_price ? cleanNumeric(row[mapping.original_price]) : null;
-    const commission_rate = mapping.commission_rate ? cleanNumeric(row[mapping.commission_rate]) : null;
+    let commission_rate = mapping.commission_rate ? cleanNumeric(row[mapping.commission_rate]) : null;
+    if (mapping.commission_rate_is_amount && commission_rate != null && commission_rate > 0 && price && price > 0) {
+      commission_rate = Math.round((commission_rate / price) * 10000) / 100;
+    }
     const shop_name = getValue(mapping.shop_name);
     const rawCategory = getValue(mapping.category);
     const category = rawCategory || inferMarketplaceCategory(cleanedName) || '';
