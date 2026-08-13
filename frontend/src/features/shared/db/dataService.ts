@@ -283,7 +283,12 @@ export const dataService = {
     if (rawSources.length === 0) {
       const derived: ProductSource[] = [];
       for (const p of allProducts) {
-        if (p.product_type === 'own' || p.id.startsWith('own-') || p.external_product_code || (p.purchase_method as string) === 'alfamind_tokosaya' || (p.product_url && p.product_url.includes('tokovirtualku'))) {
+        const isAffiliate = !!p.affiliate_url ||
+          (p.product_url && (p.product_url.includes('accesstrade.co.id') || p.product_url.includes('atid.me') || p.product_url.includes('shope.ee')));
+        const isTokoSaya = p.product_type === 'own' || p.id.startsWith('own-') ||
+          (p.purchase_method as string) === 'alfamind_tokosaya' ||
+          (p.product_url && p.product_url.includes('tokovirtualku'));
+        if (!isAffiliate && (isTokoSaya || (p.external_product_code && !p.product_url))) {
           const code = p.external_product_code || p.id;
           derived.push({
             id: `src_${p.id}`,
