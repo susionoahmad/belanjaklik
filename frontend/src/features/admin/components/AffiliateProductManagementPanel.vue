@@ -555,7 +555,10 @@ const loadProducts = async () => {
     products.value = res.data;
     totalProducts.value = res.total;
 
-    activeProductsCount.value = await getAffiliateProductsCount({ is_active: true });
+    // Hitung produk aktif tidak memblok render tabel (fire-and-forget)
+    getAffiliateProductsCount({ is_active: true })
+      .then(c => { activeProductsCount.value = c; })
+      .catch(() => {});
   } finally {
     isLoading.value = false;
   }

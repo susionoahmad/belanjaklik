@@ -186,9 +186,9 @@ export async function getAffiliateProductByIdAdmin(id: string): Promise<Affiliat
 }
 
 export async function getAffiliateProductsCount(options?: { is_active?: boolean }): Promise<number> {
-  // 1. Try Go Backend API (Local / GCP VM)
+  // 1. Try Go Backend API (Local / GCP VM) - short timeout so it never blocks the UI
   try {
-    const local = await fetchLocalAffiliateProducts({ page: 1, limit: 1, active: options?.is_active === true ? 'active' : 'all' });
+    const local = await fetchLocalAffiliateProducts({ page: 1, limit: 1, active: options?.is_active === true ? 'active' : 'all', timeoutMs: 5000, retries: 0 });
     if (local && typeof local.total === 'number') {
       return local.total;
     }
@@ -362,7 +362,7 @@ export async function getAllAffiliateProductsAdmin(options?: {
   const page = options?.page ?? 1;
   const pageSize = options?.pageSize ?? 50;
 
-  // 1. Try Go Backend API (Local / GCP VM)
+  // 1. Try Go Backend API (Local / GCP VM) - short timeout, no retry for admin responsiveness
   try {
     const local = await fetchLocalAffiliateProducts({
       page,
@@ -372,6 +372,8 @@ export async function getAllAffiliateProductsAdmin(options?: {
       vertical: options?.vertical,
       sort: options?.sort,
       active: 'all',
+      timeoutMs: 8000,
+      retries: 0,
     });
     if (local && Array.isArray(local.data) && (local.data.length > 0 || (!options?.merchant && !options?.search))) {
       return { data: local.data as AffiliateProduct[], total: local.total };

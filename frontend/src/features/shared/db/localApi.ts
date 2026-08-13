@@ -43,13 +43,15 @@ export async function fetchLocalProducts(options: {
 }
 
 export async function fetchLocalAffiliateProducts(options: {
-  page?: number; limit?: number; merchant?: string; vertical?: string; category?: string; search?: string; sort?: string; active?: "all" | "active";
+  page?: number; limit?: number; merchant?: string; vertical?: string; category?: string; search?: string; sort?: string; active?: "all" | "active"; timeoutMs?: number; retries?: number;
 } = {}): Promise<{ data: any[]; total: number; total_pages: number }> {
   const params = new URLSearchParams({ page: String(options.page || 1), limit: String(options.limit || 50) });
-  for (const [key, value] of Object.entries(options)) if (value) params.set(key, String(value));
+  for (const [key, value] of Object.entries(options)) if (value && !['timeoutMs', 'retries'].includes(key)) params.set(key, String(value));
+  const timeoutMs = options.timeoutMs ?? 15000;
+  const maxAttempts = (options.retries ?? 1) + 1;
   const attempt = async (): Promise<{ data: any[]; total: number; total_pages: number }> => {
     const controller = new AbortController();
-    const timeoutId = window.setTimeout(() => controller.abort(), 15000);
+    const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
     try {
       const response = await fetch(`${localApiBaseUrl}/api/v1/affiliate-products?${params}`, { signal: controller.signal });
       if (!response.ok) throw new Error(`Local affiliate API returned ${response.status}`);
@@ -58,13 +60,13 @@ export async function fetchLocalAffiliateProducts(options: {
       window.clearTimeout(timeoutId);
     }
   };
-  try {
-    return await attempt();
-  } catch (firstErr) {
+  let lastErr: any;
+  for (let i = 0; i < maxAttempts; i++) {
     try {
       return await attempt();
-    } catch {
-      throw firstErr;
+    } catch (err) {
+      lastErr = err;
     }
   }
+  throw lastErr;
 }
