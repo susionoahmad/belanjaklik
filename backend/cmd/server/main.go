@@ -167,6 +167,13 @@ func main() {
 	if _, err := db.Exec(`UPDATE affiliate_products SET external_product_id = TRIM(REPLACE(external_product_id, char(65279), '')) WHERE external_product_id IS NOT NULL AND external_product_id != '' AND (instr(external_product_id, char(65279)) > 0 OR external_product_id <> TRIM(external_product_id))`); err != nil {
 		log.Printf("[API-SERVER] Warning: extid normalization failed: %v", err)
 	}
+	// Strip BOM from slugs/ids too so shared product links stay clean.
+	if _, err := db.Exec(`UPDATE affiliate_products SET slug = TRIM(REPLACE(slug, char(65279), '')) WHERE instr(slug, char(65279)) > 0`); err != nil {
+		log.Printf("[API-SERVER] Warning: slug BOM normalization failed: %v", err)
+	}
+	if _, err := db.Exec(`UPDATE affiliate_products SET id = TRIM(REPLACE(id, char(65279), '')) WHERE instr(id, char(65279)) > 0`); err != nil {
+		log.Printf("[API-SERVER] Warning: id BOM normalization failed: %v", err)
+	}
 
 	// Clean duplicate affiliate products if any exist from previous test runs
 	if _, err := db.Exec(`DELETE FROM affiliate_products WHERE rowid NOT IN (

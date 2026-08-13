@@ -15,7 +15,6 @@
           <div class="flex flex-wrap items-center gap-2 mt-1 text-xs">
             <span v-if="product.price" class="font-extrabold text-emerald-600 dark:text-emerald-400">{{ formatRupiah(product.price) }}</span>
             <span v-if="discount > 0" class="text-red-500 font-bold">-{{ discount }}%</span>
-            <span v-if="product.commission_rate" class="text-amber-600 dark:text-amber-400 font-semibold">Komisi {{ product.commission_rate }}%</span>
           </div>
         </div>
       </div>
@@ -25,9 +24,10 @@
         <label class="block text-[11px] font-bold text-gray-600 dark:text-gray-400 mb-1">Caption Promo (bisa diedit)</label>
         <textarea
           v-model="caption"
-          rows="7"
+          rows="6"
           class="w-full p-3 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-xs leading-relaxed font-mono focus:ring-2 focus:ring-emerald-500 outline-none"
         ></textarea>
+        <p class="text-[10px] text-gray-400 mt-1">Link produk & gambar ditambahkan otomatis saat dibagikan. Komisi tidak ditampilkan.</p>
       </div>
 
       <!-- Tombol Aksi -->
@@ -40,7 +40,7 @@
           <span>Bagikan ke Media Sosial</span>
         </button>
         <button
-          @click="copyText(caption, 'Caption disalin')"
+          @click="copyText(caption + '\n\n' + shareUrl, 'Caption & link disalin')"
           class="py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
         >
           <Copy class="w-3.5 h-3.5" /> Salin Caption
@@ -109,8 +109,9 @@ const discount = computed(() => {
 const shareUrl = computed(() => {
   const p = props.product;
   if (!p) return window.location.origin;
-  const path = p.slug || p.id;
-  return `${window.location.origin}/produk/${encodeURIComponent(path)}`;
+  const raw = p.slug || p.id || '';
+  const clean = String(raw).replace(/[\uFEFF\u200B\u00A0]/g, '').trim();
+  return `${window.location.origin}/produk/${encodeURIComponent(clean)}`;
 });
 
 const buildCaption = () => {
@@ -123,9 +124,6 @@ const buildCaption = () => {
   lines.push('');
   if (p.price) lines.push(`💰 Harga: ${formatRupiah(p.price)}`);
   if (discount.value > 0) lines.push(`🎉 Diskon ${discount.value}%`);
-  if (p.commission_rate) lines.push(`💸 Komisi ${p.commission_rate}%`);
-  lines.push('');
-  lines.push(`🔗 ${shareUrl.value}`);
   lines.push('');
   lines.push('#BelanjaKlik #Promo #PromoHariIni');
   return lines.join('\n');
@@ -155,12 +153,29 @@ const copyText = async (text: string, successMsg: string) => {
   }
 };
 
+const buildImageFile = async (): Promise<File | undefined> => {
+  const p = props.product;
+  const imageUrl = p?.image_url;
+  if (!imageUrl || !p?.slug) return undefined;
+  try {
+    const resp = await fetch(imageUrl, { mode: 'cors' });
+    if (!resp.ok) return undefined;
+    const blob = await resp.blob();
+    const ext = (imageUrl.split('.').pop()?.split('?')[0] || 'jpg').toLowerCase();
+    return new File([blob], `promo-${String(p.slug).replace(/[^a-z0-9-]/gi, '')}.${ext}`, { type: blob.type || 'image/jpeg' });
+  } catch {
+    return undefined;
+  }
+};
+
 const handleShare = async () => {
-  const payload = {
+  const payload: ShareData = {
     title: `${merchantName.value} Promo`,
     text: caption.value,
     url: shareUrl.value,
   };
+  const imageFile = await buildImageFile();
+  if (imageFile) payload.files = [imageFile];
   if (navigator.share) {
     try {
       await navigator.share(payload);
