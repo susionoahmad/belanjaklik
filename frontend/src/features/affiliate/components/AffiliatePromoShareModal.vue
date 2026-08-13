@@ -451,18 +451,56 @@ const copyCaptionAndLink = () => {
   copyText(caption.value, 'Caption & link promo berhasil disalin!');
 };
 
-/** Fetch product image safely via CORS proxy */
+/** Fetch product image safely via multi-provider CORS proxy pipeline */
 const fetchImageBlob = async (imageUrl: string): Promise<Blob | null> => {
   if (!imageUrl) return null;
-  const targetUrl = proxyImageUrl(imageUrl);
-  try {
-    const resp = await fetch(targetUrl);
-    if (!resp.ok) return null;
-    return await resp.blob();
-  } catch (err) {
-    console.warn('[AffiliatePromoShareModal] Failed to fetch image blob:', err);
-    return null;
+  const cleanUrl = imageUrl.trim();
+  const encoded = encodeURIComponent(cleanUrl);
+
+  const candidateUrls = [
+    proxyImageUrl(cleanUrl),
+    `https://wsrv.nl/?url=${encoded}&output=jpg`,
+    `https://images.weserv.nl/?url=${encoded}&output=jpg`,
+    `https://corsproxy.io/?${encoded}`,
+    cleanUrl
+  ];
+
+  const uniqueCandidates = [...new Set(candidateUrls)];
+
+  for (const url of uniqueCandidates) {
+    try {
+      const resp = await fetch(url, { mode: 'cors' });
+      if (resp.ok) {
+        const blob = await resp.blob();
+        if (blob && blob.size > 100) {
+          return blob;
+        }
+      }
+    } catch {
+      // Continue to next candidate fallback
+    }
   }
+
+  // Final fallback: Image element to Canvas blob
+  return new Promise<Blob | null>((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth || 600;
+        canvas.height = img.naturalHeight || 600;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return resolve(null);
+        ctx.drawImage(img, 0, 0);
+        canvas.toBlob((b) => resolve(b), 'image/jpeg', 0.92);
+      } catch {
+        resolve(null);
+      }
+    };
+    img.onerror = () => resolve(null);
+    img.src = proxyImageUrl(cleanUrl);
+  });
 };
 
 /** Create a File object from product image for Web Share API */

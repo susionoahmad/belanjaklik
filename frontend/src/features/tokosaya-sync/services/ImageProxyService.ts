@@ -55,7 +55,19 @@ export function proxyImageUrl(originalUrl: string): string {
 
   if (!needsProxy(cleanUrl)) return cleanUrl;
 
-  return `https://wsrv.nl/?url=${encodeURIComponent(cleanUrl)}`;
+  const encoded = encodeURIComponent(cleanUrl);
+  // Shopee (susercontent.com) and ACCESSTRADE CDN URLs often lack extensions or use raw WebP streams.
+  // Force output=jpg for robust cross-origin fetching and proxying.
+  if (
+    cleanUrl.includes('susercontent.com') ||
+    cleanUrl.includes('shopee') ||
+    cleanUrl.includes('accesstrade') ||
+    !/\.(jpg|jpeg|png|webp|gif|svg)($|\?)/i.test(cleanUrl)
+  ) {
+    return `https://wsrv.nl/?url=${encoded}&output=jpg`;
+  }
+
+  return `https://wsrv.nl/?url=${encoded}`;
 }
 
 /**
