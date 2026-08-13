@@ -1,37 +1,37 @@
 <template>
-  <Modal :isOpen="isOpen" title="Buat & Bagikan Posting Promo" maxWidthClass="max-w-2xl" @close="$emit('close')">
-    <div v-if="product" class="space-y-4 text-xs">
+  <Modal :isOpen="isOpen" title="Buat & Bagikan Posting Promo" maxWidthClass="max-w-xl sm:max-w-2xl" @close="$emit('close')">
+    <div v-if="product" class="space-y-3 sm:space-y-4 text-xs">
       
       <!-- Top Card: Product Preview & Quick Info -->
-      <div class="flex items-start gap-3 bg-gray-50 dark:bg-gray-800/70 p-3.5 rounded-2xl border border-gray-100 dark:border-gray-700">
+      <div class="flex items-start gap-2.5 sm:gap-3 bg-gray-50 dark:bg-gray-800/70 p-2.5 sm:p-3.5 rounded-xl sm:rounded-2xl border border-gray-100 dark:border-gray-700 min-w-0">
         <img
           :src="proxyImageUrl(product.image_url || '')"
           :alt="product.name"
-          class="w-20 h-20 object-cover rounded-2xl shrink-0 border border-gray-200 dark:border-gray-700 shadow-xs"
+          class="w-14 h-14 sm:w-20 sm:h-20 object-cover rounded-xl sm:rounded-2xl shrink-0 border border-gray-200 dark:border-gray-700 shadow-xs"
           @error="($event.target as HTMLImageElement).src='https://images.unsplash.com/photo-1542838132-92c53300491e?w=150'"
         />
         <div class="min-w-0 flex-1">
-          <div class="flex items-center gap-2 mb-1">
-            <span :class="getMerchantBadgeClass(product.merchant)" class="px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase tracking-wider">
+          <div class="flex flex-wrap items-center gap-1.5 mb-0.5 sm:mb-1">
+            <span :class="getMerchantBadgeClass(product.merchant)" class="px-1.5 sm:px-2 py-0.5 rounded text-[9px] sm:text-[10px] font-extrabold uppercase tracking-wider">
               {{ merchantName }}
             </span>
-            <span v-if="discount > 0" class="px-2 py-0.5 rounded-md bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300 text-[10px] font-extrabold">
+            <span v-if="discount > 0" class="px-1.5 sm:px-2 py-0.5 rounded bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300 text-[9px] sm:text-[10px] font-extrabold">
               DISKON {{ discount }}%
             </span>
-            <span v-if="product.shop_name" class="text-[10px] text-gray-500 dark:text-gray-400 truncate">
+            <span v-if="product.shop_name" class="text-[9px] sm:text-[10px] text-gray-500 dark:text-gray-400 truncate max-w-[120px] sm:max-w-none">
               🛍️ {{ product.shop_name }}
             </span>
           </div>
 
-          <div class="font-bold text-sm text-gray-900 dark:text-white line-clamp-2 leading-snug">
+          <div class="font-bold text-xs sm:text-sm text-gray-900 dark:text-white line-clamp-2 leading-snug break-words">
             {{ product.name }}
           </div>
 
-          <div class="flex flex-wrap items-center gap-2 mt-1.5">
-            <span v-if="product.price" class="font-extrabold text-base text-emerald-600 dark:text-emerald-400">
+          <div class="flex flex-wrap items-center gap-1.5 sm:gap-2 mt-1">
+            <span v-if="product.price" class="font-extrabold text-sm sm:text-base text-emerald-600 dark:text-emerald-400">
               {{ formatRupiah(product.price) }}
             </span>
-            <span v-if="product.original_price && product.price && product.original_price > product.price" class="text-xs text-gray-400 line-through">
+            <span v-if="product.original_price && product.price && product.original_price > product.price" class="text-[10px] sm:text-xs text-gray-400 line-through">
               {{ formatRupiah(product.original_price) }}
             </span>
           </div>
@@ -39,12 +39,12 @@
       </div>
 
       <!-- Template Controls & Link Settings -->
-      <div class="space-y-3 bg-white dark:bg-gray-800 p-3.5 rounded-2xl border border-gray-100 dark:border-gray-700">
+      <div class="space-y-3 bg-white dark:bg-gray-800 p-2.5 sm:p-3.5 rounded-xl sm:rounded-2xl border border-gray-100 dark:border-gray-700 min-w-0">
         <!-- Row 1: Preset Caption Templates -->
         <div>
-          <label class="block text-[11px] font-extrabold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1.5 flex items-center justify-between">
+          <label class="block text-[10px] sm:text-[11px] font-extrabold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1.5 flex items-center justify-between">
             <span>🎨 Gaya Copywriting Caption</span>
-            <span class="text-[10px] font-normal text-gray-400">Pilih preset gaya teks</span>
+            <span class="text-[9px] sm:text-[10px] font-normal text-gray-400">Pilih preset</span>
           </label>
           <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
             <button
@@ -52,29 +52,29 @@
               :key="tpl.id"
               @click="selectPreset(tpl.id)"
               :class="[
-                'px-2.5 py-2 rounded-xl text-left border transition-all flex items-center gap-1.5 cursor-pointer font-bold',
+                'p-2 sm:px-2.5 sm:py-2 rounded-xl text-left border transition-all flex items-center gap-1.5 cursor-pointer font-bold min-w-0',
                 selectedPreset === tpl.id
                   ? 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/70 dark:text-emerald-300 dark:border-emerald-700 shadow-xs'
                   : 'bg-gray-50 dark:bg-gray-700/50 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700'
               ]"
             >
               <component :is="tpl.icon" class="w-3.5 h-3.5 shrink-0" />
-              <span class="text-[11px] truncate">{{ tpl.name }}</span>
+              <span class="text-[10px] sm:text-[11px] truncate min-w-0">{{ tpl.name }}</span>
             </button>
           </div>
         </div>
 
         <!-- Row 2: Link Type Toggle -->
         <div>
-          <label class="block text-[11px] font-extrabold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1.5 flex items-center justify-between">
+          <label class="block text-[10px] sm:text-[11px] font-extrabold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1.5 flex items-center justify-between">
             <span>🔗 Pilihan Tujuan Link Promo</span>
-            <span class="text-[10px] font-normal text-emerald-600 dark:text-emerald-400 font-semibold">Tautan dimasukkan 1x (tidak double)</span>
+            <span class="text-[9px] sm:text-[10px] font-normal text-emerald-600 dark:text-emerald-400 font-semibold">Tautan 1x (tidak double)</span>
           </label>
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5 sm:gap-2">
             <button
               @click="setLinkType('belanjaklik')"
               :class="[
-                'p-2.5 rounded-xl border text-left flex items-start gap-2 cursor-pointer transition-all',
+                'p-2 sm:p-2.5 rounded-xl border text-left flex items-start gap-2 cursor-pointer transition-all min-w-0 overflow-hidden',
                 selectedLinkType === 'belanjaklik'
                   ? 'bg-emerald-50 text-emerald-800 border-emerald-400 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-700 shadow-xs'
                   : 'bg-gray-50 dark:bg-gray-700/40 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-100'
@@ -83,16 +83,16 @@
               <div class="mt-0.5 p-1 rounded-lg bg-emerald-600 text-white shrink-0">
                 <Globe class="w-3.5 h-3.5" />
               </div>
-              <div class="min-w-0">
-                <div class="font-extrabold text-xs">Landing Page BelanjaKlik</div>
-                <div class="text-[10px] text-gray-500 dark:text-gray-400 truncate mt-0.5 font-mono">{{ belanjaklikUrl }}</div>
+              <div class="min-w-0 flex-1 overflow-hidden">
+                <div class="font-extrabold text-[11px] sm:text-xs">Landing Page BelanjaKlik</div>
+                <div class="text-[9px] sm:text-[10px] text-gray-500 dark:text-gray-400 truncate mt-0.5 font-mono block w-full">{{ belanjaklikUrl }}</div>
               </div>
             </button>
 
             <button
               @click="setLinkType('direct')"
               :class="[
-                'p-2.5 rounded-xl border text-left flex items-start gap-2 cursor-pointer transition-all',
+                'p-2 sm:p-2.5 rounded-xl border text-left flex items-start gap-2 cursor-pointer transition-all min-w-0 overflow-hidden',
                 selectedLinkType === 'direct'
                   ? 'bg-amber-50 text-amber-800 border-amber-400 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-700 shadow-xs'
                   : 'bg-gray-50 dark:bg-gray-700/40 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-100'
@@ -101,9 +101,9 @@
               <div class="mt-0.5 p-1 rounded-lg bg-amber-500 text-white shrink-0">
                 <ExternalLink class="w-3.5 h-3.5" />
               </div>
-              <div class="min-w-0">
-                <div class="font-extrabold text-xs">Direct Tracking Affiliate</div>
-                <div class="text-[10px] text-gray-500 dark:text-gray-400 truncate mt-0.5 font-mono">{{ directAffiliateUrl }}</div>
+              <div class="min-w-0 flex-1 overflow-hidden">
+                <div class="font-extrabold text-[11px] sm:text-xs">Direct Tracking Affiliate</div>
+                <div class="text-[9px] sm:text-[10px] text-gray-500 dark:text-gray-400 truncate mt-0.5 font-mono block w-full">{{ directAffiliateUrl }}</div>
               </div>
             </button>
           </div>
@@ -113,37 +113,37 @@
       <!-- Editable Caption Textarea -->
       <div>
         <div class="flex items-center justify-between mb-1">
-          <label class="text-[11px] font-extrabold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+          <label class="text-[10px] sm:text-[11px] font-extrabold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
             Draft Caption Promo (Bisa Diedit Manual)
           </label>
-          <span class="text-[10px] text-gray-400 font-medium">Link promo sudah menyatu di dalam teks</span>
+          <span class="text-[9px] sm:text-[10px] text-gray-400 font-medium">Link sudah menyatu di teks</span>
         </div>
         <textarea
           v-model="caption"
-          rows="6"
-          class="w-full p-3 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-xs leading-relaxed font-mono focus:ring-2 focus:ring-emerald-500 outline-none shadow-xs"
+          rows="5"
+          class="w-full p-2.5 sm:p-3 rounded-xl sm:rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-[11px] sm:text-xs leading-relaxed font-mono focus:ring-2 focus:ring-emerald-500 outline-none shadow-xs"
           placeholder="Ketik atau edit caption promo Anda di sini..."
         ></textarea>
       </div>
 
       <!-- Product Image & Visual Card Generator Bar -->
-      <div class="bg-emerald-50/60 dark:bg-emerald-950/30 p-3 rounded-2xl border border-emerald-100 dark:border-emerald-900/50 space-y-2">
+      <div class="bg-emerald-50/60 dark:bg-emerald-950/30 p-2.5 sm:p-3 rounded-xl sm:rounded-2xl border border-emerald-100 dark:border-emerald-900/50 space-y-2">
         <div class="flex items-center justify-between">
-          <div class="font-extrabold text-xs text-emerald-800 dark:text-emerald-300 flex items-center gap-1.5">
-            <ImageIcon class="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-            <span>Opsi Gambar & Banner Promo Visual</span>
+          <div class="font-extrabold text-[11px] sm:text-xs text-emerald-800 dark:text-emerald-300 flex items-center gap-1.5">
+            <ImageIcon class="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-600 dark:text-emerald-400" />
+            <span>Gambar & Banner Promo Visual</span>
           </div>
-          <span v-if="isProcessingImage" class="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 animate-pulse">
-            Memproses gambar...
+          <span v-if="isProcessingImage" class="text-[9px] sm:text-[10px] font-bold text-emerald-600 dark:text-emerald-400 animate-pulse">
+            Memproses...
           </span>
         </div>
 
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-1.5 sm:gap-2">
           <!-- Download Original Product Image -->
           <button
             @click="downloadProductImage"
             :disabled="isProcessingImage"
-            class="py-2 px-3 rounded-xl bg-white dark:bg-gray-800 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 font-extrabold text-[11px] flex items-center justify-center gap-1.5 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 cursor-pointer transition-colors shadow-xs disabled:opacity-50"
+            class="py-2 px-2.5 rounded-xl bg-white dark:bg-gray-800 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 font-extrabold text-[10px] sm:text-[11px] flex items-center justify-center gap-1.5 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 cursor-pointer transition-colors shadow-xs disabled:opacity-50"
           >
             <Download class="w-3.5 h-3.5" />
             <span>Download Gambar</span>
@@ -153,7 +153,7 @@
           <button
             @click="copyImageToClipboard"
             :disabled="isProcessingImage"
-            class="py-2 px-3 rounded-xl bg-white dark:bg-gray-800 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 font-extrabold text-[11px] flex items-center justify-center gap-1.5 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 cursor-pointer transition-colors shadow-xs disabled:opacity-50"
+            class="py-2 px-2.5 rounded-xl bg-white dark:bg-gray-800 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 font-extrabold text-[10px] sm:text-[11px] flex items-center justify-center gap-1.5 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 cursor-pointer transition-colors shadow-xs disabled:opacity-50"
           >
             <Copy class="w-3.5 h-3.5" />
             <span>Salin Gambar</span>
@@ -163,7 +163,7 @@
           <button
             @click="generateAndDownloadPromoCard"
             :disabled="isProcessingImage"
-            class="py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-[11px] flex items-center justify-center gap-1.5 cursor-pointer transition-colors shadow-xs disabled:opacity-50"
+            class="py-2 px-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-[10px] sm:text-[11px] flex items-center justify-center gap-1.5 cursor-pointer transition-colors shadow-xs disabled:opacity-50"
           >
             <Sparkles class="w-3.5 h-3.5" />
             <span>Download Banner Card</span>
@@ -172,12 +172,12 @@
       </div>
 
       <!-- Action Buttons Grid -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5 sm:gap-2 pt-0.5">
         <!-- Native Share Button -->
         <button
           @click="handleShare"
           :disabled="isProcessingImage"
-          class="col-span-1 sm:col-span-2 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-sm shadow-md flex items-center justify-center gap-2 cursor-pointer transition-all disabled:opacity-50"
+          class="col-span-1 sm:col-span-2 py-2.5 sm:py-3 rounded-xl sm:rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs sm:text-sm shadow-md flex items-center justify-center gap-2 cursor-pointer transition-all disabled:opacity-50"
         >
           <Share2 class="w-4 h-4" />
           <span>Bagikan Teks + Gambar ke Sosmed</span>
@@ -186,7 +186,7 @@
         <!-- Copy Caption & Link (Single link ensured) -->
         <button
           @click="copyCaptionAndLink"
-          class="py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 text-xs font-extrabold flex items-center justify-center gap-1.5 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors shadow-xs"
+          class="py-2 sm:py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 text-[11px] sm:text-xs font-extrabold flex items-center justify-center gap-1.5 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors shadow-xs"
         >
           <Copy class="w-3.5 h-3.5 text-emerald-500" />
           <span>Salin Caption & Link</span>
@@ -195,7 +195,7 @@
         <!-- Copy Link Only -->
         <button
           @click="copyText(effectiveLink, 'Link promo berhasil disalin!')"
-          class="py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 text-xs font-extrabold flex items-center justify-center gap-1.5 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors shadow-xs"
+          class="py-2 sm:py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 text-[11px] sm:text-xs font-extrabold flex items-center justify-center gap-1.5 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors shadow-xs"
         >
           <Link2 class="w-3.5 h-3.5 text-blue-500" />
           <span>Salin Link Saja</span>
@@ -211,16 +211,16 @@
         leave-from-class="opacity-100 translate-y-0"
         leave-to-class="opacity-0 translate-y-1"
       >
-        <div v-if="toastMessage" class="p-2.5 rounded-xl bg-gray-900 text-white font-bold text-xs flex items-center justify-between gap-2 shadow-lg border border-gray-700">
-          <div class="flex items-center gap-2">
+        <div v-if="toastMessage" class="p-2 sm:p-2.5 rounded-xl bg-gray-900 text-white font-bold text-[11px] sm:text-xs flex items-center justify-between gap-2 shadow-lg border border-gray-700">
+          <div class="flex items-center gap-2 min-w-0">
             <CheckCircle2 class="w-4 h-4 text-emerald-400 shrink-0" />
-            <span>{{ toastMessage }}</span>
+            <span class="truncate">{{ toastMessage }}</span>
           </div>
-          <button @click="toastMessage = ''" class="text-gray-400 hover:text-white text-xs font-mono">&times;</button>
+          <button @click="toastMessage = ''" class="text-gray-400 hover:text-white text-xs font-mono shrink-0">&times;</button>
         </div>
       </Transition>
 
-      <p class="text-[10px] text-gray-400 leading-relaxed text-center">
+      <p class="text-[9px] sm:text-[10px] text-gray-400 leading-relaxed text-center">
         💡 Link promo dijamin hanya muncul 1x di dalam caption. Gambar produk dapat diunduh atau dibagikan langsung bersama postingan.
       </p>
     </div>
@@ -448,7 +448,6 @@ const copyText = async (text: string, successMsg: string) => {
 };
 
 const copyCaptionAndLink = () => {
-  // Caption already has the link embedded once. Copy AS IS without duplicating!
   copyText(caption.value, 'Caption & link promo berhasil disalin!');
 };
 
@@ -528,7 +527,6 @@ const copyImageToClipboard = async () => {
       return;
     }
 
-    // Convert blob to PNG via canvas for ClipboardItem compatibility
     const img = new Image();
     img.crossOrigin = 'anonymous';
     const loaded = new Promise<boolean>((resolve) => {
@@ -630,7 +628,6 @@ const generateAndDownloadPromoCard = async () => {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // 1. Background Gradient
     const bgGrad = ctx.createLinearGradient(0, 0, width, height);
     bgGrad.addColorStop(0, '#0f172a');
     bgGrad.addColorStop(0.5, '#1e293b');
@@ -638,12 +635,10 @@ const generateAndDownloadPromoCard = async () => {
     ctx.fillStyle = bgGrad;
     ctx.fillRect(0, 0, width, height);
 
-    // Card Inner Backdrop
     drawRoundRect(ctx, 40, 40, width - 80, height - 80, 24);
     ctx.fillStyle = '#ffffff';
     ctx.fill();
 
-    // 2. Load & Draw Product Image
     let imgLoaded = false;
     if (p.image_url) {
       const blob = await fetchImageBlob(p.image_url);
@@ -668,7 +663,6 @@ const generateAndDownloadPromoCard = async () => {
     }
 
     if (!imgLoaded) {
-      // Fallback gray box for image
       drawRoundRect(ctx, 70, 70, 360, 360, 20);
       ctx.fillStyle = '#f1f5f9';
       ctx.fill();
@@ -679,7 +673,6 @@ const generateAndDownloadPromoCard = async () => {
       ctx.textAlign = 'left';
     }
 
-    // 3. Merchant Badge
     let badgeBg = '#10b981';
     const merchantLower = (p.merchant || '').toLowerCase();
     if (merchantLower.includes('shopee')) badgeBg = '#ee4d2d';
@@ -695,7 +688,6 @@ const generateAndDownloadPromoCard = async () => {
     ctx.font = 'bold 15px sans-serif';
     ctx.fillText(merchantName.value.toUpperCase(), 475, 93);
 
-    // Discount Badge (if any)
     if (discount.value > 0) {
       drawRoundRect(ctx, 630, 70, 100, 36, 12);
       ctx.fillStyle = '#ef4444';
@@ -705,19 +697,16 @@ const generateAndDownloadPromoCard = async () => {
       ctx.fillText(`-${discount.value}%`, 650, 93);
     }
 
-    // 4. Product Name
     ctx.fillStyle = '#0f172a';
     ctx.font = 'bold 26px sans-serif';
     drawWrappedText(ctx, p.name, 460, 145, 270, 36, 3);
 
-    // Shop Name
     if (p.shop_name) {
       ctx.fillStyle = '#64748b';
       ctx.font = 'bold 16px sans-serif';
       ctx.fillText(`🛍️ ${p.shop_name}`, 460, 270);
     }
 
-    // Price Section
     if (p.price) {
       ctx.fillStyle = '#059669';
       ctx.font = 'bold 36px sans-serif';
@@ -728,7 +717,6 @@ const generateAndDownloadPromoCard = async () => {
         ctx.font = 'bold 20px sans-serif';
         const origText = formatRupiah(p.original_price);
         ctx.fillText(origText, 460, 365);
-        // Strikethrough line
         const metrics = ctx.measureText(origText);
         ctx.beginPath();
         ctx.moveTo(460, 358);
@@ -739,7 +727,6 @@ const generateAndDownloadPromoCard = async () => {
       }
     }
 
-    // 5. Lower Content Box (Call to Action)
     drawRoundRect(ctx, 70, 460, 660, 160, 20);
     ctx.fillStyle = '#f8fafc';
     ctx.fill();
@@ -760,7 +747,6 @@ const generateAndDownloadPromoCard = async () => {
     ctx.font = 'medium 14px sans-serif';
     ctx.fillText('Penawaran belanja hemat & terpercaya via BelanjaKlik', 95, 580);
 
-    // 6. Footer Branding
     drawRoundRect(ctx, 40, 690, width - 80, 70, 0);
     ctx.fillStyle = '#0f172a';
     ctx.fill();
@@ -773,7 +759,6 @@ const generateAndDownloadPromoCard = async () => {
     ctx.font = 'bold 15px sans-serif';
     ctx.fillText('• Rekomendasi Belanja Cerdas & Afiliasi Resmi', 185, 732);
 
-    // Download generated PNG
     canvas.toBlob((bannerBlob) => {
       if (!bannerBlob) return;
       const bannerUrl = URL.createObjectURL(bannerBlob);
@@ -801,8 +786,6 @@ const handleShare = async () => {
   if (!p) return;
 
   const textToShare = caption.value.trim();
-  
-  // Link is already inside textToShare. Only set `url` if textToShare does NOT contain it!
   const hasUrlInText = textToShare.includes('http://') || textToShare.includes('https://');
 
   const payload: ShareData = {
@@ -814,7 +797,6 @@ const handleShare = async () => {
     payload.url = effectiveLink.value;
   }
 
-  // Attempt to attach image file
   const imageFile = await buildImageFile();
   if (imageFile) {
     payload.files = [imageFile];
@@ -830,7 +812,6 @@ const handleShare = async () => {
     }
   }
 
-  // Fallback if navigator.share is unavailable or fails
   await copyText(textToShare, 'Caption & link promo disalin ke clipboard!');
 };
 </script>
