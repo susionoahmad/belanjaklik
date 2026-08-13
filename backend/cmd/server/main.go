@@ -160,6 +160,12 @@ func main() {
 	db.Exec(`CREATE INDEX IF NOT EXISTS idx_aff_discount ON affiliate_products(discount_percent)`)
 	db.Exec(`CREATE INDEX IF NOT EXISTS idx_aff_price ON affiliate_products(price)`)
 	db.Exec(`CREATE INDEX IF NOT EXISTS idx_aff_updated ON affiliate_products(updated_at)`)
+	// Expression indexes matching the exact COALESCE() ORDER BY used by the
+	// affiliate-products endpoint so sort=sold/discount/price stay fast on 30k+ rows.
+	db.Exec(`CREATE INDEX IF NOT EXISTS idx_aff_sold_coalesce ON affiliate_products(COALESCE(item_sold, 0) DESC, created_at DESC, id DESC)`)
+	db.Exec(`CREATE INDEX IF NOT EXISTS idx_aff_discount_coalesce ON affiliate_products(COALESCE(discount_percent, 0) DESC, created_at DESC, id DESC)`)
+	db.Exec(`CREATE INDEX IF NOT EXISTS idx_aff_price_coalesce ON affiliate_products(COALESCE(price, 0) ASC, created_at DESC, id DESC)`)
+	db.Exec(`CREATE INDEX IF NOT EXISTS idx_aff_rating_coalesce ON affiliate_products(COALESCE(item_rating, 0) DESC, COALESCE(item_sold, 0) DESC, created_at DESC, id DESC)`)
 
 	// Normalize product codes so BOM/whitespace variants collapse onto the same
 	// value before dedup and index creation (must run while no unique index
