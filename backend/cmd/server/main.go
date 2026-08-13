@@ -14,8 +14,10 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -159,11 +161,31 @@ func main() {
 	db.Exec(`CREATE INDEX IF NOT EXISTS idx_aff_price ON affiliate_products(price)`)
 	db.Exec(`CREATE INDEX IF NOT EXISTS idx_aff_updated ON affiliate_products(updated_at)`)
 
+	// Normalize product codes so BOM/whitespace variants collapse onto the same
+	// value before dedup and index creation (must run while no unique index
+	// exists yet, otherwise normalized duplicates would violate it).
+	if _, err := db.Exec(`UPDATE affiliate_products SET external_product_id = TRIM(REPLACE(external_product_id, char(65279), '')) WHERE external_product_id IS NOT NULL AND external_product_id != '' AND (instr(external_product_id, char(65279)) > 0 OR external_product_id <> TRIM(external_product_id))`); err != nil {
+		log.Printf("[API-SERVER] Warning: extid normalization failed: %v", err)
+	}
+
 	// Clean duplicate affiliate products if any exist from previous test runs
 	if _, err := db.Exec(`DELETE FROM affiliate_products WHERE rowid NOT IN (
 		SELECT MAX(rowid) FROM affiliate_products GROUP BY LOWER(TRIM(COALESCE(merchant, ''))), LOWER(TRIM(name))
 	)`); err != nil {
 		log.Printf("[API-SERVER] Warning: duplicate cleanup failed: %v", err)
+	}
+
+	// Merge rows that share a (merchant, external_product_id) product code,
+	// keeping the newest row, then enforce it with a partial unique index so
+	// re-imports update in place instead of duplicating. Must run BEFORE the
+	// index exists (the index would reject the duplicates).
+	if _, err := db.Exec(`DELETE FROM affiliate_products WHERE external_product_id IS NOT NULL AND external_product_id != '' AND rowid NOT IN (
+		SELECT MAX(rowid) FROM affiliate_products WHERE external_product_id IS NOT NULL AND external_product_id != '' GROUP BY merchant, external_product_id
+	)`); err != nil {
+		log.Printf("[API-SERVER] Warning: extid duplicate cleanup failed: %v", err)
+	}
+	if _, err := db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS ux_aff_merchant_extid ON affiliate_products(merchant, external_product_id) WHERE external_product_id IS NOT NULL AND external_product_id != ''`); err != nil {
+		log.Printf("[API-SERVER] Warning: extid unique index creation failed: %v", err)
 	}
 
 	// Router setup
@@ -655,7 +677,7 @@ func handleAffiliateProducts(w http.ResponseWriter, r *http.Request) {
 		successCount := 0
 
 		// Per-item processor shared across batches.
-		processItem := func(item map[string]interface{}, stmt *sql.Stmt) (bool, error) {
+		processItem := func(item map[string]interface{}, stmtByExtID *sql.Stmt, stmtByID *sql.Stmt) (bool, error) {
 			getStr := func(k string) string {
 				if v, ok := item[k]; ok && v != nil {
 					return fmt.Sprintf("%v", v)
@@ -736,7 +758,13 @@ func handleAffiliateProducts(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 
-			extID := strings.TrimSpace(getStr("external_product_id"))
+			extID := strings.TrimSpace(strings.ReplaceAll(getStr("external_product_id"), "\uFEFF", ""))
+			// Prefer the canonical ACCESSTRADE goods_id embedded in the tracking
+			// URL so the dedup key stays identical across imports even when the
+			// CSV omits/varies the external_product_id column.
+			if gid := extractTrackingParam(affURL, "goods_id"); gid != "" {
+				extID = gid
+			}
 			slug := strings.TrimSpace(getStr("slug"))
 			id := strings.TrimSpace(getStr("id"))
 			if id == "" {
@@ -758,14 +786,20 @@ func handleAffiliateProducts(w http.ResponseWriter, r *http.Request) {
 				createdAt = now
 			}
 
-			_, err := stmt.Exec(
+			// Rows carrying a product code dedupe on (merchant, external_product_id);
+			// code-less rows dedupe on the deterministic id PK.
+			useStmt := stmtByID
+			if extID != "" {
+				useStmt = stmtByExtID
+			}
+			_, err := useStmt.Exec(
 				id,
 				getStr("source"),
 				merchant,
 				getStr("campaign_id"),
 				getStr("site_id"),
 				getStr("site_url"),
-				getStr("external_product_id"),
+				extID,
 				name,
 				getStr("slug"),
 				getStr("description"),
@@ -808,15 +842,14 @@ func handleAffiliateProducts(w http.ResponseWriter, r *http.Request) {
 				respondJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 				return
 			}
-			stmt, err := tx.Prepare(`
-				INSERT INTO affiliate_products (
+			insertSQL := `INSERT INTO affiliate_products (
 					id, source, merchant, campaign_id, site_id, site_url, external_product_id,
 					name, slug, description, image_url, product_url, affiliate_url, price,
 					original_price, discount_percent, commission_rate, shop_name, category,
 					brand, item_sold, item_rating, is_active, created_at, updated_at,
 					vertical, subcategory, offer_type
-				) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-				ON CONFLICT(id) DO UPDATE SET
+				) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+			updateSQL := ` ON CONFLICT(id) DO UPDATE SET
 					source = excluded.source,
 					merchant = excluded.merchant,
 					campaign_id = excluded.campaign_id,
@@ -842,8 +875,40 @@ func handleAffiliateProducts(w http.ResponseWriter, r *http.Request) {
 					updated_at = excluded.updated_at,
 					vertical = excluded.vertical,
 					subcategory = excluded.subcategory,
-					offer_type = excluded.offer_type
-			`)
+					offer_type = excluded.offer_type`
+			stmtByID, err := tx.Prepare(insertSQL + updateSQL)
+			if err != nil {
+				tx.Rollback()
+				respondJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+				return
+			}
+			stmtByExtID, err := tx.Prepare(insertSQL + ` ON CONFLICT(merchant, external_product_id) WHERE external_product_id IS NOT NULL AND external_product_id != '' DO UPDATE SET
+					source = excluded.source,
+					merchant = excluded.merchant,
+					campaign_id = excluded.campaign_id,
+					site_id = excluded.site_id,
+					site_url = excluded.site_url,
+					external_product_id = excluded.external_product_id,
+					name = excluded.name,
+					slug = excluded.slug,
+					description = excluded.description,
+					image_url = excluded.image_url,
+					product_url = excluded.product_url,
+					affiliate_url = excluded.affiliate_url,
+					price = excluded.price,
+					original_price = excluded.original_price,
+					discount_percent = excluded.discount_percent,
+					commission_rate = excluded.commission_rate,
+					shop_name = excluded.shop_name,
+					category = excluded.category,
+					brand = excluded.brand,
+					item_sold = excluded.item_sold,
+					item_rating = excluded.item_rating,
+					is_active = excluded.is_active,
+					updated_at = excluded.updated_at,
+					vertical = excluded.vertical,
+					subcategory = excluded.subcategory,
+					offer_type = excluded.offer_type`)
 			if err != nil {
 				tx.Rollback()
 				respondJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
@@ -851,7 +916,7 @@ func handleAffiliateProducts(w http.ResponseWriter, r *http.Request) {
 			}
 
 			for _, item := range items[start:end] {
-				ok, perr := processItem(item, stmt)
+				ok, perr := processItem(item, stmtByExtID, stmtByID)
 				if perr != nil {
 					continue
 				}
@@ -860,7 +925,8 @@ func handleAffiliateProducts(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 
-			stmt.Close()
+			stmtByExtID.Close()
+			stmtByID.Close()
 			if err := tx.Commit(); err != nil {
 				respondJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 				return
@@ -1277,6 +1343,34 @@ func respondJSON(w http.ResponseWriter, statusCode int, data interface{}) {
 // timedCtx returns a context with dbQueryTimeout deadline for DB queries.
 func timedCtx() (context.Context, context.CancelFunc) {
 	return context.WithTimeout(context.Background(), dbQueryTimeout)
+}
+
+var trackingParamRe = map[string]*regexp.Regexp{}
+
+// extractTrackingParam pulls a top-level query param (e.g. goods_id) out of a
+// tracking URL, decoding it and stripping BOM/whitespace. Returns "" if absent.
+func extractTrackingParam(rawURL, key string) string {
+	if rawURL == "" {
+		return ""
+	}
+	re, ok := trackingParamRe[key]
+	if !ok {
+		re = regexp.MustCompile(`[?&]` + regexp.QuoteMeta(key) + `=([^&#\s]+)`)
+		trackingParamRe[key] = re
+	}
+	m := re.FindStringSubmatch(rawURL)
+	if len(m) < 2 {
+		return ""
+	}
+	v := strings.TrimSpace(m[1])
+	v = strings.TrimPrefix(v, "\uFEFF")
+	if dec, err := url.QueryUnescape(v); err == nil {
+		v = dec
+	}
+	// Percent-encoded or literal UTF-8 BOM must be stripped after decoding too,
+	// otherwise the code ("\uFEFFBLO-...") never matches existing rows.
+	v = strings.ReplaceAll(v, "\uFEFF", "")
+	return strings.TrimSpace(v)
 }
 
 // -------------------------------------------------------------
