@@ -52,13 +52,15 @@ export class AccesstradeEngine {
 
     const lowerUrl = targetUrl.toLowerCase().trim();
 
-    // Never wrap Blibli URLs, Shopee shortlinks (shope.ee / s.shopee.co.id), or existing accesstrade.co.id/click links
+    // Never wrap Blibli URLs, Shopee shortlinks (shope.ee / s.shopee.co.id), existing accesstrade.co.id/click links,
+    // or Toko Saya / Alfamind tokovirtualku URLs (these are not Accesstrade merchant links)
     if (
       lowerUrl.includes('blibli.com') ||
       lowerUrl.includes('blibli.pxf.io') ||
       lowerUrl.includes('accesstrade.co.id/click') ||
       lowerUrl.includes('shope.ee') ||
-      lowerUrl.includes('s.shopee.co.id')
+      lowerUrl.includes('s.shopee.co.id') ||
+      lowerUrl.includes('tokovirtualku.id')
     ) {
       return targetUrl;
     }

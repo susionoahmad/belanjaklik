@@ -42,59 +42,6 @@
       </div>
     </div>
 
-    <!-- Accesstrade Affiliate Integration Panel -->
-    <div class="bg-white dark:bg-gray-800 p-5 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-soft space-y-3">
-      <div class="flex items-center justify-between">
-        <div>
-          <h3 class="font-extrabold text-base text-gray-900 dark:text-white flex items-center gap-2">
-            <Link2 class="w-5 h-5 text-emerald-500" />
-            <span>Integrasi Afiliasi Accesstrade Indonesia</span>
-          </h3>
-          <p class="text-xs text-gray-500 mt-0.5">
-            Aktifkan konversi otomatis tautan belanja ke Deep Link Afiliasi Accesstrade Indonesia.
-          </p>
-        </div>
-        <span class="text-[10px] font-black uppercase px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
-          {{ accesstradeConfig.isEnabled ? '● Afiliasi Aktif' : '○ Afiliasi Non-Aktif' }}
-        </span>
-      </div>
-
-      <form @submit.prevent="saveAccesstradeSettings" class="space-y-3 pt-1">
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div>
-            <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Publisher Site ID (Accesstrade)</label>
-            <input 
-              v-model="accesstradeConfig.siteId" 
-              type="text" 
-              placeholder="Contoh: 123456" 
-              class="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700 text-xs font-mono font-bold focus:ring-2 focus:ring-emerald-500 outline-none" 
-            />
-          </div>
-
-          <div>
-            <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">SubID / RK ID (Opsional)</label>
-            <input 
-              v-model="accesstradeConfig.rkId" 
-              type="text" 
-              placeholder="Contoh: belanjaklik_app" 
-              class="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700 text-xs font-mono font-bold focus:ring-2 focus:ring-emerald-500 outline-none" 
-            />
-          </div>
-        </div>
-
-        <div class="flex items-center justify-between pt-1">
-          <label class="flex items-center gap-2 font-bold text-xs text-gray-700 dark:text-gray-300 cursor-pointer">
-            <input type="checkbox" v-model="accesstradeConfig.isEnabled" class="w-4 h-4 accent-emerald-600 rounded" />
-            <span>Aktifkan Konversi Otomatis Deep Link Afiliasi</span>
-          </label>
-
-          <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold px-4 py-2 rounded-xl shadow-sm cursor-pointer">
-            Simpan Pengaturan Afiliasi
-          </button>
-        </div>
-      </form>
-    </div>
-
     <!-- Sources Data Table -->
     <div class="bg-white dark:bg-gray-800 p-5 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-soft space-y-3">
       <div class="flex items-center justify-between">
@@ -267,14 +214,13 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
-import { RefreshCw, ExternalLink, Play, Pause, Trash2, Image as ImageIcon, Link2 } from 'lucide-vue-next';
+import { RefreshCw, ExternalLink, Play, Pause, Trash2, Image as ImageIcon } from 'lucide-vue-next';
 import type { ProductSource } from '../../shared/types';
 import { dataService } from '../../shared/db/dataService';
 import { ProductSyncService } from '../../tokosaya-sync/services/ProductSyncService';
 import { useCatalogStore } from '../../catalog/stores/catalogStore';
 import { useAdminStore } from '../stores/adminStore';
 import { proxyImageUrl } from '../../tokosaya-sync/services/ImageProxyService';
-import { AccesstradeService, type AccesstradeConfig } from '../../affiliate/services/AccesstradeService';
 
 const catalogStore = useCatalogStore();
 const adminStore = useAdminStore();
@@ -282,13 +228,6 @@ const inputUrl = ref('');
 const isSyncing = ref(false);
 const isRefreshing = ref(false);
 const sources = ref<ProductSource[]>([]);
-
-// Accesstrade Config state
-const accesstradeConfig = ref<AccesstradeConfig>({
-  siteId: '',
-  rkId: '',
-  isEnabled: false
-});
 
 // Image Patch state
 const imagePatchTarget = ref<ProductSource | null>(null);
@@ -304,13 +243,7 @@ const parsedPatchUrls = computed(() => {
 
 onMounted(() => {
   loadSources();
-  accesstradeConfig.value = AccesstradeService.getConfig();
 });
-
-const saveAccesstradeSettings = () => {
-  AccesstradeService.saveConfig(accesstradeConfig.value);
-  alert('✓ Pengaturan Afiliasi Accesstrade Indonesia berhasil disimpan!');
-};
 
 const loadSources = async () => {
   isRefreshing.value = true;
