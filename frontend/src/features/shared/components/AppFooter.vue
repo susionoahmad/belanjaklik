@@ -7,7 +7,7 @@
         
         <!-- Column 1: Brand & Tagline -->
         <div class="space-y-3 md:col-span-1">
-          <div class="flex items-center gap-2">
+          <div @click="triggerSecretTap" class="flex items-center gap-2 cursor-pointer select-none" title="Ketuk 5x untuk Akses Mode Admin">
             <div class="w-9 h-9 rounded-2xl bg-brand-red flex items-center justify-center text-white font-black text-lg shadow-md">
               B
             </div>
@@ -73,10 +73,10 @@
               </a>
             </li>
             <li>
-              <router-link to="/admin" class="hover:text-brand-red transition-colors flex items-center gap-1.5">
+              <button @click="triggerSecretTap" class="hover:text-brand-red transition-colors flex items-center gap-1.5 text-left cursor-pointer">
                 <Settings class="w-3.5 h-3.5 text-purple-400" />
                 <span>Portal Sync Admin Toko Saya</span>
-              </router-link>
+              </button>
             </li>
           </ul>
         </div>
@@ -120,7 +120,7 @@
       </div>
 
       <!-- Bottom Copyright Bar -->
-      <div class="pt-6 border-t border-gray-800/80 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-gray-500">
+      <div @click="triggerSecretTap" class="pt-6 border-t border-gray-800/80 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-gray-500 cursor-pointer select-none">
         <div>
           &copy; 2026 <strong>BelanjAKlik</strong>. Hak Cipta Dilindungi Undang-Undang.
         </div>
@@ -141,4 +141,7 @@
 
 <script setup lang="ts">
 import { ChevronRight, ShieldCheck, ExternalLink, Settings, FileText, HelpCircle, AlertCircle } from 'lucide-vue-next';
+import { useSecretAdminAccess } from '@/features/admin/composables/useSecretAdminAccess';
+
+const { triggerSecretTap } = useSecretAdminAccess();
 </script>

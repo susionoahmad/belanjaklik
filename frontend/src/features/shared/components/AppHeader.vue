@@ -2,8 +2,12 @@
   <header class="sticky top-0 z-30 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md border-b border-gray-100 dark:border-gray-800 shadow-sm transition-colors duration-200">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div class="flex items-center justify-between h-16 gap-3">
-        <!-- Logo & Branding -->
-        <router-link to="/" class="flex items-center gap-2.5 shrink-0 group">
+        <!-- Logo & Branding (Dengan Secret Tap 5x untuk Akses Mode Admin) -->
+        <div 
+          @click="handleLogoClick" 
+          class="flex items-center gap-2.5 shrink-0 group cursor-pointer select-none" 
+          title="Personal Shopping Assistant (Ketuk 5x untuk Mode Admin)"
+        >
           <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-red to-brand-red-dark text-white flex items-center justify-center shadow-md group-hover:scale-105 transition-transform duration-200">
             <ShoppingBag class="w-5 h-5" />
           </div>
@@ -13,7 +17,7 @@
             </h1>
             <p class="text-[10px] text-gray-500 dark:text-gray-400 font-medium">Asisten Belanja Pribadi Serba Ada</p>
           </div>
-        </router-link>
+        </div>
 
         <!-- Right Action Controls -->
         <div class="flex items-center gap-2">
@@ -61,12 +65,24 @@
 
 <script setup lang="ts">
 import { useDark, useToggle } from '@vueuse/core';
+import { useRouter, useRoute } from 'vue-router';
 import { ShoppingBag, ShoppingCart, Sun, Moon } from 'lucide-vue-next';
 import { useOnlineStatus } from '../composables/useOnlineStatus';
 import { useCartStore } from '../../cart/stores/cartStore';
+import { useSecretAdminAccess } from '@/features/admin/composables/useSecretAdminAccess';
 
+const router = useRouter();
+const route = useRoute();
 const isDark = useDark();
 const toggleDark = useToggle(isDark);
 const { isOnline } = useOnlineStatus();
 const cartStore = useCartStore();
+const { triggerSecretTap } = useSecretAdminAccess();
+
+const handleLogoClick = () => {
+  triggerSecretTap();
+  if (route.path !== '/') {
+    router.push('/');
+  }
+};
 </script>

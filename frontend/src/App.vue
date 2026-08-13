@@ -18,8 +18,26 @@
     <!-- Slide-over Cart Drawer -->
     <CartDrawer />
 
-    <!-- Bottom Navigation Bar for Mobile -->
+    <!-- Bottom Navigation Bar for Mobile (Hidden Admin Menu - Pure User Nav) -->
     <BottomNav />
+
+    <!-- Secret Admin Access Modal -->
+    <AdminSecretModal />
+
+    <!-- Secret Tap Toast Hint -->
+    <Transition
+      enter-active-class="transition duration-200 ease-out"
+      enter-from-class="opacity-0 translate-y-2"
+      enter-to-class="opacity-100 translate-y-0"
+      leave-active-class="transition duration-150 ease-in"
+      leave-from-class="opacity-100 translate-y-0"
+      leave-to-class="opacity-0 translate-y-2"
+    >
+      <div v-if="hintMessage" class="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-slate-900 text-white font-extrabold text-xs px-4 py-2 rounded-full shadow-xl border border-slate-700 flex items-center gap-2 pointer-events-none">
+        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+        <span>{{ hintMessage }}</span>
+      </div>
+    </Transition>
   </div>
 </template>
 
@@ -29,6 +47,10 @@ import AppHeader from './features/shared/components/AppHeader.vue';
 import AppFooter from './features/shared/components/AppFooter.vue';
 import BottomNav from './features/shared/components/BottomNav.vue';
 import CartDrawer from './features/cart/components/CartDrawer.vue';
+import AdminSecretModal from './features/admin/components/AdminSecretModal.vue';
+import { useSecretAdminAccess } from './features/admin/composables/useSecretAdminAccess';
+
+const { hintMessage } = useSecretAdminAccess();
 
 useHead({
   title: 'BelanjaKlik',

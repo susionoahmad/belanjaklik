@@ -5,7 +5,8 @@
         v-for="item in navItems"
         :key="item.path"
         :to="item.path"
-        class="flex flex-col items-center justify-center text-xs font-medium transition-colors"
+        @click="handleNavClick(item.path)"
+        class="flex flex-col items-center justify-center text-xs font-medium transition-colors select-none"
         :class="route.path === item.path ? 'text-brand-red font-bold' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'"
       >
         <div class="relative">
@@ -28,9 +29,11 @@ import { computed } from 'vue';
 import { useRoute } from 'vue-router';
 import { Home, Grid, Package, Tag, Clock } from 'lucide-vue-next';
 import { useCartStore } from '../../cart/stores/cartStore';
+import { useSecretAdminAccess } from '@/features/admin/composables/useSecretAdminAccess';
 
 const route = useRoute();
 const cartStore = useCartStore();
+const { triggerSecretTap } = useSecretAdminAccess();
 
 const navItems = computed(() => [
   { path: '/', label: 'Beranda', icon: Home },
@@ -39,4 +42,10 @@ const navItems = computed(() => [
   { path: '/promos', label: 'Promo', icon: Tag },
   { path: '/orders', label: 'Pesanan', icon: Clock, badge: cartStore.totalItemCount > 0 ? `${cartStore.totalItemCount}` : null }
 ]);
+
+const handleNavClick = (path: string) => {
+  if (path === '/') {
+    triggerSecretTap();
+  }
+};
 </script>
