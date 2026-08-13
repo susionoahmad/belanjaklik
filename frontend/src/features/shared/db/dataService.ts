@@ -313,20 +313,27 @@ export const dataService = {
       }
     }
 
+    // Never surface affiliate/tracking URLs (Accesstrade, atid.me, Shopee shortlinks) as Toko Saya sources,
+    // even if previously persisted in product_sources.
+    const isAffiliateTrackingUrl = (url?: string | null) =>
+      !!url && (url.includes('accesstrade.co.id/ts') || url.includes('atid.me') || url.includes('shope.ee') || url.includes('s.shopee.co.id'));
+
     const prodMap = new Map<string, any>();
     for (const p of allProducts) {
       if (p.id) prodMap.set(p.id, p);
       if (p.external_product_code) prodMap.set(p.external_product_code, p);
     }
-    const populated = rawSources.map(src => {
-      const prod = prodMap.get(src.product_id || '') || prodMap.get(src.external_product_code || '');
-      return {
-        ...src,
-        product_name: prod?.name || src.product_name || 'Toko Saya Product',
-        product_price: prod?.price || src.product_price || 0,
-        product_image_url: prod?.image_url || src.product_image_url || 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=150'
-      };
-    });
+    const populated = rawSources
+      .filter(src => !isAffiliateTrackingUrl(src.source_url))
+      .map(src => {
+        const prod = prodMap.get(src.product_id || '') || prodMap.get(src.external_product_code || '');
+        return {
+          ...src,
+          product_name: prod?.name || src.product_name || 'Toko Saya Product',
+          product_price: prod?.price || src.product_price || 0,
+          product_image_url: prod?.image_url || src.product_image_url || 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=150'
+        };
+      });
 
     await offlineDb.setSources(populated);
     return populated;
