@@ -759,11 +759,13 @@ func handleAffiliateProducts(w http.ResponseWriter, r *http.Request) {
 			}
 
 			extID := strings.TrimSpace(strings.ReplaceAll(getStr("external_product_id"), "\uFEFF", ""))
-			// Prefer the canonical ACCESSTRADE goods_id embedded in the tracking
-			// URL so the dedup key stays identical across imports even when the
-			// CSV omits/varies the external_product_id column.
+			// Prefer the canonical product code embedded in the tracking URL so
+			// the dedup key stays identical across imports even when the CSV
+			// omits/varies the external_product_id column.
 			if gid := extractTrackingParam(affURL, "goods_id"); gid != "" {
 				extID = gid
+			} else if tid := extractAccesstradeTsID(affURL); tid != "" {
+				extID = tid
 			}
 			slug := strings.TrimSpace(getStr("slug"))
 			id := strings.TrimSpace(getStr("id"))
@@ -1345,20 +1347,18 @@ func timedCtx() (context.Context, context.CancelFunc) {
 	return context.WithTimeout(context.Background(), dbQueryTimeout)
 }
 
-var trackingParamRe = map[string]*regexp.Regexp{}
+var (
+	reTrackingGoodsID = regexp.MustCompile(`[?&]goods_id=([^&#\s]+)`)
+	reAccesstradeTsID = regexp.MustCompile(`/ts/id-([^\s?&/]+)`)
+)
 
-// extractTrackingParam pulls a top-level query param (e.g. goods_id) out of a
-// tracking URL, decoding it and stripping BOM/whitespace. Returns "" if absent.
+// extractTrackingParam pulls the goods_id out of a tracking URL, decoding it
+// and stripping BOM/whitespace. Returns "" if absent.
 func extractTrackingParam(rawURL, key string) string {
 	if rawURL == "" {
 		return ""
 	}
-	re, ok := trackingParamRe[key]
-	if !ok {
-		re = regexp.MustCompile(`[?&]` + regexp.QuoteMeta(key) + `=([^&#\s]+)`)
-		trackingParamRe[key] = re
-	}
-	m := re.FindStringSubmatch(rawURL)
+	m := reTrackingGoodsID.FindStringSubmatch(rawURL)
 	if len(m) < 2 {
 		return ""
 	}
@@ -1371,6 +1371,24 @@ func extractTrackingParam(rawURL, key string) string {
 	// otherwise the code ("\uFEFFBLO-...") never matches existing rows.
 	v = strings.ReplaceAll(v, "\uFEFF", "")
 	return strings.TrimSpace(v)
+}
+
+// extractAccesstradeTsID pulls the trailing product id from Accesstrade deep
+// links like https://accesstrade.co.id/ts/id-<site>-<campaign>-<productId>,
+// e.g. ".../ts/id-7860-127950-1729804521582069129" -> "1729804521582069129".
+func extractAccesstradeTsID(rawURL string) string {
+	if rawURL == "" {
+		return ""
+	}
+	m := reAccesstradeTsID.FindStringSubmatch(rawURL)
+	if len(m) < 2 {
+		return ""
+	}
+	parts := strings.Split(m[1], "-")
+	if len(parts) == 0 {
+		return ""
+	}
+	return strings.TrimSpace(parts[len(parts)-1])
 }
 
 // -------------------------------------------------------------

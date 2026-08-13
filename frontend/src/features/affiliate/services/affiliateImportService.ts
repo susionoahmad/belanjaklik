@@ -387,6 +387,29 @@ function stableExternalProductId(url: string | undefined, name: string): string 
   }
   return 'generated_' + (hash >>> 0).toString(16);
 }
+
+/**
+ * Extracts the canonical product code from a tracking URL:
+ *  - ACCESSTRADE atid.me links: goods_id=BLO-... / goods_id=6122818859723
+ *  - ACCESSTRADE deep links:   /ts/id-<site>-<campaign>-<productId>
+ */
+function extractProductCode(url?: string): string {
+  if (!url) return '';
+  const goods = url.match(/[?&]goods_id=([^&#\s]+)/i)?.[1] || '';
+  if (goods) {
+    try {
+      return decodeURIComponent(goods).replace(/\uFEFF/g, '').trim();
+    } catch {
+      return goods.replace(/\uFEFF/g, '').trim();
+    }
+  }
+  const ts = url.match(/\/ts\/id-([^\s?&/]+)/i)?.[1] || '';
+  if (ts) {
+    const parts = ts.split('-');
+    return parts[parts.length - 1] || '';
+  }
+  return '';
+}
 export async function bulkUpsertAffiliateFeed(
   items: ParsedFeedItem[],
   options: {
@@ -430,7 +453,8 @@ export async function bulkUpsertAffiliateFeed(
       if (slug.length > 80) slug = slug.substring(0, 80).replace(/-+$/, '');
 
       const cleanDedupUrl = extractCleanMerchantProductUrl(item.product_url) || extractCleanMerchantProductUrl(item.affiliate_url);
-      const external_product_id = item.external_product_id || stableExternalProductId(cleanDedupUrl || item.product_url || item.affiliate_url, item.name);
+      const canonicalCode = extractProductCode(item.affiliate_url) || extractProductCode(item.product_url);
+      const external_product_id = canonicalCode || item.external_product_id || stableExternalProductId(cleanDedupUrl || item.product_url || item.affiliate_url, item.name);
       const site_id = item.site_id || defaultSiteId || extractSiteIdFromAffiliateUrl(item.affiliate_url) || 'legacy';
       const site_url = item.site_url || defaultSiteUrl;
 
