@@ -291,7 +291,8 @@ function inferAffiliateClassification(input: { name?: string; category?: string;
 }
 export function transformAndCleanRows(
   rows: Record<string, any>[],
-  mapping: ColumnMappingConfig
+  mapping: ColumnMappingConfig,
+  selectedMerchant: string = 'other'
 ): ParsedFeedItem[] {
   return rows.map((row, index) => {
     const getValue = (key?: string) => (key && row[key] !== undefined && row[key] !== null) ? String(row[key]).trim() : '';
@@ -344,7 +345,7 @@ export function transformAndCleanRows(
 
     const classification = inferAffiliateClassification(
       { name: cleanedName, category, affiliate_url, product_url },
-      { merchant: 'other', vertical: 'marketplace' }
+      { merchant: selectedMerchant || 'other', vertical: 'marketplace' }
     );
 
     return {
@@ -466,7 +467,7 @@ export async function bulkUpsertAffiliateFeed(
       if (slug.length > 90) slug = slug.substring(0, 90).replace(/-+$/, '');
 
       return {
-        merchant: item.merchant || merchant,
+        merchant: item.merchant && item.merchant !== 'other' ? item.merchant : merchant,
         vertical: item.vertical || options.vertical || 'marketplace',
         subcategory: item.subcategory || options.subcategory || item.category || null,
         offer_type: item.offer_type || (options.vertical === 'travel' ? 'booking' : options.vertical === 'digital' ? 'service' : 'product'),

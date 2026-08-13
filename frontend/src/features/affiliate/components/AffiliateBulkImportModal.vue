@@ -462,7 +462,7 @@ const parseAndNext = async () => {
 };
 
 const updatePreview = () => {
-  previewItems.value = transformAndCleanRows(parsedRows.value, mapping.value);
+  previewItems.value = transformAndCleanRows(parsedRows.value, mapping.value, defaultMerchant.value);
 };
 
 const validPreviewCount = computed(() => {
