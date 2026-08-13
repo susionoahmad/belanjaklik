@@ -83,6 +83,59 @@
       </div>
     </div>
 
+    <!-- Accesstrade Affiliate Integration Settings -->
+    <div class="bg-white dark:bg-gray-800 p-5 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-soft space-y-3">
+      <div class="flex items-center justify-between">
+        <div>
+          <h3 class="font-extrabold text-base text-gray-900 dark:text-white flex items-center gap-2">
+            <Link2 class="w-5 h-5 text-emerald-500" />
+            <span>Integrasi Afiliasi Accesstrade Indonesia</span>
+          </h3>
+          <p class="text-xs text-gray-500 mt-0.5">
+            Atur Publisher Site ID & SubID untuk konversi otomatis tautan belanja ke Deep Link Afiliasi Accesstrade Indonesia.
+          </p>
+        </div>
+        <span class="text-[10px] font-black uppercase px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+          {{ accesstradeConfig.isEnabled ? '● Afiliasi Aktif' : '○ Afiliasi Non-Aktif' }}
+        </span>
+      </div>
+
+      <form @submit.prevent="saveAccesstradeSettings" class="space-y-3 pt-1">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Publisher Site ID (Accesstrade)</label>
+            <input 
+              v-model="accesstradeConfig.siteId" 
+              type="text" 
+              placeholder="Contoh: 123456" 
+              class="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700 text-xs font-mono font-bold focus:ring-2 focus:ring-emerald-500 outline-none" 
+            />
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">SubID / RK ID (Opsional)</label>
+            <input 
+              v-model="accesstradeConfig.rkId" 
+              type="text" 
+              placeholder="Contoh: belanjaklik_app" 
+              class="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700 text-xs font-mono font-bold focus:ring-2 focus:ring-emerald-500 outline-none" 
+            />
+          </div>
+        </div>
+
+        <div class="flex items-center justify-between pt-1">
+          <label class="flex items-center gap-2 font-bold text-xs text-gray-700 dark:text-gray-300 cursor-pointer">
+            <input type="checkbox" v-model="accesstradeConfig.isEnabled" class="w-4 h-4 accent-emerald-600 rounded" />
+            <span>Aktifkan Konversi Otomatis Deep Link Afiliasi</span>
+          </label>
+
+          <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold px-4 py-2 rounded-xl shadow-sm cursor-pointer">
+            Simpan Pengaturan Afiliasi
+          </button>
+        </div>
+      </form>
+    </div>
+
     <!-- Search & Filter Controls -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 bg-white dark:bg-gray-800 p-3.5 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-soft">
       <!-- Search Input -->
@@ -426,7 +479,7 @@
 import { ref, computed, watch, onMounted } from 'vue';
 import { 
   Share2, Plus, RefreshCw, Package, CheckCircle2, Percent, Search, Clipboard, Code2, 
-  ExternalLink, Edit3, Trash2, AlertTriangle, CheckCircle, UploadCloud, Store,
+  ExternalLink, Edit3, Trash2, AlertTriangle, CheckCircle, UploadCloud, Store, Link2,
   ChevronLeft, ChevronRight
 } from 'lucide-vue-next';import Modal from '@/features/shared/components/Modal.vue';
 import AffiliateProductModal from '@/features/affiliate/components/AffiliateProductModal.vue';
@@ -436,7 +489,7 @@ import type { AffiliateProduct } from '@/features/affiliate/types';
 import { formatRupiah } from '@/features/shared/utils/formatters';
 import { proxyImageUrl } from '@/features/tokosaya-sync/services/ImageProxyService';
 import { getAccesstradeCaptureBookmarklet, readCapturedAffiliateProducts, readAffiliateCaptureFromHash } from '@/features/affiliate/services/affiliateCaptureService';
-import { AccesstradeEngine } from '@/features/affiliate/services/AccesstradeService';
+import { AccesstradeEngine, type AccesstradeConfig } from '@/features/affiliate/services/AccesstradeService';
 import { 
   getAllAffiliateProductsAdmin, 
   getAffiliateProductByIdAdmin,
@@ -486,6 +539,18 @@ const selectedProduct = ref<AffiliateProduct | null>(null);
 
 const isConfirmDeleteOpen = ref(false);
 const productToDelete = ref<AffiliateProduct | null>(null);
+
+// Accesstrade Config state
+const accesstradeConfig = ref<AccesstradeConfig>({
+  siteId: '',
+  rkId: '',
+  isEnabled: false
+});
+
+const saveAccesstradeSettings = () => {
+  AccesstradeEngine.saveConfig(accesstradeConfig.value);
+  showToast('Pengaturan Afiliasi Accesstrade Indonesia berhasil disimpan!');
+};
 
 const toastMessage = ref('');
 
@@ -600,6 +665,7 @@ const handlePageSizeChange = () => {
 };
 
 onMounted(() => {
+  accesstradeConfig.value = AccesstradeEngine.getConfig();
   loadProducts();
 });
 
