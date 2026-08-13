@@ -506,14 +506,15 @@ const fetchImageBlob = async (imageUrl: string): Promise<Blob | null> => {
 /** Create a File object from product image for Web Share API */
 const buildImageFile = async (): Promise<File | undefined> => {
   const p = props.product;
-  if (!p?.image_url || !p?.slug) return undefined;
+  if (!p?.image_url) return undefined;
   isProcessingImage.value = true;
   try {
     const blob = await fetchImageBlob(p.image_url);
     if (!blob) return undefined;
     const ext = (p.image_url.split('.').pop()?.split('?')[0] || 'jpg').toLowerCase();
-    const cleanSlug = String(p.slug).replace(/[^a-z0-9-]/gi, '');
-    return new File([blob], `promo-${cleanSlug || 'product'}.${ext}`, { type: blob.type || 'image/jpeg' });
+    const cleanSlug = String(p.slug || p.id || 'product').replace(/[^a-z0-9-]/gi, '');
+    const filename = `promo-${cleanSlug}.${ext.length < 5 ? ext : 'jpg'}`;
+    return new File([blob], filename, { type: blob.type || 'image/jpeg' });
   } finally {
     isProcessingImage.value = false;
   }
@@ -818,7 +819,7 @@ const generateAndDownloadPromoCard = async () => {
   }
 };
 
-/** Handle Web Share API (Text + Image file) */
+/** Handle Web Share API (Text + Image file) with fallbacks */
 const handleShare = async () => {
   const p = props.product;
   if (!p) return;
@@ -842,14 +843,36 @@ const handleShare = async () => {
 
   if (navigator.share) {
     try {
+      // Validate canShare with files
+      if (payload.files && (navigator as any).canShare && !(navigator as any).canShare({ files: payload.files })) {
+        delete payload.files;
+      }
+
       await navigator.share(payload);
+      showToast('Menu berbagi berhasil dibuka!');
       return;
     } catch (err) {
       if ((err as Error).name === 'AbortError') return;
-      console.warn('[AffiliatePromoShareModal] Web Share failed, falling back to copy:', err);
+      console.warn('[AffiliatePromoShareModal] Web Share with file failed, retrying text-only:', err);
+      if (payload.files) {
+        delete payload.files;
+        try {
+          await navigator.share(payload);
+          if (imageFile) downloadProductImage();
+          return;
+        } catch {
+          // Fall through to copy & auto download
+        }
+      }
     }
   }
 
-  await copyText(textToShare, 'Caption & link promo disalin ke clipboard!');
+  // Fallback for Desktop / Unsupported Web Share:
+  // 1. Copy text to clipboard
+  await copyText(textToShare, 'Caption disalin! Gambar promo otomatis diunduh.');
+  // 2. Auto-download image so user has it ready to attach on WhatsApp Web / Sosmed
+  if (p.image_url) {
+    await downloadProductImage();
+  }
 };
 </script>

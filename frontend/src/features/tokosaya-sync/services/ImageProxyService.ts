@@ -38,6 +38,9 @@ export function proxyImageUrl(originalUrl: string): string {
   if (!originalUrl || typeof originalUrl !== 'string') return '';
   
   let cleanUrl = originalUrl.trim();
+  if (cleanUrl.startsWith('http://')) {
+    cleanUrl = cleanUrl.replace(/^http:\/\//i, 'https://');
+  }
   
   // Unwrap nested/double wsrv.nl or weserv.nl proxy URLs if present
   while (cleanUrl.includes('wsrv.nl/?url=') || cleanUrl.includes('weserv.nl/?url=')) {
