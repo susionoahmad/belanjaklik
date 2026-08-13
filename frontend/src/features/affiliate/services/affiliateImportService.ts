@@ -243,7 +243,7 @@ export function autoDetectMapping(headers: string[]): ColumnMappingConfig {
   mapping.image_url = findHeader(['image url', 'gambar', 'image_url', 'image', 'photo', 'foto']);
   mapping.price = findHeader(['discounted price', 'harga promo', 'promo price', 'price', 'harga']);
   mapping.original_price = findHeader(['original price', 'harga asli', 'harga coret', 'normal price']);
-  mapping.commission_rate = findHeader(['commission', 'komisi', 'rate', 'commission_rate']);
+  mapping.commission_rate = findHeader(['commission rate', 'commission_rate', 'komisi (%)', 'komisi %', 'rate (%)', 'rate']) || findHeader(['commission', 'komisi']);
   mapping.shop_name = findHeader(['shop name', 'nama toko', 'seller', 'shop_name', 'merchant name']);
   // Prefer the merchant's top-level category for consistent catalog grouping.
   mapping.category = findExactHeader(['main category name', 'main category', 'main_category_name']) ||
