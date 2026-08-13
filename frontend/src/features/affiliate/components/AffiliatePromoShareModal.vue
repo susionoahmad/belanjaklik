@@ -126,6 +126,50 @@
         ></textarea>
       </div>
 
+      <!-- Direct Social Target Share Bar -->
+      <div class="space-y-1.5 pt-0.5">
+        <label class="block text-[10px] sm:text-[11px] font-extrabold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+          Direct Share ke Aplikasi Media Sosial
+        </label>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+          <!-- WhatsApp Direct -->
+          <button
+            @click="shareToWhatsApp"
+            class="py-2 px-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-[10px] sm:text-[11px] flex items-center justify-center gap-1.5 cursor-pointer shadow-xs transition-all"
+          >
+            <MessageSquare class="w-3.5 h-3.5" />
+            <span>WhatsApp</span>
+          </button>
+
+          <!-- Telegram Direct -->
+          <button
+            @click="shareToTelegram"
+            class="py-2 px-2.5 rounded-xl bg-sky-500 hover:bg-sky-600 text-white font-extrabold text-[10px] sm:text-[11px] flex items-center justify-center gap-1.5 cursor-pointer shadow-xs transition-all"
+          >
+            <Send class="w-3.5 h-3.5" />
+            <span>Telegram</span>
+          </button>
+
+          <!-- Facebook Direct -->
+          <button
+            @click="shareToFacebook"
+            class="py-2 px-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-[10px] sm:text-[11px] flex items-center justify-center gap-1.5 cursor-pointer shadow-xs transition-all"
+          >
+            <Facebook class="w-3.5 h-3.5" />
+            <span>Facebook</span>
+          </button>
+
+          <!-- Twitter / X Direct -->
+          <button
+            @click="shareToTwitter"
+            class="py-2 px-2.5 rounded-xl bg-slate-800 hover:bg-slate-900 text-white font-extrabold text-[10px] sm:text-[11px] flex items-center justify-center gap-1.5 cursor-pointer shadow-xs transition-all"
+          >
+            <Twitter class="w-3.5 h-3.5" />
+            <span>Twitter / X</span>
+          </button>
+        </div>
+      </div>
+
       <!-- Product Image & Visual Card Generator Bar -->
       <div class="bg-emerald-50/60 dark:bg-emerald-950/30 p-2.5 sm:p-3 rounded-xl sm:rounded-2xl border border-emerald-100 dark:border-emerald-900/50 space-y-2">
         <div class="flex items-center justify-between">
@@ -231,13 +275,15 @@
 import { computed, ref, watch } from 'vue';
 import { 
   Share2, Copy, Link2, Download, Image as ImageIcon, Sparkles, 
-  Globe, ExternalLink, Flame, MessageSquare, Smartphone, CheckCircle2 
+  Globe, ExternalLink, Flame, MessageSquare, Smartphone, CheckCircle2,
+  Send, Facebook, Twitter
 } from 'lucide-vue-next';
 import Modal from '@/features/shared/components/Modal.vue';
 import type { AffiliateProduct } from '@/features/affiliate/types';
 import { formatRupiah } from '@/features/shared/utils/formatters';
 import { proxyImageUrl } from '@/features/tokosaya-sync/services/ImageProxyService';
 import { AccesstradeEngine } from '@/features/affiliate/services/AccesstradeService';
+import { openUrl } from '@/features/shared/utils/openUrl';
 
 const props = defineProps<{
   isOpen: boolean;
@@ -449,6 +495,49 @@ const copyText = async (text: string, successMsg: string) => {
 
 const copyCaptionAndLink = () => {
   copyText(caption.value, 'Caption & link promo berhasil disalin!');
+};
+
+/** Direct Share to WhatsApp Web / App */
+const shareToWhatsApp = async () => {
+  const textToShare = caption.value.trim();
+  if (!textToShare) return;
+  
+  if (props.product?.image_url) {
+    downloadProductImage();
+  }
+
+  const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(textToShare)}`;
+  openUrl(waUrl, { target: '_blank' });
+  showToast('Membuka WhatsApp... Caption & link promo terisi otomatis!');
+};
+
+/** Direct Share to Telegram */
+const shareToTelegram = () => {
+  const textToShare = caption.value.trim();
+  if (!textToShare) return;
+
+  if (props.product?.image_url) {
+    downloadProductImage();
+  }
+
+  const tgUrl = `https://t.me/share/url?url=${encodeURIComponent(effectiveLink.value)}&text=${encodeURIComponent(textToShare)}`;
+  openUrl(tgUrl, { target: '_blank' });
+  showToast('Membuka Telegram...');
+};
+
+/** Direct Share to Facebook */
+const shareToFacebook = () => {
+  const fbUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(effectiveLink.value)}`;
+  openUrl(fbUrl, { target: '_blank' });
+  showToast('Membuka Facebook...');
+};
+
+/** Direct Share to Twitter / X */
+const shareToTwitter = () => {
+  const textToShare = caption.value.trim();
+  const twUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(textToShare)}`;
+  openUrl(twUrl, { target: '_blank' });
+  showToast('Membuka Twitter / X...');
 };
 
 /** Fetch product image safely via multi-provider CORS proxy pipeline */
@@ -841,9 +930,9 @@ const handleShare = async () => {
     payload.files = [imageFile];
   }
 
+  // If Web Share API with files/text is supported on mobile:
   if (navigator.share) {
     try {
-      // Validate canShare with files
       if (payload.files && (navigator as any).canShare && !(navigator as any).canShare({ files: payload.files })) {
         delete payload.files;
       }
@@ -861,18 +950,14 @@ const handleShare = async () => {
           if (imageFile) downloadProductImage();
           return;
         } catch {
-          // Fall through to copy & auto download
+          // Fall through to desktop fallback
         }
       }
     }
   }
 
-  // Fallback for Desktop / Unsupported Web Share:
-  // 1. Copy text to clipboard
-  await copyText(textToShare, 'Caption disalin! Gambar promo otomatis diunduh.');
-  // 2. Auto-download image so user has it ready to attach on WhatsApp Web / Sosmed
-  if (p.image_url) {
-    await downloadProductImage();
-  }
+  // Fallback for Desktop PCs / Browsers without native share picker:
+  // Automatically open WhatsApp Web with caption text & trigger image download!
+  await shareToWhatsApp();
 };
 </script>
